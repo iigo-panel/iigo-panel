@@ -1,3 +1,5 @@
+using System;
+
 namespace IISControlPanel.Data
 {
     public class WeatherForecast
