@@ -1,5 +1,6 @@
 using IISControlPanel.Areas.Identity;
 using IISControlPanel.Data;
+using IISControlPanel.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -32,6 +33,7 @@ namespace IISControlPanel
             builder.Services.AddServerSideBlazor();
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
             builder.Services.AddSingleton<WeatherForecastService>();
+            builder.Services.AddSingleton<IISService>();
 
             var app = builder.Build();
 

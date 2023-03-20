@@ -1,9 +1,42 @@
 ﻿@page "/"
+@using Microsoft.Web.Administration
+@using IISControlPanel.Services
+@inject IISService IISService
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Dashboard</h1>
 
-Welcome to your new app.
+@if (appPools == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var pool in appPools)
+            {
+                <tr>
+                    <td>@pool.Name</td>
+                    <td>@pool.State</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+@code {
+	List<ApplicationPool> appPools;
+
+    protected override async Task OnInitializedAsync()
+    {
+        appPools = await IISService.GetAppPools();
+    }
+}
