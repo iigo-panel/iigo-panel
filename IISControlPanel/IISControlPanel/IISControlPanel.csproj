@@ -42,5 +42,9 @@
       <HintPath>..\..\lib\Microsoft.Web.Administration.dll</HintPath>
     </Reference>
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Areas\Identity\Data\" />
+  </ItemGroup>
 
 </Project>

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IISControlPanel.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230320215104_identity")]
-    partial class identity
+    [Migration("20230322224706_AddIdentity")]
+    partial class AddIdentity
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
