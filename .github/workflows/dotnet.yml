@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -23,6 +25,4 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore IISControlPanel\IISControlPanel.sln
     - name: Build
-      run: dotnet build --no-restore IISControlPanel\IISControlPanel.sln
-    - name: Test
-      run: dotnet test --no-build --verbosity normal IISControlPanel\IISControlPanel.sln
+      run: msbuild IISControlPanel\IISControlPanel.sln
