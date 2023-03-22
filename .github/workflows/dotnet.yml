@@ -23,4 +23,4 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore IISControlPanel\IISControlPanel.sln
     - name: Build
-      run: dotnet msbuild IISControlPanel\IISControlPanel.sln
+      run: msbuild IISControlPanel\IISControlPanel.sln
