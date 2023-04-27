@@ -34,6 +34,7 @@ namespace IISControlPanel
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
             builder.Services.AddSingleton<WeatherForecastService>();
             builder.Services.AddSingleton<IISService>();
+            builder.Services.AddSingleton<WindowsUpdateService>();
 
             var app = builder.Build();
 
