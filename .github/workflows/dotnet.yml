@@ -25,4 +25,4 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore IISControlPanel\IISControlPanel.sln
     - name: Build
-      run: msbuild IISControlPanel\IISControlPanel.sln
+      run: msbuild IISControlPanel\IISControlPanel.sln /verbosity:minimal
