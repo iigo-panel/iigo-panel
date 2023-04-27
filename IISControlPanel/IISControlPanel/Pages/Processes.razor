@@ -1,0 +1,43 @@
+﻿@page "/processes"
+@using System.Diagnostics
+
+<PageTitle>Processes</PageTitle>
+
+<h1>Processes</h1>
+
+@if (processes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>PID</th>
+                <th>Name</th>
+                <th>Memory Usage</th>
+                <th>Command Line</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var proc in processes)
+            {
+                <tr>
+                    <td>@proc.Id</td>
+                    <td>@proc.ProcessName</td>
+                    <td>@((proc.WorkingSet64 / 1024).ToString("#,##0")) KB</td>
+                    <td>@proc.ProcessName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    Process[] processes;
+    protected override void OnInitialized()
+    {
+        processes = Process.GetProcesses().OrderByDescending(x => x.WorkingSet64).ToArray();
+    }
+}
