@@ -1,4 +1,4 @@
-# IIS Control Panel
+# IIGO Panel
 
 Self-hosted ASP.NET application using Blazor. Designed to work on Windows Server 2012 and newer.
 
