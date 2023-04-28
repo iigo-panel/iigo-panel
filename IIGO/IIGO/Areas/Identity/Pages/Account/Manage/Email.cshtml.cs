@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace IISControlPanel.Areas.Identity.Pages.Account.Manage
+namespace IIGO.Areas.Identity.Pages.Account.Manage
 {
     public class EmailModel : PageModel
     {

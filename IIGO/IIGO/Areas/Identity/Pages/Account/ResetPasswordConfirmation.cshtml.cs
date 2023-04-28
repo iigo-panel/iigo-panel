@@ -5,7 +5,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace IISControlPanel.Areas.Identity.Pages.Account
+namespace IIGO.Areas.Identity.Pages.Account
 {
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used

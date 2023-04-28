@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace IISControlPanel.Migrations
+namespace IIGO.Migrations
 {
     /// <inheritdoc />
     public partial class AddIdentity : Migration

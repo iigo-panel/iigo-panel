@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace IISControlPanel.Data
+namespace IIGO.Data
 {
     public class WeatherForecastService
     {

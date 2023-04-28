@@ -19,7 +19,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 
-namespace IISControlPanel.Areas.Identity.Pages.Account
+namespace IIGO.Areas.Identity.Pages.Account
 {
     public class RegisterModel : PageModel
     {

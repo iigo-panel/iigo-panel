@@ -1,4 +1,4 @@
-﻿namespace IISControlPanel.Data
+﻿namespace IIGO.Data
 {
     public class IISSiteInfo
     {

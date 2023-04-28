@@ -23,6 +23,6 @@ jobs:
       with:
         dotnet-version: 7.0.x
     - name: Restore dependencies
-      run: dotnet restore IISControlPanel\IISControlPanel.sln
+      run: dotnet restore IIGO\IIGO.sln
     - name: Build
-      run: msbuild IISControlPanel\IISControlPanel.sln /verbosity:minimal
+      run: msbuild IIGO\IIGO.sln /verbosity:minimal

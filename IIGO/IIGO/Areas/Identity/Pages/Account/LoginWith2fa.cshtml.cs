@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Identity;
 
-namespace IISControlPanel.Areas.Identity.Pages.Account
+namespace IIGO.Areas.Identity.Pages.Account
 {
     public class LoginWith2faModel : PageModel
     {

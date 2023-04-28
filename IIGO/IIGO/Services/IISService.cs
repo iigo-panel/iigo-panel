@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace IISControlPanel.Services
+namespace IIGO.Services
 {
     public class IISService
     {

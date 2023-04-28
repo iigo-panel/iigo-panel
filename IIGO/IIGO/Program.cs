@@ -1,6 +1,6 @@
-using IISControlPanel.Areas.Identity;
-using IISControlPanel.Data;
-using IISControlPanel.Services;
+using IIGO.Areas.Identity;
+using IIGO.Data;
+using IIGO.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 
-namespace IISControlPanel
+namespace IIGO
 {
     public class Program
     {

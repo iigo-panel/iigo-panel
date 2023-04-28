@@ -1,6 +1,6 @@
 using System;
 
-namespace IISControlPanel.Data
+namespace IIGO.Data
 {
     public class WeatherForecast
     {

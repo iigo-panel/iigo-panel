@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace IISControlPanel.Data
+namespace IIGO.Data
 {
     public class ApplicationDbContext : IdentityDbContext
     {
