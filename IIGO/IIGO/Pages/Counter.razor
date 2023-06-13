@@ -1,6 +1,9 @@
 ﻿@page "/counter"
 @using System.Timers
+@using IIGO.Services.Interfaces
+@using IIGO.Services
 @implements IDisposable
+@inject IIGO.Program.ServiceResolver serviceResolver
 
 <PageTitle>Counter</PageTitle>
 
@@ -10,14 +13,23 @@
 
 <button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
 
+<hr />
+
+<p role="status">Service: @ServiceName</p>
+
+<button class="btn btn-secondary">Send Message</button>
+
 @code {
     private int currentCount = 0;
     private Timer timer = new(1000);
+    private string ServiceName = "";
 
     protected override void OnInitialized()
     {
         timer.Elapsed += (sender, eventArgs) => OnTimerCallback();
 
+        var service = serviceResolver(nameof(SESService));
+        ServiceName = service?.ServiceName ?? "N/A";
     }
 
     private void OnTimerCallback()
@@ -31,11 +43,11 @@
 
     private void IncrementCount()
     {
-        if (!timer.Enabled)
-            timer.Start();
-        else
-            timer.Stop();
-        //currentCount++;
+        //if (!timer.Enabled)
+        //    timer.Start();
+        //else
+        //    timer.Stop();
+        currentCount++;
     }
 
     public void Dispose() => timer.Dispose();

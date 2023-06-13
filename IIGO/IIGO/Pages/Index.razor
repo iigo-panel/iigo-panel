@@ -7,7 +7,7 @@
 
 <h1>Dashboard</h1>
 
-@if (appPools == null)
+@if (sites == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -16,16 +16,20 @@ else
     <table class="table">
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Name</th>
                 <th>Status</th>
+                <th>App Pool</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var pool in appPools)
+            @foreach (var site in sites)
             {
                 <tr>
-                    <td>@pool.Name</td>
-                    <td>@pool.State</td>
+                    <td>@site.Id</td>
+                    <td>@site.Name</td>
+                    <td>@site.State</td>
+                    <td>@site.AppPool</td>
                 </tr>
             }
         </tbody>
@@ -33,10 +37,10 @@ else
 }
 
 @code {
-	List<ApplicationPool> appPools;
+    List<dynamic> sites;
 
     protected override async Task OnInitializedAsync()
     {
-        //appPools = await IISService.GetAppPools();
+        //sites = await IISService.GetSites();
     }
 }

@@ -1,6 +1,7 @@
 using IIGO.Areas.Identity;
 using IIGO.Data;
 using IIGO.Services;
+using IIGO.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -12,11 +13,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Linq;
 
 namespace IIGO
 {
     public class Program
     {
+        public delegate IMessengerService ServiceResolver(string serviceType);
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +39,21 @@ namespace IIGO
             builder.Services.AddSingleton<WeatherForecastService>();
             builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
+
+            builder.Services.AddScoped<IMessengerService, DiscordService>();
+            builder.Services.AddScoped<IMessengerService, GoogleChatService>();
+            builder.Services.AddScoped<IMessengerService, PostmarkService>();
+            builder.Services.AddScoped<IMessengerService, SendGridService>();
+            builder.Services.AddScoped<IMessengerService, SESService>();
+            builder.Services.AddScoped<IMessengerService, SlackService>();
+            builder.Services.AddScoped<IMessengerService, SMTPService>();
+            builder.Services.AddScoped<IMessengerService, SNSService>();
+
+            builder.Services.AddTransient<ServiceResolver>(serviceProvider => serviceTypeName =>
+            {
+                var services = serviceProvider.GetServices<IMessengerService>().ToList();
+                return services.FirstOrDefault(x => x.ServiceName == serviceTypeName);
+            });
 
             var app = builder.Build();
 
@@ -56,6 +75,7 @@ namespace IIGO
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();

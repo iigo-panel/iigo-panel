@@ -1,4 +1,5 @@
-﻿using Microsoft.Web.Administration;
+﻿using IISManager.Services;
+using Microsoft.Web.Administration;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,6 +24,20 @@ namespace IIGO.Services
             catch
             {
                 return new List<ApplicationPool>();
+            }
+        }
+        public async Task<List<dynamic>> GetSites()
+        {
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    return new IISWrapper().ListWebsites();
+                });
+            }
+            catch
+            {
+                return new List<dynamic>();
             }
         }
     }
