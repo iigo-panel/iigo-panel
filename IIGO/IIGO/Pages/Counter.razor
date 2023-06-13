@@ -2,6 +2,7 @@
 @using System.Timers
 @using IIGO.Services.Interfaces
 @using IIGO.Services
+@using IIGO.Models
 @implements IDisposable
 @inject IIGO.Program.ServiceResolver serviceResolver
 
@@ -17,7 +18,7 @@
 
 <p role="status">Service: @ServiceName</p>
 
-<button class="btn btn-secondary">Send Message</button>
+<button class="btn btn-secondary" @onclick="SendMessage">Send Message</button>
 
 @code {
     private int currentCount = 0;
@@ -28,8 +29,14 @@
     {
         timer.Elapsed += (sender, eventArgs) => OnTimerCallback();
 
-        var service = serviceResolver(nameof(SESService));
+        var service = serviceResolver(nameof(SMTPService));
         ServiceName = service?.ServiceName ?? "N/A";
+    }
+
+    private async Task SendMessage()
+    {
+        var service = serviceResolver(nameof(SMTPService));
+        await service.SendMessageAsync(new MessageData(), new System.Threading.CancellationToken());
     }
 
     private void OnTimerCallback()

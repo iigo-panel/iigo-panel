@@ -56,11 +56,5 @@
   <ItemGroup>
     <None Include="wwwroot\Admin\css\Site.css" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <None Update="Data\cpdata.db">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 
 </Project>

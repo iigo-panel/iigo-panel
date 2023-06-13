@@ -59,6 +59,8 @@ namespace IIGO
 
             var app = builder.Build();
 
+            UpdateDatabase(app);
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -71,29 +73,7 @@ namespace IIGO
                 app.UseHsts();
             }
 
-            using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
-            {
-                var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-
-                if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
-                {
-                    var user = new IdentityUser { UserName = "admin", Email = "admin@iigo.dev" };
-                    var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
-                }
-            }
-            //var s = new SignInManager<IdentityUser>();
-            //if (s.UserManager.FindByNameAsync("admin").Result == null)
-            //{
-            //    _ = s.UserManager.CreateAsync(new User
-            //    {
-            //        UserName = "admin",
-            //        Email = "jarom@manwaringweb.com",
-            //        Phone = "+12085691176",
-            //        FirstName = "Jarom",
-            //        LastName = "Manwaring"
-            //    }, "Aut94L#G-a").Result;
-            //    var user = s.UserManager.FindByNameAsync("admin").Result;
-            //}
+            InstallInitialSettings(app);
 
             app.UseHttpsRedirection();
 
@@ -111,13 +91,38 @@ namespace IIGO
             app.Run();
         }
 
-        private static void UpdateDatabase(IApplicationBuilder app)
+        private static void UpdateDatabase(WebApplication app)
         {
-            using (var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            using (var serviceScope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
                 using (var context = serviceScope.ServiceProvider.GetService<ApplicationDbContext>())
                 {
                     context.Database.Migrate();
+                }
+            }
+        }
+
+        private static void InstallInitialSettings(WebApplication app)
+        {
+            using (var serviceScope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            {
+                using (var context = serviceScope.ServiceProvider.GetService<ApplicationDbContext>())
+                {
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "MessengerService") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "MessengerService", SettingValue = nameof(SMTPService) });
+
+                    context.SaveChanges();
+                }
+            }
+
+            using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            {
+                var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+
+                if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
+                {
+                    var user = new IdentityUser { UserName = "admin", Email = "admin@iigo.dev" };
+                    var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
                 }
             }
         }
