@@ -121,8 +121,17 @@ namespace IIGO
 
                 if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
                 {
-                    var user = new IdentityUser { UserName = "admin", Email = "admin@iigo.dev" };
+                    var user = new IdentityUser { UserName = "admin", Email = "admin@iigo.dev", LockoutEnabled = false, EmailConfirmed = true };
                     var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
+                }
+            }
+
+            using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            {
+                var services = scope.ServiceProvider.GetServices<IMessengerService>();
+                foreach (var service in services)
+                {
+                    service.Initialize();
                 }
             }
         }

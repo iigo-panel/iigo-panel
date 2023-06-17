@@ -10,11 +10,11 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class SMTPService : IMessengerService
+    public class SMTPService : ServiceBase, IMessengerService
     {
         private readonly ApplicationDbContext _context;
 
-        public SMTPService(ApplicationDbContext context)
+        public SMTPService(ApplicationDbContext context) : base(context)
         {
             _context = context;
         }
@@ -57,15 +57,29 @@ namespace IIGO.Services
             }
         }
 
-        private string GetSetting(string setting, string defaultValue = "")
+        public void Initialize()
         {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == setting) == null)
-            {
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = setting, SettingValue = defaultValue });
-                _context.SaveChanges();
-            }
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_FromName") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_FromName", SettingValue = "IIGO Panel" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_FromAddress") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_FromAddress", SettingValue = "admin@example.com" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_SenderName") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_SenderName", SettingValue = "IIGO Panel" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_SenderAddress") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_SenderAddress", SettingValue = "admin@example.com" });
 
-            return _context.ConfigSetting.FirstOrDefault(x => x.SettingName == setting)?.SettingValue ?? defaultValue;
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Host") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Host", SettingValue = "smtp.example.com" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Port") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Port", SettingValue = "587" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_UseSSL") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_UseSSL", SettingValue = "true" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_UserName") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_UserName", SettingValue = "user" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Password") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Password", SettingValue = "password" });
+
+            _context.SaveChanges();
         }
     }
 }

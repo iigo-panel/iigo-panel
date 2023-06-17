@@ -1,10 +1,15 @@
 ﻿@page "/counter"
+@using Microsoft.Extensions.Configuration
 @using System.Timers
 @using IIGO.Services.Interfaces
 @using IIGO.Services
 @using IIGO.Models
+@using IIGO.Data
 @implements IDisposable
 @inject IIGO.Program.ServiceResolver serviceResolver
+@inject IConfiguration configuration
+@inject ApplicationDbContext dbContext
+
 
 <PageTitle>Counter</PageTitle>
 
@@ -29,14 +34,17 @@
     {
         timer.Elapsed += (sender, eventArgs) => OnTimerCallback();
 
-        var service = serviceResolver(nameof(SMTPService));
+        var messengerService = dbContext.ConfigSetting.Single(x => x.SettingName == "MessengerService").SettingValue;
+
+        var service = serviceResolver(messengerService);
         ServiceName = service?.ServiceName ?? "N/A";
     }
 
     private async Task SendMessage()
     {
-        var service = serviceResolver(nameof(SMTPService));
-        await service.SendMessageAsync(new MessageData(), new System.Threading.CancellationToken());
+        var service = serviceResolver(ServiceName);
+        if (service != null)
+            await service.SendMessageAsync(new MessageData(), new System.Threading.CancellationToken());
     }
 
     private void OnTimerCallback()

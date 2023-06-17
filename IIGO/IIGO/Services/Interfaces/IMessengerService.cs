@@ -8,5 +8,6 @@ namespace IIGO.Services.Interfaces
     {
         string ServiceName { get; }
         Task<bool> SendMessageAsync(MessageData message, CancellationToken ct);
+        void Initialize();
     }
 }

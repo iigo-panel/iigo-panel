@@ -1,7 +1,9 @@
-﻿using IIGO.Models;
+﻿using IIGO.Data;
+using IIGO.Models;
 using IIGO.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -9,9 +11,22 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class GoogleChatService : IMessengerService
+    public class GoogleChatService : ServiceBase, IMessengerService
     {
+        private ApplicationDbContext _context;
+        public GoogleChatService(ApplicationDbContext context) : base(context)
+        {
+            _context = context;
+        }
+
         public string ServiceName => nameof(GoogleChatService);
+
+        public void Initialize()
+        {
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "GChatUrl") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "GChatUrl", SettingValue = "" });
+            _context.SaveChanges();
+        }
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
@@ -19,10 +34,9 @@ namespace IIGO.Services
             try
             {
                 using HttpClient c = new HttpClient();
-                c.BaseAddress = new Uri("");
 
                 using var sc = new StringContent(JsonSerializer.Serialize(new { text = "" }));
-                using var response = await c.PostAsync("", sc, ct);
+                using var response = await c.PostAsync(GetSetting("GChat_Url"), sc, ct);
                 if (!response.IsSuccessStatusCode)
                 {
                     var data = await response.Content.ReadAsStringAsync();

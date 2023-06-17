@@ -1,7 +1,9 @@
 ﻿@page "/"
+@using Microsoft.Extensions.Configuration
 @using Microsoft.Web.Administration
 @using IIGO.Services
 @inject IISService IISService
+@inject IConfiguration configuration
 
 <PageTitle>Index</PageTitle>
 
@@ -41,6 +43,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        //sites = await IISService.GetSites();
+        sites = await IISService.GetSites();
     }
 }
