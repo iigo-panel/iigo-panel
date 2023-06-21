@@ -68,7 +68,7 @@
         PagedPool = FormatSize(service.GetPagedPool());
         NonPagedPool = FormatSize(service.GetNonPagedPool());
         timer.Elapsed += (sender, eventArgs) => UpdateValues();
-        UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("\\d\\:\\hh\\:mm\\:ss");
+        UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:\\hh\\:mm\\:ss");
 
         timer.Start();
     }
