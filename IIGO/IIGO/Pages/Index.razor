@@ -43,6 +43,10 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        sites = await IISService.GetSites();
+        try
+        {
+            sites = await IISService.GetSites();
+        }
+        catch { }
     }
 }

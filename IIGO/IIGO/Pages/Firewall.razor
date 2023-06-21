@@ -1,0 +1,44 @@
+﻿@page "/firewall"
+@using WindowsFirewallHelper
+
+<h3>Firewall</h3>
+
+@if (rules == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Profiles</th>
+                <th>Status</th>
+                <th>Protocol</th>
+                <th>Local Ports</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rule in rules)
+            {
+                <tr>
+                    <td>@rule.FriendlyName</td>
+                    <td>@rule.Profiles.ToString()</td>
+                    <td>@(rule.IsEnable ? "Enabled" : "Disabled")</td>
+                    <td>@rule.Protocol</td>
+                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@String.Join(',', rule.LocalPorts)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<IFirewallRule> rules;
+
+    protected override void OnInitialized()
+    {
+        rules = FirewallManager.Instance.Rules.ToList();
+    }
+}

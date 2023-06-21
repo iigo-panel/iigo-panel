@@ -1,0 +1,103 @@
+﻿@page "/status"
+@using IIGO.Data
+@using IIGO.Services
+@using System.Timers
+
+<PageTitle>System Status</PageTitle>
+
+<h1>System Status</h1>
+
+<table class="table">
+    <tr>
+        <td>Total Memory:</td>
+        <td>@Total</td>
+    </tr>
+    <tr>
+        <td>Available Memory:</td>
+        <td>@Available</td>
+    </tr>
+    <tr>
+        <td>% Free:</td>
+        <td>@Percent</td>
+    </tr>
+    <tr>
+        <td>% In Use:</td>
+        <td>@PercentInUse</td>
+    </tr>
+    <tr>
+        <td>Paged Pool:</td>
+        <td>@PagedPool</td>
+    </tr>
+    <tr>
+        <td>Non-Paged Pool:</td>
+        <td>@NonPagedPool</td>
+    </tr>
+    <tr>
+        <td>Processes:</td>
+        <td><a href="/processes">@Processes</a></td>
+    </tr>
+    <tr>
+        <td>Up Time:</td>
+        <td>@UpTime</td>
+    </tr>
+</table>
+
+@code {
+    SystemStatusService service = new SystemStatusService();
+    private long totalMemory;
+    private long availableMemory;
+    private int Processes;
+    private string Total;
+    private string Available;
+    private string Percent;
+    private string PercentInUse;
+    private string PagedPool;
+    private string NonPagedPool;
+    private string UpTime;
+    private Timer timer = new(1000);
+
+    protected override void OnInitialized()
+    {
+        totalMemory = service.GetTotalMemoryInMiB(true);
+        availableMemory = service.GetPhysicalAvailableMemoryInMiB();
+        Total = FormatSize(totalMemory);
+        Available = FormatSize(availableMemory);
+        Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        Processes = service.GetProcessCount();
+        PagedPool = FormatSize(service.GetPagedPool());
+        NonPagedPool = FormatSize(service.GetNonPagedPool());
+        timer.Elapsed += (sender, eventArgs) => UpdateValues();
+        UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("\\[d\\:\\]hh\\:mm\\:ss");
+
+        timer.Start();
+    }
+
+    private void UpdateValues()
+    {
+        _ = InvokeAsync(() =>
+        {
+            totalMemory = service.GetTotalMemoryInMiB(true);
+            availableMemory = service.GetPhysicalAvailableMemoryInMiB();
+            Total = FormatSize(totalMemory);
+            Available = FormatSize(availableMemory);
+            Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+            PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+            Processes = service.GetProcessCount();
+            PagedPool = FormatSize(service.GetPagedPool());
+            NonPagedPool = FormatSize(service.GetNonPagedPool());
+            UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
+            StateHasChanged();
+        });
+    }
+
+    private string FormatSize(long size)
+    {
+        if (size > 1024)
+        {
+            return ((decimal)size / 1024m).ToString("N2") + " GB";
+        }
+
+        return size.ToString("N") + " MB";
+    }
+}

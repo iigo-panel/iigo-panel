@@ -4,6 +4,7 @@
     <TargetFramework>net7.0-windows</TargetFramework>
     <!--<Nullable>enable</Nullable>-->
     <UserSecretsId>aspnet-IISControlPanel-1063272c-c230-4d70-8b85-43ec08d948b4</UserSecretsId>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +31,13 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="7.0.5" />    
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="7.0.5" />
+    <PackageReference Include="System.Management" Version="7.0.2" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.2-beta">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
+    <PackageReference Include="StatefulReconnection" Version="0.1.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,17 +49,17 @@
     <PackageReference Include="Discord.Net.Webhook" Version="3.10.0" />
     <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.101.79" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <Reference Include="Microsoft.Web.Administration">
       <HintPath>..\..\lib\Microsoft.Web.Administration.dll</HintPath>
     </Reference>
   </ItemGroup>
-  
+
   <ItemGroup>
     <Folder Include="Areas\Identity\Data\" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Include="wwwroot\Admin\css\Site.css" />
   </ItemGroup>
