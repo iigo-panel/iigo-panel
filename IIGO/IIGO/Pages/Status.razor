@@ -2,6 +2,7 @@
 @using IIGO.Data
 @using IIGO.Services
 @using System.Timers
+@using System.Diagnostics
 
 <PageTitle>System Status</PageTitle>
 
@@ -40,6 +41,23 @@
         <td>Up Time:</td>
         <td>@UpTime</td>
     </tr>
+    @foreach (var i in interfaces)
+    {
+        var sent = i.PCSent.NextValue();
+        var received = i.PCReceived.NextValue();
+        <tr>
+            <td>Network Interface:</td>
+            <td>@i.InterfaceName</td>
+        </tr>
+        <tr>
+            <td>Sent:</td>
+            <td>@((sent / 1024).ToString("N2")) KBps / @((sent * 8 / 1024).ToString("N2")) kbps</td>
+        </tr>
+        <tr>
+            <td>Received:</td>
+            <td>@((received / 1024).ToString("N2")) KBps / @((received * 8 / 1024).ToString("N2")) kbps</td>
+        </tr>
+    }
 </table>
 
 @code {
@@ -55,9 +73,24 @@
     private string NonPagedPool;
     private string UpTime;
     private Timer timer = new(1000);
+    PerformanceCounterCategory pcg;
+    List<InterfaceStats> interfaces;
 
     protected override void OnInitialized()
     {
+        pcg = new PerformanceCounterCategory("Network Interface");
+        var pcgInstances = pcg.GetInstanceNames();
+        interfaces = new List<InterfaceStats>();
+        foreach (var i in pcgInstances)
+        {
+            interfaces.Add(new InterfaceStats
+            {
+                InterfaceName = i,
+                PCReceived = new PerformanceCounter("Network Interface", "Bytes Received/sec", i),
+                PCSent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", i),
+            });
+        }
+
         totalMemory = service.GetTotalMemoryInMiB(true);
         availableMemory = service.GetPhysicalAvailableMemoryInMiB();
         Total = FormatSize(totalMemory);
@@ -77,6 +110,18 @@
     {
         _ = InvokeAsync(() =>
         {
+            //var pcgInstances = pcg.GetInstanceNames();
+            //interfaces = new List<InterfaceStats>();
+            //foreach (var i in pcgInstances)
+            //{
+            //    interfaces.Add(new InterfaceStats
+            //    {
+            //        InterfaceName = i,
+            //        PCReceived = new PerformanceCounter("Network Interface", "Bytes Received/sec", i),
+            //        PCSent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", i),
+            //    });
+            //}
+
             totalMemory = service.GetTotalMemoryInMiB(true);
             availableMemory = service.GetPhysicalAvailableMemoryInMiB();
             Total = FormatSize(totalMemory);
@@ -99,5 +144,12 @@
         }
 
         return size.ToString("N") + " MB";
+    }
+
+    class InterfaceStats
+    {
+        public string InterfaceName { get; set; }
+        public PerformanceCounter PCSent { get; set; }
+        public PerformanceCounter PCReceived { get; set; }
     }
 }
