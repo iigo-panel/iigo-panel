@@ -12,7 +12,10 @@ else
     <table class="table">
         <thead>
             <tr>
-                <th>Name</th>
+				<th>Name</th>
+				<th>Action</th>
+				<th>Scope</th>
+				<th>Direction</th>
                 <th>Profiles</th>
                 <th>Status</th>
                 <th>Protocol</th>
@@ -23,7 +26,10 @@ else
             @foreach (var rule in rules)
             {
                 <tr>
-                    <td>@rule.FriendlyName</td>
+					<td>@rule.FriendlyName</td>
+					<td>@rule.Action</td>
+					<td>@rule.Scope</td>
+					<td>@rule.Direction</td>
                     <td>@rule.Profiles.ToString()</td>
                     <td>@(rule.IsEnable ? "Enabled" : "Disabled")</td>
                     <td>@rule.Protocol</td>
@@ -39,6 +45,6 @@ else
 
     protected override void OnInitialized()
     {
-        rules = FirewallManager.Instance.Rules.ToList();
+        rules = FirewallManager.Instance.Rules.OrderBy(x => x.FriendlyName).ToList();
     }
 }

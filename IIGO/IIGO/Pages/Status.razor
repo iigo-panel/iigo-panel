@@ -38,6 +38,10 @@
         <td><a href="/processes">@Processes</a></td>
     </tr>
     <tr>
+        <td>CPU Usage:</td>
+        <td>@CpuUsage</td>
+    </tr>
+    <tr>
         <td>Up Time:</td>
         <td>@UpTime</td>
     </tr>
@@ -72,9 +76,11 @@
     private string PagedPool;
     private string NonPagedPool;
     private string UpTime;
+    private string CpuUsage;
     private Timer timer = new(1000);
     PerformanceCounterCategory pcg;
     List<InterfaceStats> interfaces;
+    PerformanceCounter cpuUsage = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
 
     protected override void OnInitialized()
     {
@@ -102,6 +108,7 @@
         NonPagedPool = FormatSize(service.GetNonPagedPool());
         timer.Elapsed += (sender, eventArgs) => UpdateValues();
         UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:\\hh\\:mm\\:ss");
+        CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
 
         timer.Start();
     }
@@ -132,6 +139,7 @@
             PagedPool = FormatSize(service.GetPagedPool());
             NonPagedPool = FormatSize(service.GetNonPagedPool());
             UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
+            CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
             StateHasChanged();
         });
     }

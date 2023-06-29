@@ -39,6 +39,9 @@
     <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
     <PackageReference Include="StatefulReconnection" Version="0.1.0" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="7.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="7.0.0" />
+    <PackageReference Include="TaskScheduler" Version="2.10.1" />
+    <PackageReference Include="W3CParser" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -63,6 +66,12 @@
 
   <ItemGroup>
     <None Include="wwwroot\Admin\css\Site.css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\license.lic">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
