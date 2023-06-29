@@ -10,3 +10,24 @@ Windows Server 2012 may require installing Microsoft Visual C++ 2015-2019 Redist
 ## Early access
 
 Gain early access and prioritized features and issues with private discussions: [https://github.com/sponsors/ahwm](https://github.com/sponsors/ahwm)
+
+## Features
+
+- System Status (RAM/CPU/Network Usage, Processes, System Uptime)
+- Windows Update
+- Firewall Management
+- Task Scheduler
+- Notifications via:
+  - Discord
+  - Google Chat
+  - Postmark
+  - Amazon SES
+  - Amazon SNS
+  - SendGrid
+  - Slack
+  - Basic SMTP
+- IIS Management (including most administration capabilities from the IIS Console such as Website and Application Pool management)
+
+## Screenshots
+
+![image](https://github.com/ahwm/iigo-panel/assets/20478373/6b6514c0-25b9-4bcf-ba52-cde1819ccb97)
