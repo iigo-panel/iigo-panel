@@ -1,5 +1,6 @@
 ﻿@page "/firewall"
 @using WindowsFirewallHelper
+@using IIGO.Services
 
 <h3>Firewall</h3>
 
@@ -33,7 +34,7 @@ else
                     <td>@rule.Profiles.ToString()</td>
                     <td>@(rule.IsEnable ? "Enabled" : "Disabled")</td>
                     <td>@rule.Protocol</td>
-                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@String.Join(',', rule.LocalPorts)</td>
+                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@rule.AsRangeString()</td>
                 </tr>
             }
         </tbody>

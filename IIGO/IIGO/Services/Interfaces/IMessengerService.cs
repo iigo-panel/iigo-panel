@@ -7,6 +7,7 @@ namespace IIGO.Services.Interfaces
     public interface IMessengerService
     {
         string ServiceName { get; }
+        bool IsEmail { get; }
         Task<bool> SendMessageAsync(MessageData message, CancellationToken ct);
         void Initialize();
     }

@@ -19,6 +19,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(SlackService);
 
+        public bool IsEmail => false;
+
         public void Initialize()
         {
             if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "Slack_URL") == null)

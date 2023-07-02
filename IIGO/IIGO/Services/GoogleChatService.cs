@@ -21,6 +21,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(GoogleChatService);
 
+        public bool IsEmail => false;
+
         public void Initialize()
         {
             if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "GChatUrl") == null)

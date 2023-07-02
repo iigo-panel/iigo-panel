@@ -111,6 +111,15 @@ namespace IIGO
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "MessengerService") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "MessengerService", SettingValue = nameof(SMTPService) });
 
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationThreshold") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationThreshold", SettingValue = "5,30" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationEmail") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationEmail", SettingValue = "admin@example.com" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolHistoryLength") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolHistoryLength", SettingValue = "365" });
+
                     context.SaveChanges();
                 }
             }
@@ -121,7 +130,7 @@ namespace IIGO
 
                 if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
                 {
-                    var user = new IdentityUser { UserName = "admin", Email = "admin@iigo.dev", LockoutEnabled = false, EmailConfirmed = true };
+                    var user = new IdentityUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
                     var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
                 }
             }

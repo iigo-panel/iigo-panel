@@ -23,6 +23,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(SESService);
 
+        public bool IsEmail => true;
+
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
             // TODO: Get settings from DB

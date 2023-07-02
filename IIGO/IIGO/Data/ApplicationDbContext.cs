@@ -12,6 +12,7 @@ namespace IIGO.Data
         }
 
         public DbSet<ConfigSetting> ConfigSetting { get; set; }
+        public DbSet<AppPoolMonitoring> AppPoolMonitoring { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

@@ -20,6 +20,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(SendGridService);
 
+        public bool IsEmail => true;
+
         public void Initialize()
         {
             if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SG_ApiKey") == null)

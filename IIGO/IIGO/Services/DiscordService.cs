@@ -19,6 +19,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(DiscordService);
 
+        public bool IsEmail => false;
+
         public void Initialize()
         {
             if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "Discord_WebhookUrl") == null)

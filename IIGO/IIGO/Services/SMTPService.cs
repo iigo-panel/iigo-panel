@@ -21,6 +21,8 @@ namespace IIGO.Services
 
         public string ServiceName => nameof(SMTPService);
 
+        public bool IsEmail => true;
+
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
             // TODO: Get settings from DB
