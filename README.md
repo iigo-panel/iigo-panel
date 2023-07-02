@@ -13,21 +13,22 @@ Gain early access and prioritized features and issues with private discussions: 
 
 ## Features
 
-- System Status (RAM/CPU/Network Usage, Processes, System Uptime)
-- Windows Update
-- Firewall Management
-- Task Scheduler
-- Notifications via:
-  - Discord
-  - Google Chat
-  - Postmark
-  - Amazon SES
-  - Amazon SNS
-  - SendGrid
-  - Slack
-  - Basic SMTP
-- IIS Management (including most administration capabilities from the IIS Console such as Website and Application Pool management)
+* System Status (RAM/CPU/Network Usage, Processes, System Uptime)
+* Windows Update
+* Firewall Management
+* Task Scheduler
+* Notifications via:
+  * Discord
+  * Google Chat
+  * Postmark
+  * Amazon SES
+  * Amazon SNS
+  * SendGrid
+  * Slack
+  * Basic SMTP
+* IIS Management (including most administration capabilities from the IIS Console such as Website and Application Pool management)
+  * IIS Application Pool Monitoring (including restarting stopped app pools with configurable notifications)
 
 ## Screenshots
 
-![image](https://github.com/ahwm/iigo-panel/assets/20478373/6b6514c0-25b9-4bcf-ba52-cde1819ccb97)
+![image](images/IIGO_SystemStatus.png)
