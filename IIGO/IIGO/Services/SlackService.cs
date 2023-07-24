@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class SlackService : ServiceBase, IMessengerService
+    internal class SlackService : ServiceBase, IMessengerService
     {
         private readonly ApplicationDbContext _context;
         public SlackService(ApplicationDbContext context) : base(context)

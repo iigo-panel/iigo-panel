@@ -5,7 +5,7 @@ using Windows.Win32.System.ProcessStatus;
 
 namespace IIGO.Services
 {
-    public class SystemStatusService
+    internal class SystemStatusService
     {
         PERFORMANCE_INFORMATION pi = new PERFORMANCE_INFORMATION();
         bool HasPerformanceInfo = false;

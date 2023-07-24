@@ -3,7 +3,7 @@ using WUApiLib;
 
 namespace IIGO.Services
 {
-    public class WindowsUpdateService
+    internal class WindowsUpdateService
     {
         public async Task<UpdateCollection> GetUpdates()
         {

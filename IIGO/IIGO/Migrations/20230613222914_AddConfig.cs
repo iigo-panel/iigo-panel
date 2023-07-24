@@ -5,7 +5,7 @@
 namespace IIGO.Migrations
 {
     /// <inheritdoc />
-    public partial class AddConfig : Migration
+    internal partial class AddConfig : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

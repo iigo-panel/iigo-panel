@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class PostmarkService : ServiceBase, IMessengerService
+    internal class PostmarkService : ServiceBase, IMessengerService
     {
         private ApplicationDbContext _context;
         public PostmarkService(ApplicationDbContext context) : base(context)

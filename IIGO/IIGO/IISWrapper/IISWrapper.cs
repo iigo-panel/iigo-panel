@@ -9,7 +9,7 @@ using System.Xml.Linq;
 
 namespace IISManager.Services
 {
-    public sealed class IISWrapper : IDisposable
+    internal sealed class IISWrapper : IDisposable
     {
         readonly ServerManager _manager;
         public IISWrapper()
@@ -53,6 +53,16 @@ namespace IISManager.Services
                 sites.Add(new { site.Id, site.Name, State = site.State.ToString(), Bindings = site.Bindings.Select(b => b.BindingInformation).ToList(), AppPool = site.Applications[0].ApplicationPoolName });
 
             return sites;
+        }
+
+        public List<Site> ListSites()
+        {
+            return _manager.Sites.OrderBy(x => x.Name).ToList();
+        }
+
+        public List<ApplicationPool> ListPools()
+        {
+            return _manager.ApplicationPools.OrderBy(x => x.Name).ToList();
         }
 
         public dynamic GetWebsite(long id)

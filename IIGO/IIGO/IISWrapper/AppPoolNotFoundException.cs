@@ -4,7 +4,7 @@ using System.Text;
 
 namespace IISManager
 {
-    public class AppPoolNotFoundException : Exception
+    internal class AppPoolNotFoundException : Exception
     {
         public AppPoolNotFoundException() : base("Application Pool with the specified name does not exist.")
         { }

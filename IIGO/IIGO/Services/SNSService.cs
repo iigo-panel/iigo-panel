@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class SNSService : ServiceBase, IMessengerService
+    internal class SNSService : ServiceBase, IMessengerService
     {
         private readonly ApplicationDbContext _context;
         public SNSService(ApplicationDbContext context) : base(context)

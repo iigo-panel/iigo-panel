@@ -42,6 +42,7 @@
     <PackageReference Include="System.Diagnostics.EventLog" Version="7.0.0" />
     <PackageReference Include="TaskScheduler" Version="2.10.1" />
     <PackageReference Include="W3CParser" Version="1.0.0" />
+    <PackageReference Include="Whois" Version="3.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -73,5 +74,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
 </Project>

@@ -1,6 +1,6 @@
 ﻿namespace IIGO.Data
 {
-    public class IISSiteInfo
+    internal class IISSiteInfo
     {
 
     }

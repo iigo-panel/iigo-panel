@@ -2,51 +2,14 @@
 @using Microsoft.Extensions.Configuration
 @using Microsoft.Web.Administration
 @using IIGO.Services
-@inject IISService IISService
 @inject IConfiguration configuration
 
 <PageTitle>Index</PageTitle>
 
 <h1>Dashboard</h1>
 
-@if (sites == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>App Pool</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var site in sites)
-            {
-                <tr>
-                    <td>@site.Id</td>
-                    <td>@site.Name</td>
-                    <td>@site.State</td>
-                    <td>@site.AppPool</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+
 
 @code {
-    List<dynamic> sites;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            //sites = await IISService.GetSites();
-        }
-        catch { }
-    }
+    
 }

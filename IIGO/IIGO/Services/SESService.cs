@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class SESService : ServiceBase, IMessengerService
+    internal class SESService : ServiceBase, IMessengerService
     {
         private readonly ApplicationDbContext _context;
 

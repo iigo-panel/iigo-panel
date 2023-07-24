@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class DiscordService : ServiceBase, IMessengerService
+    internal class DiscordService : ServiceBase, IMessengerService
     {
-        ApplicationDbContext _context;
+        readonly ApplicationDbContext _context;
         public DiscordService(ApplicationDbContext context) : base(context)
         {
             _context = context;

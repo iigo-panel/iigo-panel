@@ -1,9 +1,10 @@
 ﻿using IIGO.Data;
 using System.Linq;
+using System.Reflection;
 
 namespace IIGO.Services
 {
-    public abstract class ServiceBase
+    internal abstract class ServiceBase
     {
         private readonly ApplicationDbContext _context;
 

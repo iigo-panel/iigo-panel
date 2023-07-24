@@ -1,10 +1,12 @@
 ﻿using IIGO.Models;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace IIGO.Services.Interfaces
 {
-    public interface IMessengerService
+    [Obfuscation(Exclude = true)]
+    internal interface IMessengerService
     {
         string ServiceName { get; }
         bool IsEmail { get; }

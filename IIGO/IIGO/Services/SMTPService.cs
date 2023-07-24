@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class SMTPService : ServiceBase, IMessengerService
+    internal class SMTPService : ServiceBase, IMessengerService
     {
         private readonly ApplicationDbContext _context;
 

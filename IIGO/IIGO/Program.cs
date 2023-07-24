@@ -19,7 +19,7 @@ namespace IIGO
 {
     public class Program
     {
-        public delegate IMessengerService ServiceResolver(string serviceType);
+        internal delegate IMessengerService ServiceResolver(string serviceType);
 
         public static void Main(string[] args)
         {
@@ -39,7 +39,7 @@ namespace IIGO
             builder.Services.AddServerSideBlazor();
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
             builder.Services.AddSingleton<WeatherForecastService>();
-            builder.Services.AddSingleton<IISService>();
+            //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
 
             builder.Services.AddScoped<IMessengerService, DiscordService>();

@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace IIGO.Services
 {
-    public static class ProcessCommandLine
+    internal static class ProcessCommandLine
     {
         private static class Win32Native
         {

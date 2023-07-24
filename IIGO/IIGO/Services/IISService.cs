@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class IISService
+    internal static class IISService
     {
-        public async Task<List<ApplicationPool>> GetAppPools()
+        public static async Task<List<ApplicationPool>> GetAppPools()
         {
             try
             {
@@ -17,7 +17,7 @@ namespace IIGO.Services
                     using (ServerManager manager = new ServerManager())
                     {
                         ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
-                        return applicationPoolCollection.ToList();
+                        return applicationPoolCollection.OrderBy(x => x.Name).ToList();
                     }
                 });
             }
@@ -26,19 +26,42 @@ namespace IIGO.Services
                 return new List<ApplicationPool>();
             }
         }
-        public async Task<List<dynamic>> GetSites()
+        public static async Task<List<Site>> GetSites()
         {
             try
             {
                 return await Task.Run(() =>
                 {
-                    return new IISWrapper().ListWebsites();
+                    return new IISWrapper().ListSites();
                 });
             }
             catch
             {
-                return new List<dynamic>();
+                return new List<Site>();
             }
+        }
+
+        public static async Task Recycle(string name)
+        {
+            var pools = await GetAppPools();
+            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            p?.Recycle();
+        }
+
+        public static async Task StartPool(string name)
+        {
+            var pools = await GetAppPools();
+            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            if (p.State == ObjectState.Stopped)
+                p?.Start();
+        }
+
+        public static async Task StopPool(string name)
+        {
+            var pools = await GetAppPools();
+            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            if (p.State == ObjectState.Started)
+                p?.Stop();
         }
     }
 }

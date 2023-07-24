@@ -10,9 +10,9 @@ using System.Linq;
 
 namespace IIGO.Services
 {
-    public class SendGridService : ServiceBase, IMessengerService
+    internal class SendGridService : ServiceBase, IMessengerService
     {
-        private ApplicationDbContext _context;
+        private readonly ApplicationDbContext _context;
         public SendGridService(ApplicationDbContext context) : base(context)
         {
             _context = context;

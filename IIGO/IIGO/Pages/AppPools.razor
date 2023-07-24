@@ -1,0 +1,74 @@
+﻿@page "/websites/apppools"
+@using IIGO.Services
+@using Microsoft.Web.Administration
+
+<PageTitle>Application Pools</PageTitle>
+
+<h1>Application Pools</h1>
+
+@if (pools == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Identity</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var pool in pools)
+            {
+                <tr>
+                    <td>@pool.Name</td>
+                    <td>@pool.State</td>
+                    <td>@pool.ProcessModel.IdentityType</td>
+                    <td>
+                        <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
+                        @if (pool.State == ObjectState.Stopped)
+                        {
+                            <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-success">Start</button>
+                        }
+                        @if (pool.State == ObjectState.Started)
+                        {
+                            <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-danger">Stop</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<ApplicationPool> pools;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            pools = await IISService.GetAppPools();
+        }
+        catch { }
+    }
+
+    protected async Task RecyclePool(string poolName)
+    {
+        await IISService.Recycle(poolName);
+    }
+
+    protected async Task StartPool(string poolName)
+    {
+        await IISService.StartPool(poolName);
+    }
+
+    protected async Task StopPool(string poolName)
+    {
+        await IISService.StopPool(poolName);
+    }
+}
