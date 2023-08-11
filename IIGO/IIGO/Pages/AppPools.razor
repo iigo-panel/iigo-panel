@@ -1,4 +1,4 @@
-﻿@page "/websites/apppools"
+﻿@page "/apppools"
 @using IIGO.Services
 @using Microsoft.Web.Administration
 
@@ -27,7 +27,7 @@ else
                 <tr>
                     <td>@pool.Name</td>
                     <td>@pool.State</td>
-                    <td>@pool.ProcessModel.IdentityType</td>
+                    <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
                     <td>
                         <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
                         @if (pool.State == ObjectState.Stopped)

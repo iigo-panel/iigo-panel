@@ -41,6 +41,21 @@ namespace IIGO.Services
             }
         }
 
+        public static async Task<Site> GetSite(long id)
+        {
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    return new IISWrapper().GetSite(id);
+                });
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static async Task Recycle(string name)
         {
             var pools = await GetAppPools();
@@ -62,6 +77,34 @@ namespace IIGO.Services
             var p = pools.SingleOrDefault(pool => pool.Name == name);
             if (p.State == ObjectState.Started)
                 p?.Stop();
+        }
+
+        public static async Task RestartSite(long siteId)
+        {
+            var site = await GetSite(siteId);
+            if (site != null)
+            {
+                site.Stop();
+                site.Start();
+            }
+        }
+
+        public static async Task StopSite(long siteId)
+        {
+            var site = await GetSite(siteId);
+            if (site != null)
+            {
+                site.Stop();
+            }
+        }
+
+        public static async Task StartSite(long siteId)
+        {
+            var site = await GetSite(siteId);
+            if (site != null)
+            {
+                site.Start();
+            }
         }
     }
 }

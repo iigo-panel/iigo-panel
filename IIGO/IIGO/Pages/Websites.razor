@@ -20,6 +20,7 @@ else
                 <th>Status</th>
                 <th>Binding</th>
                 <th>Path</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -27,10 +28,21 @@ else
             {
                 <tr>
                     <td>@site.Id</td>
-                    <td>@site.Name</td>
+                    <td><a href="/websites/@site.Id">@site.Name</a></td>
                     <td>@site.State</td>
                     <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@String.Join(";", site.Bindings.Select(x => x.BindingInformation))</td>
                     <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@site.Applications[0].VirtualDirectories[0].PhysicalPath</td>
+                    <td>
+                        <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-primary">Restart</button>&nbsp;
+                        @if (site.State == ObjectState.Stopped)
+                        {
+                            <button @onclick="@(e => StartSite(site.Id))" class="btn btn-success">Start</button>
+                        }
+                        @if (site.State == ObjectState.Started)
+                        {
+                            <button @onclick="@(e => StopSite(site.Id))" class="btn btn-danger">Stop</button>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
@@ -47,5 +59,20 @@ else
             sites = await IISService.GetSites();
         }
         catch { }
+    }
+
+    protected async Task RestartSite(long siteId)
+    {
+        await IISService.RestartSite(siteId);
+    }
+
+    protected async Task StartSite(long siteId)
+    {
+        await IISService.StartSite(siteId);
+    }
+
+    protected async Task StopSite(long siteId)
+    {
+        await IISService.StopSite(siteId);
     }
 }
