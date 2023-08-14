@@ -68,8 +68,13 @@
     </tr>
     @foreach (var d in allDrives)
     {
-        <tr>
-			<td style="vertical-align:top;">@d.Name (@d.VolumeLabel)</td>
+        var volume = "";
+        if (!String.IsNullOrWhiteSpace(d.VolumeLabel))
+        {
+            volume = $"({d.VolumeLabel})";
+        }
+        <tr class="border-bottom">
+            <td style="vertical-align:top;">@d.Name @volume</td>
             <td>
                 <dl>
                     <dt>Total Disk Space</dt>
