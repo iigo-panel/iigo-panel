@@ -1,0 +1,44 @@
+﻿@page "/users"
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<IdentityUser> _userManager
+@attribute [Authorize(Roles = "Administrator")]
+
+<h3>Users</h3>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.Id</td>
+                    <td>@user.UserName</td>
+                    <td>@user.Email</td>
+                    <td></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<IdentityUser> users;
+
+    protected override void OnInitialized()
+    {
+        users = _userManager.Users.ToList();
+    }
+}

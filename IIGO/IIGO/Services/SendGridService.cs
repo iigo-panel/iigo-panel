@@ -18,7 +18,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(SendGridService);
+        public string ServiceName => "SendGrid Email Relay";
+        public string ServiceIdentifier => nameof(SendGridService);
 
         public bool IsEmail => true;
 

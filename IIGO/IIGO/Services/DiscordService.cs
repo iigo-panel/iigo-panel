@@ -17,7 +17,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(DiscordService);
+        public string ServiceName => "Discord";
+        public string ServiceIdentifier => nameof(DiscordService);
 
         public bool IsEmail => false;
 

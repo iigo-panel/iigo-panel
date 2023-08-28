@@ -19,7 +19,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(GoogleChatService);
+        public string ServiceName => "Google Chat";
+        public string ServiceIdentifier => nameof(GoogleChatService);
 
         public bool IsEmail => false;
 

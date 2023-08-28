@@ -1,3 +1,4 @@
+using Discord;
 using IIGO.Areas.Identity;
 using IIGO.Data;
 using IIGO.Services;
@@ -8,11 +9,14 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.Linq;
 
 namespace IIGO
@@ -23,22 +27,48 @@ namespace IIGO
 
         public static void Main(string[] args)
         {
+            if (EventLog.SourceExists(Constants.EventLogSource))
+            {
+                var source = EventLog.LogNameFromSourceName(Constants.EventLogSource, ".");
+                if (source == "Application")
+                {
+                    EventLog.DeleteEventSource(Constants.EventLogSource);
+                    EventLog.CreateEventSource(Constants.EventLogSource, Constants.EventLogName);
+                    return;
+                }
+            }
+            //if (!EventLog.SourceExists(Constants.EventLogSource))
+            //    EventLog.CreateEventSource(Constants.EventLogSource, Constants.EventLogName);
+
             var builder = WebApplication.CreateBuilder(args);
-            builder.Host.UseWindowsService();
+            builder.Logging.AddEventLog(eventLogSettings =>
+            {
+                eventLogSettings.SourceName = Constants.EventLogSource;
+                eventLogSettings.LogName = Constants.EventLogName;
+            });
+            builder.Host.UseWindowsService(options =>
+            {
+                options.ServiceName = "IIGO Panel Service";
+            });
 
             // Add services to the container.
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            var conn = new SqliteConnectionStringBuilder(connectionString);
+            conn.DataSource = AppDomain.CurrentDomain.MapPath(conn.DataSource);
+            EventLog.WriteEntry(Constants.EventLogSource, $"Attempting to connect to database using connection string: {connectionString}", EventLogEntryType.Information, 1000);
+            EventLog.WriteEntry(Constants.EventLogSource, $"Transformed DataSource: {conn.DataSource}", EventLogEntryType.Information, 1000);
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlite(connectionString));
+                options.UseSqlite(conn.ConnectionString));
 #if DEBUG
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 #endif
             builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+                .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             builder.Services.AddRazorPages();
             builder.Services.AddServerSideBlazor();
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
-            builder.Services.AddSingleton<WeatherForecastService>();
+            builder.Services.AddScoped<ConfigurationService>();
             //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
 
@@ -127,11 +157,33 @@ namespace IIGO
             using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
                 var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+                if (roleManager.FindByNameAsync("Administrator").GetAwaiter().GetResult() == null)
+                {
+                    var result = roleManager.CreateAsync(new IdentityRole { Name = "Administrator" }).GetAwaiter().GetResult();
+                }
 
                 if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
                 {
                     var user = new IdentityUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
                     var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
+                    if (result.Succeeded)
+                    {
+                        user = manager.FindByNameAsync("admin").GetAwaiter().GetResult();
+                        manager.AddToRoleAsync(user, "Administrator");
+                    }
+                }
+
+                if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() is IdentityUser admin)
+                {
+                    if (admin != null)
+                    {
+                        if (!manager.IsInRoleAsync(admin, "Administrator").GetAwaiter().GetResult())
+                        {
+                            manager.AddToRoleAsync(admin, "Administrator");
+                        }
+                    }
                 }
             }
 

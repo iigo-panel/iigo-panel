@@ -17,7 +17,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(SlackService);
+        public string ServiceName => "Slack";
+        public string ServiceIdentifier => nameof(SlackService);
 
         public bool IsEmail => false;
 

@@ -3,7 +3,8 @@
 @using IIGO.Services
 @using WUApiLib
 @inject WindowsUpdateService windowsUpdateService
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Administrator")]
+
 
 <PageTitle>Check Updates</PageTitle>
 

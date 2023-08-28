@@ -20,7 +20,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(SNSService);
+        public string ServiceName => "Simple Notification Service (Amazon SNS)";
+        public string ServiceIdentifier => nameof(SNSService);
 
         public bool IsEmail => false;
 

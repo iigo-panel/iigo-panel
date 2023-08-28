@@ -21,7 +21,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(SESService);
+        public string ServiceName => "Simple Email Service (Amazon SES)";
+        public string ServiceIdentifier => nameof(SESService);
 
         public bool IsEmail => true;
 

@@ -19,7 +19,8 @@ namespace IIGO.Services
             _context = context;
         }
 
-        public string ServiceName => nameof(SMTPService);
+        public string ServiceName => "SMTP Email Relay";
+        public string ServiceIdentifier => nameof(SMTPService);
 
         public bool IsEmail => true;
 
