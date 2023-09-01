@@ -1,6 +1,7 @@
 ﻿@page "/status"
 @using IIGO.Data
 @using IIGO.Services
+@using System.Net.NetworkInformation
 @using System.Timers
 @using System.Diagnostics
 @using System.IO;
@@ -50,9 +51,20 @@
     {
         var sent = i.PCSent.NextValue();
         var received = i.PCReceived.NextValue();
-        <tr>
+        <tr style="border-top:2px solid #000;">
             <td>Network Interface:</td>
             <td>@i.InterfaceName</td>
+        </tr>
+        <tr>
+            <td style="vertical-align:top;"></td>
+            <td>
+                <ul class="list-group">
+                @foreach (var address in GetIPAddresses(i.InterfaceName))
+                {
+                    <li class="list-group-item">@address</li>
+                }
+                </ul>
+            </td>
         </tr>
         <tr>
             <td>Sent:</td>
@@ -63,7 +75,7 @@
             <td>@((received / 1024).ToString("N2")) KBps / @((received * 8 / 1024).ToString("N2")) kbps</td>
         </tr>
     }
-    <tr>
+    <tr style="border-top:2px solid #000;">
         <td colspan="2"><h3>Drive Info</h3></td>
     </tr>
     @foreach (var d in allDrives)
@@ -140,6 +152,11 @@
         allDrives = DriveInfo.GetDrives().Where(x => x.DriveType == DriveType.Fixed).ToArray();
 
         timer.Start();
+    }
+
+    private List<string> GetIPAddresses(string ni)
+    {
+        return NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(x => x.Description == ni)?.GetIPProperties().UnicastAddresses.Select(x => x.Address.ToString()).ToList() ?? new List<string>();
     }
 
     private void UpdateValues()
