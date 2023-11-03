@@ -38,6 +38,11 @@ main {
     height: 3.5rem;
     display: flex;
     align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
 }
 
     .bottom-row img {
@@ -87,7 +92,7 @@ main {
     }
 
     .bottom-row {
-        position: sticky;
+        /*position: sticky;*/
         z-index: 1;
     }
 
