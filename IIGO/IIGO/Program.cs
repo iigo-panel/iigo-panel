@@ -1,14 +1,11 @@
-using Discord;
+using AsyncAwaitBestPractices;
 using IIGO.Areas.Identity;
 using IIGO.Data;
 using IIGO.Services;
 using IIGO.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace IIGO
 {
@@ -67,6 +65,7 @@ namespace IIGO
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
             builder.Services.Configure<DataProtectionTokenProviderOptions>(opt => opt.TokenLifespan = TimeSpan.FromHours(2));
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents().AddCircuitOptions(opt => opt.DetailedErrors = true);
             builder.Services.AddRazorPages();
             builder.Services.AddServerSideBlazor();
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
@@ -105,7 +104,7 @@ namespace IIGO
                 app.UseHsts();
             }
 
-            InstallInitialSettings(app);
+            InstallInitialSettings(app).SafeFireAndForget();
 
             app.UseHttpsRedirection();
 
@@ -118,7 +117,9 @@ namespace IIGO
 
             app.MapControllers();
             app.MapBlazorHub();
+            //app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
             app.MapFallbackToPage("/_Host");
+            //app.MapFallbackToController("Blazor", "Home");
 
             app.Run();
         }
@@ -134,7 +135,7 @@ namespace IIGO
             }
         }
 
-        private static void InstallInitialSettings(WebApplication app)
+        private static async Task InstallInitialSettings(WebApplication app)
         {
             using (var serviceScope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
@@ -161,29 +162,29 @@ namespace IIGO
                 var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-                if (roleManager.FindByNameAsync("Administrator").GetAwaiter().GetResult() == null)
+                if (await roleManager.FindByNameAsync("Administrator") == null)
                 {
-                    var result = roleManager.CreateAsync(new IdentityRole { Name = "Administrator" }).GetAwaiter().GetResult();
+                    var result = await roleManager.CreateAsync(new IdentityRole { Name = "Administrator" });
                 }
 
-                if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() == null)
+                if (await manager.FindByNameAsync("admin") == null)
                 {
                     var user = new IdentityUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
-                    var result = manager.CreateAsync(user, "IIGOAdmin#10").GetAwaiter().GetResult();
+                    var result = await manager.CreateAsync(user, "IIGOAdmin#10");
                     if (result.Succeeded)
                     {
-                        user = manager.FindByNameAsync("admin").GetAwaiter().GetResult();
-                        manager.AddToRoleAsync(user, "Administrator");
+                        user = await manager.FindByNameAsync("admin");
+                        await manager.AddToRoleAsync(user, "Administrator");
                     }
                 }
 
-                if (manager.FindByNameAsync("admin").GetAwaiter().GetResult() is IdentityUser admin)
+                if (await manager.FindByNameAsync("admin") is IdentityUser admin)
                 {
                     if (admin != null)
                     {
-                        if (!manager.IsInRoleAsync(admin, "Administrator").GetAwaiter().GetResult())
+                        if (!await manager.IsInRoleAsync(admin, "Administrator"))
                         {
-                            manager.AddToRoleAsync(admin, "Administrator");
+                            await manager.AddToRoleAsync(admin, "Administrator");
                         }
                     }
                 }
