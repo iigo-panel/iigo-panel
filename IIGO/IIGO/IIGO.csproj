@@ -36,8 +36,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" />
-    <PackageReference Include="NuGet.Protocol" Version="6.3.3" />
-    <PackageReference Include="NuGet.Common" Version="6.3.3" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.2-beta">
       <PrivateAssets>all</PrivateAssets>
@@ -51,6 +49,15 @@
     <PackageReference Include="Whois" Version="3.0.1" />
     <PackageReference Include="AsyncAwaitBestPractices" Version="7.0.0" />
   </ItemGroup>
+
+  <!-- Transitive dependencies that had vulnerabilities -->
+  <ItemGroup>
+    <PackageReference Include="NuGet.Protocol" Version="6.3.3" />
+    <PackageReference Include="NuGet.Common" Version="6.3.3" />
+    <PackageReference Include="Azure.Identity" Version="1.10.4" />
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.0" />
+  </ItemGroup
 
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.3.0" />
