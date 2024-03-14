@@ -53,7 +53,6 @@
   <!-- Transitive dependencies that had vulnerabilities -->
   <ItemGroup>
     <PackageReference Include="NuGet.Protocol" Version="6.3.4" />
-    <PackageReference Include="NuGet.packaging" Version="6.3.4" />
     <PackageReference Include="NuGet.Common" Version="6.3.4" />
     <PackageReference Include="Azure.Identity" Version="1.10.4" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
