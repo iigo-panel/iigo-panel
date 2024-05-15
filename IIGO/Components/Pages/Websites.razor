@@ -1,0 +1,78 @@
+﻿@page "/websites"
+@using IIGO.Services
+@using Microsoft.Web.Administration
+
+<PageTitle>Websites</PageTitle>
+
+<h1>Websites</h1>
+
+@if (sites == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Binding</th>
+                <th>Path</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var site in sites)
+            {
+                <tr>
+                    <td>@site.Id</td>
+                    <td><a href="/websites/@site.Id">@site.Name</a></td>
+                    <td>@site.State</td>
+                    <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@String.Join(";", site.Bindings.Select(x => x.BindingInformation))</td>
+                    <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@site.Applications[0].VirtualDirectories[0].PhysicalPath</td>
+                    <td>
+                        <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-primary">Restart</button>&nbsp;
+                        @if (site.State == ObjectState.Stopped)
+                        {
+                            <button @onclick="@(e => StartSite(site.Id))" class="btn btn-success">Start</button>
+                        }
+                        @if (site.State == ObjectState.Started)
+                        {
+                            <button @onclick="@(e => StopSite(site.Id))" class="btn btn-danger">Stop</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code{
+    List<Site>? sites;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            sites = await IISService.GetSites();
+        }
+        catch { }
+    }
+
+    protected async Task RestartSite(long siteId)
+    {
+        await IISService.RestartSite(siteId);
+    }
+
+    protected async Task StartSite(long siteId)
+    {
+        await IISService.StartSite(siteId);
+    }
+
+    protected async Task StopSite(long siteId)
+    {
+        await IISService.StopSite(siteId);
+    }
+}

@@ -36,15 +36,15 @@ namespace IIGO.Services
         {
             var parts = new List<string>();
 
-            foreach (var range in ranges)
+            foreach (var (from, to) in ranges)
             {
-                if (range.from == range.to)
+                if (from == to)
                 {
-                    parts.Add(range.from.ToString());
+                    parts.Add(from.ToString());
                 }
                 else
                 {
-                    parts.Add(range.@from + "-" + range.to);
+                    parts.Add(@from + "-" + to);
                 }
             }
 
@@ -55,11 +55,8 @@ namespace IIGO.Services
 
         public static string MapPath(this AppDomain domain, string path)
         {
-            if (domain == null)
-                throw new ArgumentNullException(nameof(domain));
-
-            if (path == null) 
-                throw new ArgumentNullException(path);
+            ArgumentNullException.ThrowIfNull(domain);
+            ArgumentNullException.ThrowIfNull(path);
 
             if (!path.StartsWith("~\\"))
                 return path;

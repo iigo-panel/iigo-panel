@@ -30,20 +30,20 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.5" />
-    <PackageReference Include="System.Management" Version="8.0.5" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.2-beta">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
     <PackageReference Include="StatefulReconnection" Version="0.1.0" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.5" />
-    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.5" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.0" />
     <PackageReference Include="TaskScheduler" Version="2.10.1" />
     <PackageReference Include="W3CParser" Version="1.0.0" />
     <PackageReference Include="Whois" Version="3.0.1" />
@@ -60,6 +60,8 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="6.35.0" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.3.1" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.61.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,7 +76,7 @@
 
   <ItemGroup>
     <Reference Include="Microsoft.Web.Administration">
-      <HintPath>..\..\lib\Microsoft.Web.Administration.dll</HintPath>
+      <HintPath>..\lib\Microsoft.Web.Administration.dll</HintPath>
     </Reference>
   </ItemGroup>
 

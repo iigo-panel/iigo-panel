@@ -1,0 +1,49 @@
+﻿@page "/license"
+@using IIGO.Services
+
+<h3>License Status</h3>
+
+@if (!isLoaded || licenseData == null)
+{
+    <p><em>Invalid License!</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Company</th>
+                <th>Initial Version</th>
+                <th>Date</th>
+                <th>Term</th>
+                <th>Type</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>@licenseData.CompanyName</td>
+                <td>@licenseData.InitialVersion</td>
+                <td>@licenseData.LicenseDate</td>
+                <td>@licenseData.LicenseTerm</td>
+                <td>@licenseData.LicenseType</td>
+                <td>@(licenseStatus ? "Valid" : "Invalid")</td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+
+@code {
+    LicenseData? licenseData;
+    bool licenseStatus;
+    bool isLoaded = false;
+
+	protected override void OnInitialized()
+	{
+		licenseStatus = LicenseKeyService.ValidateLicense(out var license);
+		if (licenseStatus)
+			licenseData = license;
+        isLoaded = true;
+	}
+}

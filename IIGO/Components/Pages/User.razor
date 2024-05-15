@@ -1,0 +1,51 @@
+﻿@page "/users/{id}"
+@using IIGO.Data
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Mvc.Rendering
+@inject UserManager<ApplicationUser> _userManager
+@inject RoleManager<IdentityRole> _roleManager
+@attribute [Authorize(Roles = "Administrator")]
+
+<h3>User</h3>
+
+@if (user == null)
+{
+    
+}
+else
+{
+    <select class="form-select" multiple>
+        @foreach (var r in roles)
+        {
+            <option value="@r.Value" selected="@r.Selected">@r.Text</option>
+        }
+    </select>
+}
+
+@code {
+    ApplicationUser? user;
+    List<SelectListItem> roles = new List<SelectListItem>();
+
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await _userManager.FindByIdAsync(Id);
+        if (user != null)
+        {
+            var r = (List<string>)await _userManager.GetRolesAsync(user);
+            roles = _roleManager.Roles.Select(x => new SelectListItem(x.Name, x.Id) { Selected = r.Contains(x.Name!) }).ToList();
+        }
+    }
+
+    async Task ResetPassword(string id)
+    {
+        var u = await _userManager.FindByIdAsync(id);
+        if (u != null)
+        {
+            string resetToken = await _userManager.GeneratePasswordResetTokenAsync(u);
+            IdentityResult passwordChangeResult = await _userManager.ResetPasswordAsync(u, resetToken, "");
+        }
+    }
+}

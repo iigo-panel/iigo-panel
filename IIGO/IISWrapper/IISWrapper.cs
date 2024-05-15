@@ -164,7 +164,7 @@ namespace IISManager.Services
         public void UpdateAppPoolLimits(string appPoolName, long cpuLimit)
         {
             Configuration config = _manager.GetApplicationHostConfiguration();
-            ConfigurationSection applicationPoolsSection = config.GetSection("system.applicationHost/applicationPools");
+            Microsoft.Web.Administration.ConfigurationSection applicationPoolsSection = config.GetSection("system.applicationHost/applicationPools");
             ConfigurationElementCollection applicationPoolsCollection = applicationPoolsSection.GetCollection();
             ConfigurationElement addElement = FindElement(applicationPoolsCollection, "add", "name", appPoolName);
 

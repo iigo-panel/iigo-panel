@@ -1,0 +1,210 @@
+﻿@page "/status"
+@using IIGO.Data
+@using IIGO.Services
+@using System.Net.NetworkInformation
+@using System.Timers
+@using System.Diagnostics
+@using System.IO;
+@attribute [StreamRendering]
+
+<PageTitle>System Status</PageTitle>
+
+<h1>System Status</h1>
+
+<table class="table">
+    <tr>
+        <td>Total Memory:</td>
+        <td>@Total</td>
+    </tr>
+    <tr>
+        <td>Available Memory:</td>
+        <td>@Available</td>
+    </tr>
+    <tr>
+        <td>% Free:</td>
+        <td>@Percent</td>
+    </tr>
+    <tr>
+        <td>% In Use:</td>
+        <td>@PercentInUse</td>
+    </tr>
+    <tr>
+        <td>Paged Pool:</td>
+        <td>@PagedPool</td>
+    </tr>
+    <tr>
+        <td>Non-Paged Pool:</td>
+        <td>@NonPagedPool</td>
+    </tr>
+    <tr>
+        <td>Processes:</td>
+        <td><a href="/processes">@Processes</a></td>
+    </tr>
+    <tr>
+        <td>CPU Usage:</td>
+        <td>@CpuUsage</td>
+    </tr>
+    <tr>
+        <td>Up Time:</td>
+        <td>@UpTime</td>
+    </tr>
+    @foreach (var i in interfaces)
+    {
+        var sent = i.PCSent!.NextValue();
+        var received = i.PCReceived!.NextValue();
+        <tr style="border-top:2px solid #000;">
+            <td>Network Interface:</td>
+            <td>@i.InterfaceName</td>
+        </tr>
+        <tr>
+            <td style="vertical-align:top;"></td>
+            <td>
+                <ul class="list-group">
+                @foreach (var address in GetIPAddresses(i.InterfaceName!))
+                {
+                    <li class="list-group-item">@address</li>
+                }
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>Sent:</td>
+            <td>@((sent / 1024).ToString("N2")) KBps / @((sent * 8 / 1024).ToString("N2")) kbps</td>
+        </tr>
+        <tr>
+            <td>Received:</td>
+            <td>@((received / 1024).ToString("N2")) KBps / @((received * 8 / 1024).ToString("N2")) kbps</td>
+        </tr>
+    }
+    <tr style="border-top:2px solid #000;">
+        <td colspan="2"><h3>Drive Info</h3></td>
+    </tr>
+    @foreach (var d in allDrives)
+    {
+        var volume = "";
+        if (!String.IsNullOrWhiteSpace(d.VolumeLabel))
+        {
+            volume = $"({d.VolumeLabel})";
+        }
+        <tr class="border-bottom">
+            <td style="vertical-align:top;">@d.Name @volume</td>
+            <td>
+                <dl>
+                    <dt>Total Disk Space</dt>
+                    <dd>@((d.TotalSize / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dt>Total Free Space</dt>
+                    <dd>@((d.TotalFreeSpace / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dt>Total Space Used</dt>
+                    <dd>@(((double)(d.TotalSize - d.TotalFreeSpace) / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dt>% Free</dt>
+                    <dd>@(Convert.ToDecimal(((double)d.TotalFreeSpace / ((double)d.TotalSize)) * 100).ToString("###.##"))%</dd>
+                </dl>
+            </td>
+        </tr>
+    }
+</table>
+
+@code {
+    SystemStatusService service = new SystemStatusService();
+    private long totalMemory;
+    private long availableMemory;
+    private int Processes;
+    private string? Total;
+    private string? Available;
+    private string? Percent;
+    private string? PercentInUse;
+    private string? PagedPool;
+    private string? NonPagedPool;
+    private string? UpTime;
+    private string? CpuUsage;
+    private Timer timer = new(1000);
+    PerformanceCounterCategory? pcg;
+    List<InterfaceStats> interfaces = [];
+    PerformanceCounter cpuUsage = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
+    DriveInfo[] allDrives = [];
+
+    protected override void OnInitialized()
+    {
+        pcg = new PerformanceCounterCategory("Network Interface");
+        var pcgInstances = pcg.GetInstanceNames();
+        interfaces = new List<InterfaceStats>();
+        foreach (var i in pcgInstances)
+        {
+            interfaces.Add(new InterfaceStats
+            {
+                InterfaceName = i,
+                PCReceived = new PerformanceCounter("Network Interface", "Bytes Received/sec", i),
+                PCSent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", i),
+            });
+        }
+
+        totalMemory = service.GetTotalMemoryInMiB(true);
+        availableMemory = service.GetPhysicalAvailableMemoryInMiB();
+        Total = FormatSize(totalMemory);
+        Available = FormatSize(availableMemory);
+        Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        Processes = service.GetProcessCount();
+        PagedPool = FormatSize(service.GetPagedPool());
+        NonPagedPool = FormatSize(service.GetNonPagedPool());
+        timer.Elapsed += (sender, eventArgs) => UpdateValues();
+        UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:\\hh\\:mm\\:ss");
+        CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
+        allDrives = DriveInfo.GetDrives().Where(x => x.DriveType == DriveType.Fixed).ToArray();
+
+        timer.Start();
+    }
+
+    private List<string> GetIPAddresses(string ni)
+    {
+        return NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(x => x.Description == ni)?.GetIPProperties().UnicastAddresses.Select(x => x.Address.ToString()).ToList() ?? new List<string>();
+    }
+
+    private void UpdateValues()
+    {
+        _ = InvokeAsync(() =>
+        {
+            //var pcgInstances = pcg.GetInstanceNames();
+            //interfaces = new List<InterfaceStats>();
+            //foreach (var i in pcgInstances)
+            //{
+            //    interfaces.Add(new InterfaceStats
+            //    {
+            //        InterfaceName = i,
+            //        PCReceived = new PerformanceCounter("Network Interface", "Bytes Received/sec", i),
+            //        PCSent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", i),
+            //    });
+            //}
+
+            totalMemory = service.GetTotalMemoryInMiB(true);
+            availableMemory = service.GetPhysicalAvailableMemoryInMiB();
+            Total = FormatSize(totalMemory);
+            Available = FormatSize(availableMemory);
+            Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+            PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+            Processes = service.GetProcessCount();
+            PagedPool = FormatSize(service.GetPagedPool());
+            NonPagedPool = FormatSize(service.GetNonPagedPool());
+            UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
+            CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
+            StateHasChanged();
+        });
+    }
+
+    private string FormatSize(long size)
+    {
+        if (size > 1024)
+        {
+            return ((decimal)size / 1024m).ToString("N2") + " GB";
+        }
+
+        return size.ToString("N") + " MB";
+    }
+
+    class InterfaceStats
+    {
+        public string? InterfaceName { get; set; }
+        public PerformanceCounter? PCSent { get; set; }
+        public PerformanceCounter? PCReceived { get; set; }
+    }
+}

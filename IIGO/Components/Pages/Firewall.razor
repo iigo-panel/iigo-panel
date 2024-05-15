@@ -1,0 +1,51 @@
+﻿@page "/firewall"
+@using WindowsFirewallHelper
+@using IIGO.Services
+
+<h3>Firewall</h3>
+
+@if (rules == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+				<th>Name</th>
+				<th>Action</th>
+				<th>Scope</th>
+				<th>Direction</th>
+                <th>Profiles</th>
+                <th>Status</th>
+                <th>Protocol</th>
+                <th>Local Ports</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var rule in rules)
+            {
+                <tr>
+					<td>@rule.FriendlyName</td>
+					<td>@rule.Action</td>
+					<td>@rule.Scope</td>
+					<td>@rule.Direction</td>
+                    <td>@rule.Profiles.ToString()</td>
+                    <td>@(rule.IsEnable ? "Enabled" : "Disabled")</td>
+                    <td>@rule.Protocol</td>
+                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@rule.AsRangeString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<IFirewallRule>? rules;
+
+    protected override void OnInitialized()
+    {
+        rules = FirewallManager.Instance.Rules.OrderBy(x => x.FriendlyName).ToList();
+    }
+}
