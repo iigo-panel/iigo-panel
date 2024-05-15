@@ -2,9 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <!--<Nullable>enable</Nullable>-->
+    <Nullable>enable</Nullable>
     <UserSecretsId>aspnet-IISControlPanel-1063272c-c230-4d70-8b85-43ec08d948b4</UserSecretsId>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishAot>False</PublishAot>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,26 +22,29 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.11.2" />
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.4" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.2" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.2-beta">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
     <PackageReference Include="StatefulReconnection" Version="0.1.0" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
@@ -51,13 +56,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MailKit" Version="4.3.0" />
-    <PackageReference Include="Postmark" Version="4.7.10" />
-    <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.300.6" />
-    <PackageReference Include="SendGrid" Version="9.28.1" />
+    <PackageReference Include="MailKit" Version="4.5.0" />
+    <PackageReference Include="Postmark" Version="5.0.0" />
+    <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.300.82" />
+    <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
-    <PackageReference Include="Discord.Net.Webhook" Version="3.13.0" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.300.6" />
+    <PackageReference Include="Discord.Net.Webhook" Version="3.14.1" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.301.30" />
   </ItemGroup>
 
   <ItemGroup>
@@ -68,6 +73,7 @@
 
   <ItemGroup>
     <Folder Include="Areas\Identity\Data\" />
+    <Folder Include="Components\" />
   </ItemGroup>
 
   <ItemGroup>
