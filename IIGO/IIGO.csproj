@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-IISControlPanel-1063272c-c230-4d70-8b85-43ec08d948b4</UserSecretsId>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>False</PublishAot>
@@ -76,17 +77,8 @@
 
   <ItemGroup>
     <Reference Include="Microsoft.Web.Administration">
-      <HintPath>..\..\lib\Microsoft.Web.Administration.dll</HintPath>
+      <HintPath>..\lib\Microsoft.Web.Administration.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Areas\Identity\Data\" />
-    <Folder Include="Components\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\Admin\css\Site.css" />
   </ItemGroup>
 
   <ItemGroup>
