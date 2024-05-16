@@ -63,6 +63,7 @@ namespace IIGO
 #endif
 
             builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+                .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
@@ -71,6 +72,7 @@ namespace IIGO
             builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
             builder.Services.AddScoped<ConfigurationService>();
+            builder.Services.AddScoped<AppPoolMonitorService>();
             //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
             builder.Services.AddScoped<IMessengerService, DiscordService>();
@@ -155,7 +157,7 @@ namespace IIGO
 
             using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
-                var manager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+                var manager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
                 if (await roleManager.FindByNameAsync("Administrator") == null)
@@ -165,7 +167,7 @@ namespace IIGO
 
                 if (await manager.FindByNameAsync("admin") == null)
                 {
-                    var user = new IdentityUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
+                    var user = new ApplicationUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
                     var result = await manager.CreateAsync(user, "IIGOAdmin#10");
                     if (result.Succeeded)
                     {
@@ -174,7 +176,7 @@ namespace IIGO
                     }
                 }
 
-                if (await manager.FindByNameAsync("admin") is IdentityUser admin)
+                if (await manager.FindByNameAsync("admin") is ApplicationUser admin)
                 {
                     if (admin != null)
                     {

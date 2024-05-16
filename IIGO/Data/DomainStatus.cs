@@ -12,8 +12,8 @@ namespace IIGO.Data
         [Key]
         public int Id { get; set; }
 
-        [Column,Required,MaxLength(120)]
-        public string DomainName { get; set; }
+        [Column, Required, MaxLength(120)]
+        public string DomainName { get; set; } = "";
 
         [Column]
         public DateTime DomainExpiration { get; set; }
@@ -22,12 +22,12 @@ namespace IIGO.Data
         public DateTime LastChecked { get; set; } = DateTime.UtcNow;
 
         [Column]
-        public string RegistrarName { get; set; }
+        public string RegistrarName { get; set; } = "";
 
         [Column]
         public bool NotifyChanges { get; set; }
 
         [Column,MaxLength(300)]
-        public string DomainNotificationEmail { get; set; }
+        public string DomainNotificationEmail { get; set; } = "";
     }
 }

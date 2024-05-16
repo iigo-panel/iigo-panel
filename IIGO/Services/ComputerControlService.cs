@@ -5,9 +5,10 @@ using System;
 
 namespace IIGO.Services
 {
+#nullable disable
     // https://ithoughthecamewithyou.com/post/Reboot-computer-in-C-NET.aspx
     // https://gist.github.com/abfo/4d556a2c9b8251914856f4128da35df9#file-nativemethods-cs
-    internal static class ComputerControlService
+    internal static partial class ComputerControlService
     {
         /// 
 
@@ -30,9 +31,11 @@ namespace IIGO.Services
                 }
 
                 // lookup the shutdown privilege
-                TOKEN_PRIVILEGES tokenPrivs = new TOKEN_PRIVILEGES();
-                tokenPrivs.PrivilegeCount = 1;
-                tokenPrivs.Privileges = new LUID_AND_ATTRIBUTES[1];
+                TOKEN_PRIVILEGES tokenPrivs = new TOKEN_PRIVILEGES
+                {
+                    PrivilegeCount = 1,
+                    Privileges = new LUID_AND_ATTRIBUTES[1]
+                };
                 tokenPrivs.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
                 if (!LookupPrivilegeValue(null,
@@ -112,7 +115,9 @@ namespace IIGO.Services
             MinorMMC = 0x00000019,
             MinorNetworkConnectivity = 0x00000014,
             MinorNetworkCard = 0x00000009,
+#pragma warning disable CA1069 // Enums values should not be duplicated
             MinorOther = 0x00000000,
+#pragma warning restore CA1069 // Enums values should not be duplicated
             MinorOtherDriver = 0x0000000e,
             MinorPowerSupply = 0x0000000a,
             MinorProcessor = 0x00000008,
@@ -157,26 +162,28 @@ namespace IIGO.Services
         private const UInt32 SE_PRIVILEGE_ENABLED = 0x00000002;
         private const string SE_SHUTDOWN_NAME = "SeShutdownPrivilege";
 
-        [DllImport("user32.dll", SetLastError = true)]
+        [LibraryImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool ExitWindowsEx(ExitWindows uFlags, ShutdownReason dwReason);
+        private static partial bool ExitWindowsEx(ExitWindows uFlags, ShutdownReason dwReason);
 
-        [DllImport("advapi32.dll", SetLastError = true)]
+        [LibraryImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool OpenProcessToken(IntPtr ProcessHandle, UInt32 DesiredAccess, out IntPtr TokenHandle);
+        private static partial bool OpenProcessToken(IntPtr ProcessHandle, UInt32 DesiredAccess, out IntPtr TokenHandle);
 
-        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [LibraryImport("advapi32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, out LUID lpLuid);
+        private static partial bool LookupPrivilegeValue(string lpSystemName, string lpName, out LUID lpLuid);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool CloseHandle(IntPtr hObject);
+        private static partial bool CloseHandle(IntPtr hObject);
 
+#pragma warning disable SYSLIB1054 // Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time
         [DllImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool AdjustTokenPrivileges(IntPtr TokenHandle,
             [MarshalAs(UnmanagedType.Bool)] bool DisableAllPrivileges,
             ref TOKEN_PRIVILEGES NewState, UInt32 Zero, IntPtr Null1, IntPtr Null2);
+#pragma warning restore SYSLIB1054 // Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time
     }
 }

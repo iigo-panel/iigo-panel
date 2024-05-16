@@ -19,7 +19,7 @@ namespace IISManager.Services
 
         public List<string> ListAppPools()
         {
-            List<string> pools = new List<string>();
+            List<string> pools = [];
             ApplicationPoolCollection appPoolCollection = _manager.ApplicationPools;
             foreach (ApplicationPool pool in appPoolCollection)
                 pools.Add(pool.Name);
@@ -27,9 +27,9 @@ namespace IISManager.Services
             return pools;
         }
 
-        public dynamic GetAppPool(string name)
+        public dynamic? GetAppPool(string name)
         {
-            ApplicationPool app = _manager.ApplicationPools.SingleOrDefault(x => x.Name == name);
+            ApplicationPool? app = _manager.ApplicationPools.SingleOrDefault(x => x.Name == name);
             if (app == null)
                 return null;
 
@@ -38,7 +38,7 @@ namespace IISManager.Services
 
         public List<dynamic> GetSitesOnAppPool(string name)
         {
-            List<dynamic> sites = new List<dynamic>();
+            List<dynamic> sites = [];
             foreach (var site in _manager.Sites.Where(x => x.Applications.FirstOrDefault()?.ApplicationPoolName == name))
                 sites.Add(new { site.Id, site.Name });
 
@@ -47,7 +47,7 @@ namespace IISManager.Services
 
         public List<dynamic> ListWebsites()
         {
-            List<dynamic> sites = new List<dynamic>();
+            List<dynamic> sites = [];
             var siteCollection = _manager.Sites.OrderBy(x => x.Name);
             foreach (Site site in siteCollection)
                 sites.Add(new { site.Id, site.Name, State = site.State.ToString(), Bindings = site.Bindings.Select(b => b.BindingInformation).ToList(), AppPool = site.Applications[0].ApplicationPoolName });
@@ -57,21 +57,21 @@ namespace IISManager.Services
 
         public List<Site> ListSites()
         {
-            return _manager.Sites.OrderBy(x => x.Name).ToList();
+            return [.. _manager.Sites.OrderBy(x => x.Name)];
         }
 
         public List<ApplicationPool> ListPools()
         {
-            return _manager.ApplicationPools.OrderBy(x => x.Name).ToList();
+            return [.. _manager.ApplicationPools.OrderBy(x => x.Name)];
         }
 
         public dynamic GetWebsite(long id)
         {
-            var site = _manager.Sites.Where(x => x.Id == id).SingleOrDefault();
+            var site = _manager.Sites.Where(x => x.Id == id).SingleOrDefault() ?? throw new NullReferenceException("Site not found");
             return new { site.Id, site.Name, Bindings = site.Bindings.Select(b => b.BindingInformation).ToList(), State = site.State.ToString(), AppPool = site.Applications[0].ApplicationPoolName };
         }
 
-        public Site GetSite(long id)
+        public Site? GetSite(long id)
         {
             return _manager.Sites.Where(x => x.Id == id).SingleOrDefault();
         }
@@ -129,13 +129,13 @@ namespace IISManager.Services
 
         public void RecycleAppPool(string appPoolName)
         {
-            var pool = _manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault();
+            var pool = _manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault() ?? throw new NullReferenceException("Application pool not found");
             pool.Recycle();
             pool.Stop();
             foreach (var p in pool.WorkerProcesses)
                 Process.GetProcessById(p.ProcessId).Kill();
 
-            while (_manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault().State != ObjectState.Stopped)
+            while (_manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault()?.State != ObjectState.Stopped)
                 Thread.Sleep(2_000);
 
             pool.Start();
@@ -166,11 +166,8 @@ namespace IISManager.Services
             Configuration config = _manager.GetApplicationHostConfiguration();
             Microsoft.Web.Administration.ConfigurationSection applicationPoolsSection = config.GetSection("system.applicationHost/applicationPools");
             ConfigurationElementCollection applicationPoolsCollection = applicationPoolsSection.GetCollection();
-            ConfigurationElement addElement = FindElement(applicationPoolsCollection, "add", "name", appPoolName);
-
-            if (addElement == null) throw new InvalidOperationException("Element not found!");
-
-            ConfigurationElement cpuElement = addElement.GetChildElement("cpu");
+            ConfigurationElement addElement = FindElement(applicationPoolsCollection, "add", "name", appPoolName) ?? throw new InvalidOperationException("Element not found!");
+			ConfigurationElement cpuElement = addElement.GetChildElement("cpu");
             cpuElement["action"] = @"Throttle";
             cpuElement["limit"] = cpuLimit;
 
@@ -243,7 +240,7 @@ namespace IISManager.Services
             _manager.Dispose();
         }
 
-        private static ConfigurationElement FindElement(ConfigurationElementCollection collection, string elementTagName, params string[] keyValues)
+        private static ConfigurationElement? FindElement(ConfigurationElementCollection collection, string elementTagName, params string[] keyValues)
         {
             foreach (ConfigurationElement element in collection)
             {
@@ -253,7 +250,7 @@ namespace IISManager.Services
                     for (int i = 0; i < keyValues.Length; i += 2)
                     {
                         object o = element.GetAttributeValue(keyValues[i]);
-                        string value = null;
+                        string? value = null;
                         if (o != null)
                         {
                             value = o.ToString();

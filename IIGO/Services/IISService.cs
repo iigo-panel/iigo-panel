@@ -23,7 +23,7 @@ namespace IIGO.Services
             }
             catch
             {
-                return new List<ApplicationPool>();
+                return [];
             }
         }
         public static async Task<List<Site>> GetSites()
@@ -37,11 +37,11 @@ namespace IIGO.Services
             }
             catch
             {
-                return new List<Site>();
+                return [];
             }
         }
 
-        public static async Task<Site> GetSite(long id)
+        public static async Task<Site?> GetSite(long id)
         {
             try
             {
@@ -67,7 +67,7 @@ namespace IIGO.Services
         {
             var pools = await GetAppPools();
             var p = pools.SingleOrDefault(pool => pool.Name == name);
-            if (p.State == ObjectState.Stopped)
+            if (p != null && p.State == ObjectState.Stopped)
                 p?.Start();
         }
 
@@ -75,7 +75,7 @@ namespace IIGO.Services
         {
             var pools = await GetAppPools();
             var p = pools.SingleOrDefault(pool => pool.Name == name);
-            if (p.State == ObjectState.Started)
+            if (p != null && p.State == ObjectState.Started)
                 p?.Stop();
         }
 
@@ -92,19 +92,13 @@ namespace IIGO.Services
         public static async Task StopSite(long siteId)
         {
             var site = await GetSite(siteId);
-            if (site != null)
-            {
-                site.Stop();
-            }
+            site?.Stop();
         }
 
         public static async Task StartSite(long siteId)
         {
             var site = await GetSite(siteId);
-            if (site != null)
-            {
-                site.Start();
-            }
+            site?.Start();
         }
     }
 }

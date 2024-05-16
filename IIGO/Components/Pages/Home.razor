@@ -1,16 +1,16 @@
 ﻿@page "/"
+@using IIGO.Data
 @using Microsoft.AspNetCore.Identity;
 @inject IConfiguration configuration
-@inject SignInManager<IdentityUser> _signinManager
-@inject UserManager<IdentityUser> _userManager
+@inject SignInManager<ApplicationUser> _signinManager
+@inject UserManager<ApplicationUser> _userManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @using System.Security.Claims
+@attribute [Authorize]
 
 <PageTitle>Home</PageTitle>
 
 <h1>Dashboard</h1>
-
-Welcome to your new app.
 
 @code {
     private string? authMessage;

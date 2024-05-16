@@ -18,7 +18,7 @@ namespace IIGO.Services
                 resp = resp.Referrer;
             if (resp.Status == WhoisStatus.Found)
             {
-                return (resp.Registrar.Name, resp.Expiration.Value);
+                return (resp.Registrar.Name, resp.Expiration!.Value);
             }
 
             return ("ERROR", DateTime.UtcNow);

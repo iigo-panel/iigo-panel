@@ -7,12 +7,17 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="position-absolute start-0 ps-3">@System.Environment.MachineName</div>
         </div>
 
         <article class="content px-4">
             @Body
         </article>
+
+        <div class="bottom-row pe-3">
+            <img src="/images/TheScripters_Icon.svg" class="position-absolute start-0 ps-3" />
+            &copy; @DateTime.Now.Year
+        </div>
     </main>
 </div>
 

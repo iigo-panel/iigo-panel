@@ -1,7 +1,8 @@
 ﻿@page "/users"
+@using IIGO.Data
 @using Microsoft.AspNetCore.Identity
 @inject NavigationManager _nav
-@inject UserManager<IdentityUser> _userManager
+@inject UserManager<ApplicationUser> _userManager
 @inject IJSRuntime JsRuntime
 @attribute [Authorize(Roles = "Administrator")]
 
@@ -41,7 +42,7 @@ else
 }
 
 @code {
-    List<IdentityUser>? users;
+    List<ApplicationUser>? users;
 
     protected override void OnInitialized()
     {

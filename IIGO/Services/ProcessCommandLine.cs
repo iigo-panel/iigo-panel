@@ -7,9 +7,10 @@ using System.Runtime.InteropServices;
 
 namespace IIGO.Services
 {
-    internal static class ProcessCommandLine
+#nullable disable
+    internal static partial class ProcessCommandLine
     {
-        private static class Win32Native
+        private static partial class Win32Native
         {
             public const uint PROCESS_BASIC_INFORMATION = 0;
 
@@ -62,33 +63,32 @@ namespace IIGO.Services
                 public UnicodeString CommandLine;
             }
 
-            [DllImport("ntdll.dll")]
-            public static extern uint NtQueryInformationProcess(
+            [LibraryImport("ntdll.dll")]
+            public static partial uint NtQueryInformationProcess(
                 IntPtr ProcessHandle,
                 uint ProcessInformationClass,
                 IntPtr ProcessInformation,
                 uint ProcessInformationLength,
                 out uint ReturnLength);
 
-            [DllImport("kernel32.dll")]
-            public static extern IntPtr OpenProcess(
+            [LibraryImport("kernel32.dll")]
+            public static partial IntPtr OpenProcess(
                 OpenProcessDesiredAccessFlags dwDesiredAccess,
                 [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
                 uint dwProcessId);
 
-            [DllImport("kernel32.dll")]
+            [LibraryImport("kernel32.dll")]
             [return: MarshalAs(UnmanagedType.Bool)]
-            public static extern bool ReadProcessMemory(
+            public static partial bool ReadProcessMemory(
                 IntPtr hProcess, IntPtr lpBaseAddress, IntPtr lpBuffer,
                 uint nSize, out uint lpNumberOfBytesRead);
 
-            [DllImport("kernel32.dll")]
+            [LibraryImport("kernel32.dll")]
             [return: MarshalAs(UnmanagedType.Bool)]
-            public static extern bool CloseHandle(IntPtr hObject);
+            public static partial bool CloseHandle(IntPtr hObject);
 
-            [DllImport("shell32.dll", SetLastError = true,
-                CharSet = CharSet.Unicode, EntryPoint = "CommandLineToArgvW")]
-            public static extern IntPtr CommandLineToArgv(string lpCmdLine, out int pNumArgs);
+            [LibraryImport("shell32.dll", EntryPoint = "CommandLineToArgvW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+            public static partial IntPtr CommandLineToArgv(string lpCmdLine, out int pNumArgs);
         }
 
         private static bool ReadStructFromProcessMemory<TStruct>(
@@ -220,7 +220,7 @@ namespace IIGO.Services
 
         public static IReadOnlyList<string> CommandLineToArgs(string commandLine)
         {
-            if (string.IsNullOrEmpty(commandLine)) { return Array.Empty<string>(); }
+            if (string.IsNullOrEmpty(commandLine)) { return []; }
 
             var argv = Win32Native.CommandLineToArgv(commandLine, out var argc);
             if (argv == IntPtr.Zero)

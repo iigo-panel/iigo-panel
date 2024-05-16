@@ -4,18 +4,8 @@ using System.Linq;
 
 namespace IIGO.Services
 {
-    internal class ConfigurationService
+    internal class ConfigurationService(ApplicationDbContext context)
     {
-        private readonly ApplicationDbContext _context;
-
-        public ConfigurationService(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        public List<ConfigSetting> GetSettings()
-        {
-            return _context.ConfigSetting.ToList();
-        }
+        public List<ConfigSetting> GetSettings() => [.. context.ConfigSetting];
     }
 }
