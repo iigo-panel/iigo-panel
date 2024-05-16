@@ -1,0 +1,46 @@
+﻿@page "/tasks"
+@using Microsoft.Win32.TaskScheduler
+@attribute [StreamRendering]
+
+<PageTitle>Scheduled Tasks</PageTitle>
+
+<h1>Tasks</h1>
+
+@if (tasks == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Last Run Time</th>
+                <th>Next Run Time</th>
+                <th>State</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in tasks)
+            {
+                <tr>
+                    <td>@task.Name</td>
+                    <td>@task.LastRunTime.ToString("g")</td>
+                    <td>@task.NextRunTime</td>
+                    <td>@task.State</td>
+                    <td>@(task.IsActive ? "Active" : "Inactive")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<Microsoft.Win32.TaskScheduler.Task>? tasks;
+    protected override void OnInitialized()
+    {
+        tasks = TaskService.Instance.RootFolder.Tasks.ToList();
+    }
+}

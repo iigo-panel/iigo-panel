@@ -1,0 +1,64 @@
+﻿@page "/users"
+@using IIGO.Data
+@using Microsoft.AspNetCore.Identity
+@inject NavigationManager _nav
+@inject UserManager<ApplicationUser> _userManager
+@inject IJSRuntime JsRuntime
+@attribute [Authorize(Roles = "Administrator")]
+
+<h3>Users</h3>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.Id</td>
+                    <td>@user.UserName</td>
+                    <td>@user.Email</td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="@(() => _nav.NavigateTo($"/users/{user.Id}"))">Edit</button>
+                        @* <button class="btn btn-success">Reset Password</button> *@
+                        <button class="btn btn-danger" @onclick="() => DeleteSymbol(user.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<ApplicationUser>? users;
+
+    protected override void OnInitialized()
+    {
+        users = _userManager.Users.ToList();
+    }
+
+    async Task DeleteSymbol(string id)
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this user?");
+        if (confirmed)
+        {
+            var u = await _userManager.FindByIdAsync(id);
+            if (u != null)
+            {
+                await _userManager.DeleteAsync(u);
+            }
+        }
+    }
+}

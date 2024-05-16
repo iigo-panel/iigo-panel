@@ -1,0 +1,22 @@
+﻿@page "/configuration"
+@using IIGO.Services.Interfaces
+@using IIGO.Services
+@using IIGO.Data
+@using Microsoft.Extensions.DependencyInjection
+@inject ConfigurationService configService
+@inject IIGO.Program.ServiceResolver serviceResolver
+@inject IServiceProvider serviceProvider
+@attribute [Authorize(Roles = "Administrator")]
+
+<h3>Configuration</h3>
+
+
+
+@code {
+    List<ConfigSetting> Config = [];
+
+    protected override void OnInitialized()
+    {
+        Config = configService.GetSettings();
+    }
+}

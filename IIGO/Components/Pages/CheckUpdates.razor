@@ -1,0 +1,46 @@
+﻿@page "/checkupdates"
+@using IIGO.Data
+@using IIGO.Services
+@using WUApiLib
+@inject WindowsUpdateService windowsUpdateService
+@attribute [Authorize(Roles = "Administrator")]
+@attribute [StreamRendering]
+
+
+<PageTitle>Check Updates</PageTitle>
+
+<h1>Check for Updates</h1>
+
+@if (updates == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (IUpdate update in updates)
+        {
+            <tr>
+                <td>@update.Title</td>
+                <td>@update.Description <em>Size: @((update.MaxDownloadSize / (decimal)Math.Pow(2, 20)).ToString("F2")) MB</em></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    UpdateCollection? updates;
+
+    protected override async Task OnInitializedAsync()
+    {
+        updates = await windowsUpdateService.GetUpdates();
+    }
+}

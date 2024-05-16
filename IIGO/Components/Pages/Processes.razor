@@ -1,0 +1,90 @@
+﻿@page "/processes"
+@using IIGO.Services
+@using System.Diagnostics
+@using System.Management
+@using System.Dynamic
+@using System.Security.Principal;
+@using System.Text;
+@using Windows.Win32
+@using System.Runtime.InteropServices
+@using Microsoft.Win32.SafeHandles
+@attribute [StreamRendering]
+
+<PageTitle>Processes</PageTitle>
+
+<h1>Processes</h1>
+
+@if (processes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>PID</th>
+                <th>Name</th>
+                <th>User</th>
+                <th>Memory Usage</th>
+                <th>Command Line</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var proc in processes)
+            {
+                <tr>
+                    <td>@proc.Id</td>
+                    <td>@proc.ProcessName</td>
+                    <td>@GetProcessUser(proc)</td>
+                    <td>@((proc.WorkingSet64 / 1024).ToString("N0")) KB</td>
+                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@GetCommandLineOfProcess(proc)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    Process[]? processes;
+    protected override void OnInitialized()
+    {
+        processes = Process.GetProcesses().OrderByDescending(x => x.WorkingSet64).ToArray();
+    }
+
+    private static string? GetProcessUser(Process process)
+    {
+        IntPtr processHandle = IntPtr.Zero;
+        try
+        {
+            OpenProcessToken(process.Handle, 8, out processHandle);
+            WindowsIdentity wi = new WindowsIdentity(processHandle);
+            string user = wi.Name;
+            return user.Contains(@"\") ? user.Substring(user.IndexOf(@"\") + 1) : user;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            if (processHandle != IntPtr.Zero)
+            {
+                CloseHandle(processHandle);
+            }
+        }
+    }
+
+    string GetCommandLineOfProcess(Process proc)
+    {
+        ProcessCommandLine.Retrieve(proc, out var cl);
+        return cl;
+    }
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+}
