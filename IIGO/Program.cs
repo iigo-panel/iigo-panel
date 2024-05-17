@@ -35,6 +35,10 @@ namespace IIGO
                 eventLogSettings.SourceName = Constants.EventLogSource;
                 eventLogSettings.LogName = Constants.EventLogName;
             });
+            builder.Host.UseWindowsService(options =>
+            {
+                options.ServiceName = "IIGO Panel Service";
+            });
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
