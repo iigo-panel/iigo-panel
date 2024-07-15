@@ -8,13 +8,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class PostmarkService : ServiceBase, IMessengerService
+    internal class PostmarkService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private readonly ApplicationDbContext _context;
-        public PostmarkService(ApplicationDbContext context) : base(context)
-        {
-            _context = context;
-        }
+        private readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "Postmark Email Relay";
         public string ServiceIdentifier => nameof(PostmarkService);
@@ -27,6 +23,8 @@ namespace IIGO.Services
                 _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_ServerToken", SettingValue = "ServerToken" });
             if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "PM_FromAddress") == null)
                 _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_FromAddress", SettingValue = "admin@example.com" });
+            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "PM_MessageStream") == null)
+                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_MessageStream", SettingValue = "outbound" });
             _context.SaveChanges();
         }
 
@@ -35,7 +33,7 @@ namespace IIGO.Services
             // TODO: Get settings from DB
             try
             {
-                var msg = new PostmarkMessage(GetSetting("PM_FromAddress"), "", "", "", "");
+                var msg = new PostmarkMessage(GetSetting("PM_FromAddress"), "", "", "", "", messageStream: GetSetting("PM_MessageStream"));
                 var client = new PostmarkClient(GetSetting("PM_ServerToken"));
                 var resp = await client.SendMessageAsync(msg);
                 return resp.Status == PostmarkStatus.Success;
