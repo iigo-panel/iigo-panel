@@ -18,15 +18,23 @@ namespace IIGO
 
         public static void Main(string[] args)
         {
-            if (EventLog.SourceExists(Constants.EventLogSource))
+            if (args.Length > 0 && args.Contains("CreateLog"))
             {
-                var source = EventLog.LogNameFromSourceName(Constants.EventLogSource, ".");
-                if (source == "Application")
+                Console.WriteLine("CreateLog argument found");
+                Console.WriteLine($"Checking existence of {Constants.EventLogSource}: {EventLog.SourceExists(Constants.EventLogSource)}");
+                if (EventLog.SourceExists(Constants.EventLogSource))
                 {
-                    EventLog.DeleteEventSource(Constants.EventLogSource);
-                    EventLog.CreateEventSource(Constants.EventLogSource, Constants.EventLogName);
-                    return;
+                    var source = EventLog.LogNameFromSourceName(Constants.EventLogSource, ".");
+                    Console.WriteLine($"LogNameFromSourceName: {source}");
+                    if (source == "Application")
+                    {
+                        EventLog.DeleteEventSource(Constants.EventLogSource);
+                        Console.WriteLine($"Deleted Source: {Constants.EventLogSource}");
+                        EventLog.CreateEventSource(Constants.EventLogSource, Constants.EventLogName);
+                        Console.WriteLine($"Created Source: {Constants.EventLogSource} on {Constants.EventLogName}");
+                    }
                 }
+                return;
             }
 
             var builder = WebApplication.CreateBuilder(args);

@@ -49,15 +49,11 @@ else
 }
 
 @code {
-    List<ApplicationPool> pools = [];
+    List<ApplicationPool>? pools = null;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            pools = await IISService.GetAppPools();
-        }
-        catch { }
+        pools = await IISService.GetAppPools();
     }
 
     protected async Task RecyclePool(string poolName)

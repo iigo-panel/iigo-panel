@@ -157,7 +157,9 @@
 
     private List<string> GetIPAddresses(string ni)
     {
-        return NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(x => x.Description == ni)?.GetIPProperties().UnicastAddresses.Select(x => x.Address.ToString()).ToList() ?? new List<string>();
+        var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+        return interfaces.FirstOrDefault(x => x.Description.Replace("#", "_") == ni)?.GetIPProperties().UnicastAddresses.Select(x => x.Address.ToString()).ToList() ?? interfaces.Select(x => $"{x.Name} - {x.Description}").ToList();
     }
 
     private void UpdateValues()

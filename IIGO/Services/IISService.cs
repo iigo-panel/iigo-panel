@@ -1,6 +1,7 @@
 ﻿using IISManager.Services;
 using Microsoft.Web.Administration;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -21,8 +22,9 @@ namespace IIGO.Services
                     }
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                EventLog.WriteEntry(Constants.EventLogSource, $"Error loading application pools\n\n{ex.Demystify()}", EventLogEntryType.Error, 1005);
                 return [];
             }
         }
