@@ -102,6 +102,8 @@ namespace IIGO
                 return services.First(x => x.ServiceName == serviceTypeName);
             });
 
+            builder.Services.AddBlazorBootstrap();
+
             var app = builder.Build();
 
             UpdateDatabase(app);

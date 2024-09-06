@@ -5,6 +5,7 @@
 @inject UserManager<ApplicationUser> _userManager
 @inject IJSRuntime JsRuntime
 @attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
 
 <h3>Users</h3>
 

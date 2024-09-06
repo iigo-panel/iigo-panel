@@ -25,21 +25,23 @@
   <ItemGroup>
     <PackageReference Include="AsyncAwaitBestPractices" Version="8.0.0" />
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.7" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.7" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.7">
+    <PackageReference Include="Blazor.Bootstrap" Version="3.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.7">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.3" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.4" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -59,23 +61,23 @@
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.12.0" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.7" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
-    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.6.3" />
-    <PackageReference Include="NuGet.Protocol" Version="6.10.1" />
-    <PackageReference Include="NuGet.Common" Version="6.10.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.6.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.8" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.0.2" />
+    <PackageReference Include="NuGet.Protocol" Version="6.11.0" />
+    <PackageReference Include="NuGet.Common" Version="6.11.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.7.1.1" />
-    <PackageReference Include="Postmark" Version="5.1.0" />
-    <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.301.3" />
+    <PackageReference Include="Postmark" Version="5.2.0" />
+    <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.401.5" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
-    <PackageReference Include="Discord.Net.Webhook" Version="3.15.2" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.302" />
+    <PackageReference Include="Discord.Net.Webhook" Version="3.15.3" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.400.15" />
   </ItemGroup>
 
   <ItemGroup>

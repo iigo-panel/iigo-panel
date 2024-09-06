@@ -1,11 +1,14 @@
 ﻿@page "/apppools"
 @using IIGO.Services
+@using System.Timers
 @using Microsoft.Web.Administration
-@attribute [StreamRendering]
+@rendermode InteractiveServer
 
 <PageTitle>Application Pools</PageTitle>
 
 <h1>Application Pools</h1>
+
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 
 @if (pools == null)
 {
@@ -50,14 +53,27 @@ else
 
 @code {
     List<ApplicationPool>? pools = null;
+    private Timer timer = new(3000);
 
     protected override async Task OnInitializedAsync()
     {
         pools = await IISService.GetAppPools();
+        timer.Elapsed += (sender, eventArgs) => UpdateValues();
+        timer.Start();
+    }
+
+    protected void UpdateValues()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            pools = await IISService.GetAppPools();
+            StateHasChanged();
+        });
     }
 
     protected async Task RecyclePool(string poolName)
     {
+        //ShowMessage($"{poolName} recycled!", ToastType.Success);
         await IISService.Recycle(poolName);
     }
 
@@ -70,4 +86,15 @@ else
     {
         await IISService.StopPool(poolName);
     }
+
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(string message, ToastType toastType) => messages.Add(CreateToastMessage(message, toastType));
+
+    private ToastMessage CreateToastMessage(string message, ToastType toastType)
+    => new ToastMessage
+        {
+            Type = toastType,
+            Message = message,
+        };
 }
