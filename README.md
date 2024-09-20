@@ -7,9 +7,9 @@ Windows Server 2012 may require installing Microsoft Visual C++ 2015-2022 Redist
 * [VC 2015 x64](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 * [VC 2015 x86](https://aka.ms/vs/17/release/vc_redist.x86.exe)
 
-## Early access
+## Support Development
 
-Gain early access and prioritized features and issues with private discussions: [https://github.com/sponsors/ahwm](https://github.com/sponsors/ahwm)
+Support development, get prioritized features and issues: [https://github.com/sponsors/ahwm](https://github.com/sponsors/ahwm)
 
 ## Features
 
