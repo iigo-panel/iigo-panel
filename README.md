@@ -1,5 +1,7 @@
 # IIGO Panel
 
+[![.NET](https://github.com/iigo-panel/iigo-panel/actions/workflows/dotnet.yml/badge.svg)](https://github.com/iigo-panel/iigo-panel/actions/workflows/dotnet.yml)
+
 Self-hosted ASP.NET application using Blazor. Designed to work on Windows Server 2012 and newer.
 
 Windows Server 2012 may require installing Microsoft Visual C++ 2015-2022 Redistributable:
