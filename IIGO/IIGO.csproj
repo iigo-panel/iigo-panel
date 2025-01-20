@@ -55,7 +55,7 @@
     <PackageReference Include="W3CParser" Version="1.0.0" />
     <PackageReference Include="Whois" Version="3.0.1" />
     <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
-    <PackageReference Include="NodaTime" Version="3.2.0" />
+    <PackageReference Include="NodaTime" Version="3.2.1" />
   </ItemGroup>
 
   <!-- Transitive dependencies that had vulnerabilities -->
