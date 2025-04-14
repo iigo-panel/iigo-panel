@@ -14,6 +14,14 @@
 }
 else
 {
+    if (LastMessage != null)
+    {
+        <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
+            @LastMessage
+            @* <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> *@
+        </div>
+    }
+
     <table class="table">
         <thead>
             <tr>
@@ -53,6 +61,8 @@ else
 
 @code{
     List<Site>? sites;
+    private string? LastMessage = null;
+    private bool Success = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,16 +75,34 @@ else
 
     protected async Task RestartSite(long siteId)
     {
+        try
+        {
+            var site = await IISService.GetSite(siteId);
+            LastMessage = $"{site?.Name} restarted!";
+        }
+        catch {}
         await IISService.RestartSite(siteId);
     }
 
     protected async Task StartSite(long siteId)
     {
+        try
+        {
+            var site = await IISService.GetSite(siteId);
+            LastMessage = $"{site?.Name} started!";
+        }
+        catch { }
         await IISService.StartSite(siteId);
     }
 
     protected async Task StopSite(long siteId)
     {
+        try
+        {
+            var site = await IISService.GetSite(siteId);
+            LastMessage = $"{site?.Name} stopped!";
+        }
+        catch { }
         await IISService.StopSite(siteId);
     }
 }

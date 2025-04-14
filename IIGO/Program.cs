@@ -47,9 +47,13 @@ namespace IIGO
             {
                 options.ServiceName = "IIGO Panel Service";
             });
+
+            builder.Services.AddBlazorBootstrap();
+
             // Add services to the container.
             builder.Services.AddRazorComponents()
-                .AddInteractiveServerComponents();
+                .AddInteractiveServerComponents()
+                .AddInteractiveWebAssemblyComponents();
 
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IdentityUserAccessor>();
@@ -102,8 +106,6 @@ namespace IIGO
                 return services.First(x => x.ServiceName == serviceTypeName);
             });
 
-            builder.Services.AddBlazorBootstrap();
-
             var app = builder.Build();
 
             UpdateDatabase(app);
@@ -128,7 +130,8 @@ namespace IIGO
             app.UseAntiforgery();
 
             app.MapRazorComponents<App>()
-                .AddInteractiveServerRenderMode();
+                .AddInteractiveServerRenderMode()
+                .AddInteractiveWebAssemblyRenderMode();
 
             // Add additional endpoints required by the Identity /Account Razor components.
             app.MapAdditionalIdentityEndpoints();

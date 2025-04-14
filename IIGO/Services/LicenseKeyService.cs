@@ -15,7 +15,10 @@ namespace IIGO.Services
             licenseData = new LicenseData();
             string path = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "Data", "license.lic");
             if (!File.Exists(path))
-                return false;
+            {
+                licenseData = new LicenseData { CompanyName = "Community License", InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = "" };
+                return true;
+            }
             string license = File.ReadAllText(path);
             var rsaVerify = new RSACryptoServiceProvider(4096);
             rsaVerify.ImportFromPem(Encoding.ASCII.GetString(p));
@@ -33,7 +36,8 @@ namespace IIGO.Services
             }
             catch
             {
-                return false;
+                licenseData = new LicenseData { CompanyName = "Community License", InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = "" };
+                return true;
             }
         }
     }

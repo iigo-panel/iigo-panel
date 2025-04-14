@@ -18,6 +18,14 @@ else
 {
     <button class="btn btn-primary">Monitor</button>
 
+    if (LastMessage != null)
+    {
+        <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
+            @LastMessage
+            @* <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> *@
+        </div>
+    }
+
     <table class="table">
         <thead>
             <tr>
@@ -31,7 +39,7 @@ else
             @foreach (var pool in pools)
             {
                 <tr>
-                    <td>@pool.Name</td>
+                    <td><a href="/apppools/@pool.Name">@pool.Name</a></td>
                     <td>@pool.State</td>
                     <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
                     <td>
@@ -53,7 +61,9 @@ else
 
 @code {
     List<ApplicationPool>? pools = null;
-    private Timer timer = new(3000);
+    private Timer timer = new(5000);
+    private string? LastMessage = null;
+    private bool Success = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -66,6 +76,7 @@ else
     {
         _ = InvokeAsync(async () =>
         {
+            LastMessage = null;
             pools = await IISService.GetAppPools();
             StateHasChanged();
         });
@@ -73,28 +84,37 @@ else
 
     protected async Task RecyclePool(string poolName)
     {
-        //ShowMessage($"{poolName} recycled!", ToastType.Success);
+        // try
+        // {
+        //     ShowMessage($"{poolName} recycled!", "Success", ToastType.Success);
+        // }
+        // catch(JSDisconnectedException){}
+        LastMessage = $"{poolName} recycled!";
         await IISService.Recycle(poolName);
     }
 
     protected async Task StartPool(string poolName)
     {
+        LastMessage = $"{poolName} started!";
         await IISService.StartPool(poolName);
     }
 
     protected async Task StopPool(string poolName)
     {
+        LastMessage = $"{poolName} stopped!";
         await IISService.StopPool(poolName);
     }
 
     List<ToastMessage> messages = new List<ToastMessage>();
 
-    private void ShowMessage(string message, ToastType toastType) => messages.Add(CreateToastMessage(message, toastType));
+    private void ShowMessage(string message, string title, ToastType toastType) => messages.Add(CreateToastMessage(message, title, toastType));
 
-    private ToastMessage CreateToastMessage(string message, ToastType toastType)
+    private ToastMessage CreateToastMessage(string message, string title, ToastType toastType)
     => new ToastMessage
         {
+            Title = title,
             Type = toastType,
+            HelpText = $"{DateTime.Now}",
             Message = message,
         };
 }

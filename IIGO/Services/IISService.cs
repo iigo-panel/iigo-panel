@@ -28,6 +28,25 @@ namespace IIGO.Services
                 return [];
             }
         }
+        public static async Task<ApplicationPool?> GetAppPool(string name)
+        {
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    using (ServerManager manager = new ServerManager())
+                    {
+                        ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
+                        return applicationPoolCollection.SingleOrDefault(x => x.Name == name);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                EventLog.WriteEntry(Constants.EventLogSource, $"Error loading application pools\n\n{ex.Demystify()}", EventLogEntryType.Error, 1005);
+                return null;
+            }
+        }
         public static async Task<List<Site>> GetSites()
         {
             try

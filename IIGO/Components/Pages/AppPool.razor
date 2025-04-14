@@ -1,0 +1,41 @@
+﻿@page "/apppools/{name}"
+@using Microsoft.Web.Administration
+@using IIGO.Services
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+
+<a href="/apppools">&laquo; Back to List</a>
+
+@if (appPool == null)
+{
+	<p><em>Loading...</em></p>
+}
+else
+{
+	<h1>Application Pool: @appPool.Name</h1>
+
+	<div class="container">
+		<div class="row">
+
+		</div>
+	</div>
+	<p>
+		<strong>Enable 32-bit:</strong> @appPool.Enable32BitAppOnWin64<br />
+		<strong>Maximum Memory:</strong> @appPool.Recycling.PeriodicRestart.Memory<br />
+		<strong>CPU Limit:</strong> @appPool.Cpu.Limit<br />
+		<strong>CPU Limit Action:</strong> @appPool.Cpu.Action.ToString()
+	</p>
+}
+
+@code {
+	private ApplicationPool? appPool;
+
+	[Parameter]
+	public string Name { get; set; } = "";
+
+	protected override async Task OnInitializedAsync()
+	{
+		appPool = await IISService.GetAppPool(Name);
+	}
+}
