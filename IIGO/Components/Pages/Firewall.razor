@@ -1,6 +1,8 @@
 ﻿@page "/firewall"
 @using WindowsFirewallHelper
 @using IIGO.Services
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize]
 @attribute [StreamRendering]
 
 <h3>Firewall</h3>

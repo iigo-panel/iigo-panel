@@ -30,11 +30,14 @@
                         <span class="oi oi-list-rich" aria-hidden="true"></span> App Pools
                     </NavLink>
                 </div>
+                @if (context.User.IsInRole("Administrator"))
+                {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="/checkupdates">
                         <span class="oi oi-list-rich" aria-hidden="true"></span>Check updates
                     </NavLink>
                 </div>
+                }
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="/processes">
                         <span class="oi oi-list-rich" aria-hidden="true"></span>Processes
@@ -60,16 +63,22 @@
                         <span class="oi oi-list-rich" aria-hidden="true"></span>Services
                     </NavLink>
                 </div>
+                @if (context.User.IsInRole("Administrator"))
+                {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="/license">
                         <span class="oi oi-list-rich" aria-hidden="true"></span>License Status
                     </NavLink>
                 </div>
+                }
+                @if (context.User.IsInRole("Administrator"))
+                {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="/users">
                         <span class="oi oi-list-rich" aria-hidden="true"></span>Users
                     </NavLink>
                 </div>
+                }
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name

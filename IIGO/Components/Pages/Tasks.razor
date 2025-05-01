@@ -1,5 +1,7 @@
 ﻿@page "/tasks"
 @using Microsoft.Win32.TaskScheduler
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 

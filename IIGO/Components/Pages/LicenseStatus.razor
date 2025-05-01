@@ -1,5 +1,7 @@
 ﻿@page "/license"
 @using IIGO.Services
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize(Roles = "Administrator")]
 
 <PageTitle>License Status</PageTitle>
 

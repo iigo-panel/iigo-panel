@@ -1,6 +1,8 @@
 ﻿@page "/websites/{id}"
 @using Microsoft.Web.Administration
 @using IIGO.Services
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
@@ -36,20 +38,23 @@ else
 			</div>
 			<div class="col-2">
 				<div class="row">
-					<div class="col-6">
-						<button @onclick="@(e => RestartSite())" class="btn btn-primary">Restart</button>
-					</div>
-					@if (site.State == ObjectState.Stopped)
+					@if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
 					{
 						<div class="col-6">
-							<button @onclick="@(e => StartSite())" class="btn btn-success">Start</button>
+							<button @onclick="@(e => RestartSite())" class="btn btn-primary">Restart</button>
 						</div>
-					}
-					@if (site.State == ObjectState.Started)
-					{
-						<div class="col-6">
-							<button @onclick="@(e => StopSite())" class="btn btn-danger">Stop</button>
-						</div>
+						@if (site.State == ObjectState.Stopped)
+						{
+							<div class="col-6">
+								<button @onclick="@(e => StartSite())" class="btn btn-success">Start</button>
+							</div>
+						}
+						@if (site.State == ObjectState.Started)
+						{
+							<div class="col-6">
+								<button @onclick="@(e => StopSite())" class="btn btn-danger">Stop</button>
+							</div>
+						}
 					}
 				</div>
 			</div>

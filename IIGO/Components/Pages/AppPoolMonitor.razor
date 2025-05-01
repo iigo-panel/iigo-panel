@@ -2,6 +2,8 @@
 @using IIGO.Services
 @inject ConfigurationService configService
 @inject AppPoolMonitorService monitorService
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize]
 
 <PageTitle>Application Pool Monitor</PageTitle>
 

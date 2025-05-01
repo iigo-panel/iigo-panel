@@ -1,6 +1,8 @@
 ﻿@page "/apppools/{name}"
 @using Microsoft.Web.Administration
 @using IIGO.Services
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize(Roles = "Administrator,Manager")]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 

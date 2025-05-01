@@ -182,6 +182,11 @@ namespace IIGO
                     var result = await roleManager.CreateAsync(new IdentityRole { Name = "Administrator" });
                 }
 
+                if (await roleManager.FindByNameAsync("Manager") == null)
+                {
+                    var result = await roleManager.CreateAsync(new IdentityRole { Name = "Manager" });
+                }
+
                 if (await manager.FindByNameAsync("admin") == null)
                 {
                     var user = new ApplicationUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
@@ -193,6 +198,17 @@ namespace IIGO
                     }
                 }
 
+                if (await manager.FindByNameAsync("manager") == null)
+                {
+                    var user = new ApplicationUser { UserName = "manager", Email = "manager@example.com", LockoutEnabled = false, EmailConfirmed = true };
+                    var result = await manager.CreateAsync(user, "IIGOManager#10");
+                    if (result.Succeeded)
+                    {
+                        user = await manager.FindByNameAsync("manager");
+                        await manager.AddToRoleAsync(user!, "Manager");
+                    }
+                }
+
                 if (await manager.FindByNameAsync("admin") is ApplicationUser admin)
                 {
                     if (admin != null)
@@ -200,6 +216,17 @@ namespace IIGO
                         if (!await manager.IsInRoleAsync(admin, "Administrator"))
                         {
                             await manager.AddToRoleAsync(admin, "Administrator");
+                        }
+                    }
+                }
+
+                if (await manager.FindByNameAsync("manager") is ApplicationUser managerUser)
+                {
+                    if (managerUser != null)
+                    {
+                        if (!await manager.IsInRoleAsync(managerUser, "Manager"))
+                        {
+                            await manager.AddToRoleAsync(managerUser, "Administrator");
                         }
                     }
                 }

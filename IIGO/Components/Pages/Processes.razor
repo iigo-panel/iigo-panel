@@ -8,6 +8,8 @@
 @using Windows.Win32
 @using System.Runtime.InteropServices
 @using Microsoft.Win32.SafeHandles
+@inject IHttpContextAccessor httpContextAccessor
+@attribute [Authorize]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
