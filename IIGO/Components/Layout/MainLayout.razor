@@ -1,4 +1,5 @@
-﻿@inherits LayoutComponentBase
+﻿@using IIGO.Services
+@inherits LayoutComponentBase
 
 <div class="page">
     <div class="sidebar">
@@ -16,7 +17,7 @@
 
         <div class="bottom-row pe-3">
             <img src="/images/TheScripters_Icon.svg" class="position-absolute start-0 ps-3" />
-            &copy; @DateTime.Now.Year
+            &copy; @DateTime.Now.Year; v@(Constants.IIGOVersion)
         </div>
     </main>
 </div>
