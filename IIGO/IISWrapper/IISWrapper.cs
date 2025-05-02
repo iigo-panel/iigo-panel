@@ -17,6 +17,8 @@ namespace IISManager.Services
             _manager = new ServerManager();
         }
 
+        public Configuration GetSettings() => _manager.GetAdministrationConfiguration();
+
         public List<string> ListAppPools()
         {
             List<string> pools = [];

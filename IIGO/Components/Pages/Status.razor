@@ -93,11 +93,11 @@
             <td>
                 <dl>
                     <dt>Total Disk Space</dt>
-                    <dd>@((d.TotalSize / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dd>@((d.TotalSize / 1073741824).ToString("#,###.##")) GB</dd>
                     <dt>Total Free Space</dt>
-                    <dd>@((d.TotalFreeSpace / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dd>@((d.TotalFreeSpace / 1073741824).ToString("#,###.##")) GB</dd>
                     <dt>Total Space Used</dt>
-                    <dd>@(((double)(d.TotalSize - d.TotalFreeSpace) / (1024 * 1024 * 1024)).ToString("#,###.##")) GB</dd>
+                    <dd>@(((double)(d.TotalSize - d.TotalFreeSpace) / 1073741824).ToString("#,###.##")) GB</dd>
                     <dt>% Free</dt>
                     <dd>@(Convert.ToDecimal(((double)d.TotalFreeSpace / ((double)d.TotalSize)) * 100).ToString("###.##"))%</dd>
                 </dl>
