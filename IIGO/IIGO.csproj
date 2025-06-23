@@ -78,7 +78,7 @@
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
     <PackageReference Include="Discord.Net.Webhook" Version="3.17.4" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.400.137" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.0.10" />
   </ItemGroup>
 
   <ItemGroup>
