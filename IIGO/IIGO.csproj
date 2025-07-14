@@ -74,7 +74,7 @@
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.11.0" />
     <PackageReference Include="Postmark" Version="5.2.0" />
-    <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.402.83" />
+    <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.0.13" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
     <PackageReference Include="Discord.Net.Webhook" Version="3.17.4" />
