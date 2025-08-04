@@ -61,7 +61,7 @@
   <!-- Transitive dependencies that had vulnerabilities -->
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.14.2" />
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.1" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.18" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.0" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.13.0" />
@@ -78,7 +78,7 @@
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
     <PackageReference Include="Discord.Net.Webhook" Version="3.18.0" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.0.15" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.0.16" />
   </ItemGroup>
 
   <ItemGroup>
