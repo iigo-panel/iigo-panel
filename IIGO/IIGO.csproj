@@ -30,7 +30,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.18" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.18" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.18" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.7">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -50,7 +50,7 @@
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="9.0.7" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.7" />
     <PackageReference Include="System.Security.Permissions" Version="9.0.7" />
-    <PackageReference Include="System.Text.Json" Version="9.0.7" />
+    <PackageReference Include="System.Text.Json" Version="9.0.8" />
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
     <PackageReference Include="W3CParser" Version="1.0.0" />
     <PackageReference Include="Whois" Version="3.0.1" />
