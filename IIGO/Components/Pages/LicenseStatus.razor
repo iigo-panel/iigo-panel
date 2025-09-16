@@ -31,7 +31,7 @@ else
                 <td>@licenseData.LicenseDate</td>
                 <td>@licenseData.LicenseTerm</td>
                 <td>@licenseData.LicenseType</td>
-                <td>@(licenseStatus ? "Valid" : "Invalid")</td>
+                <td><span style="color:@(licenseStatus ? "#0a0" : "#a00")">@(licenseStatus ? "Valid" : "Invalid")</span></td>
             </tr>
         </tbody>
     </table>
@@ -46,8 +46,7 @@ else
 	protected override void OnInitialized()
 	{
 		licenseStatus = LicenseKeyService.ValidateLicense(out var license);
-		if (licenseStatus)
-			licenseData = license;
+		licenseData = license;
         isLoaded = true;
 	}
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace IIGO.Services.Interfaces
 {
     [Obfuscation(Exclude = true)]
-    internal interface IMessengerService
+    public interface IMessengerService
     {
         string ServiceName { get; }
         string ServiceIdentifier { get; }

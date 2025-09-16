@@ -11,13 +11,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class GoogleChatService : ServiceBase, IMessengerService
+    internal class GoogleChatService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private ApplicationDbContext _context;
-        public GoogleChatService(ApplicationDbContext context) : base(context)
-        {
-            _context = context;
-        }
+        readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "Google Chat";
         public string ServiceIdentifier => nameof(GoogleChatService);

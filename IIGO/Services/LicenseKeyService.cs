@@ -1,8 +1,8 @@
-﻿using System;
-using System.IO;
+﻿using Semver;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace IIGO.Services
 {
@@ -16,12 +16,12 @@ namespace IIGO.Services
             string path = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "Data", "license.lic");
             if (!File.Exists(path))
             {
-                licenseData = new LicenseData { CompanyName = "Community License", InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = "" };
+                licenseData = new LicenseData { CompanyName = "Community License", LicenseType = LicenseType.Community, InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = LicenseTerm.MIT };
                 return true;
             }
             string license = File.ReadAllText(path);
             var rsaVerify = new RSACryptoServiceProvider(4096);
-            rsaVerify.ImportFromPem(Encoding.ASCII.GetString(p));
+            rsaVerify.ImportFromPem(Encoding.UTF8.GetString(p));
 
             string[] data = license.Split('.');
             if (data.Length < 2)
@@ -31,12 +31,24 @@ namespace IIGO.Services
             {
                 var isValid = rsaVerify.VerifyData(Convert.FromBase64String(data[0]), SHA512.Create(), Convert.FromBase64String(data[1]));
                 licenseData = JsonSerializer.Deserialize<LicenseData>(Encoding.UTF8.GetString(Convert.FromBase64String(data[0])));
+                if (licenseData == null)
+                    return false;
+                if (licenseData.LicenseType == LicenseType.Standard)
+                {
+                    var licenseDate = DateTime.Parse(licenseData.LicenseDate).AddYears(1);
+                    if (Constants.BuildDate > licenseDate && licenseData.LicenseTerm == LicenseTerm.Annual)
+                        isValid = false;
+                    var licenseVersion = SemVersion.Parse(licenseData.InitialVersion + ".0");
+                    var version = SemVersion.Parse(Constants.IIGOVersion);
+                    if (licenseVersion.Major < version.Major)
+                        isValid = false;
+                }
 
                 return isValid;
             }
             catch
             {
-                licenseData = new LicenseData { CompanyName = "Community License", InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = "" };
+                licenseData = new LicenseData { CompanyName = "Community License", LicenseType = LicenseType.Community, InitialVersion = "1.0", LicenseDate = DateTime.Now.ToString("MM/dd/yyyy"), LicenseTerm = LicenseTerm.MIT };
                 return true;
             }
         }
@@ -44,11 +56,36 @@ namespace IIGO.Services
 
     internal record LicenseData
     {
-        public string? CompanyName { get; init; }
-        public string? LicenseType { get; init; }
-        public string? InitialVersion { get; init; }
-        public string? LicenseTerm { get; init; }
-        public string? LicenseDate { get; init; }
+        public string CompanyName { get; init; } = "";
+
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public LicenseType LicenseType { get; init; }
+        public string InitialVersion { get; init; } = "";
+
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public LicenseTerm LicenseTerm { get; init; }
+        public string LicenseDate { get; init; } = "";
         public string[]? Entitlements { get; init; }
+
+        public override string ToString()
+        {
+            return $"Company Name: {CompanyName}; License Type: {LicenseType}; License Term: {LicenseTerm}";
+        }
+    }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    internal enum LicenseType
+    {
+        Community,
+        Standard,
+        Perpetual
+    }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    internal enum LicenseTerm
+    {
+        MIT,
+        Annual,
+        Unlimited
     }
 }

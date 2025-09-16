@@ -12,14 +12,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SESService : ServiceBase, IMessengerService
+    internal class SESService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private readonly ApplicationDbContext _context;
-
-        public SESService(ApplicationDbContext context) : base(context)
-        {
-            _context = context;
-        }
+        readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "Simple Email Service (Amazon SES)";
         public string ServiceIdentifier => nameof(SESService);

@@ -10,7 +10,7 @@ namespace IIGO.Services
 {
     internal class PostmarkService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private readonly ApplicationDbContext _context = context;
+        readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "Postmark Email Relay";
         public string ServiceIdentifier => nameof(PostmarkService);
