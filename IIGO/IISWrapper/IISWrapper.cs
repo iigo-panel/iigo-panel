@@ -20,14 +20,11 @@ namespace IISManager.Services
 
         public Configuration GetSettings() => _manager.GetAdministrationConfiguration();
 
-        public List<string> ListAppPools()
+        public List<ApplicationPool> ListAppPools()
         {
-            List<string> pools = [];
             ApplicationPoolCollection appPoolCollection = _manager.ApplicationPools;
-            foreach (ApplicationPool pool in appPoolCollection)
-                pools.Add(pool.Name);
 
-            return pools;
+            return appPoolCollection.ToList();
         }
 
         public dynamic? GetAppPool(string name)
@@ -184,8 +181,8 @@ namespace IISManager.Services
         /// <param name="path"></param>
         public void CreateWebsite(string domain, string path, string serverPrefix = "s1", bool addBindings = true, bool isSdw = true)
         {
-            List<string> pools = ListAppPools();
-            if (!pools.Contains(domain))
+            var pools = ListAppPools();
+            if (!pools.Any(x => x.Name == domain))
                 throw new AppPoolNotFoundException(domain);
 
             Site site = _manager.Sites.Add(domain, path, 80);
@@ -224,8 +221,8 @@ namespace IISManager.Services
         /// <param name="password"></param>
         public void CreateWebsite(string domain, string path, string userName, string password, string serverPrefix = "s1", bool isSdw = true)
         {
-            List<string> pools = ListAppPools();
-            if (!pools.Contains(domain))
+            var pools = ListAppPools();
+            if (!pools.Any(x => x.Name == domain))
                 CreateAppPool(domain, userName, password);
 
             Site site = _manager.Sites.Add(domain, path, 80);

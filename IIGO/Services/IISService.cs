@@ -13,9 +13,7 @@ namespace IIGO.Services
         {
             try
             {
-                var manager = new IisServerManager();
-                    ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
-                    return applicationPoolCollection.OrderBy(x => x.Name).ToList();
+                    return new IISWrapper().ListAppPools();
             }
             catch (Exception ex)
             {
