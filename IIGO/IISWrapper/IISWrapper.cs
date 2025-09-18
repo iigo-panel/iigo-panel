@@ -14,7 +14,8 @@ namespace IISManager.Services
         readonly ServerManager _manager;
         public IISWrapper()
         {
-            _manager = new ServerManager();
+            // TODO: make path more dynamic
+            _manager = new IisServerManager(@"C:\Windows\System32\inetsrv\config\applicationHost.config");
         }
 
         public Configuration GetSettings() => _manager.GetAdministrationConfiguration();
@@ -134,7 +135,7 @@ namespace IISManager.Services
             var pool = _manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault() ?? throw new NullReferenceException("Application pool not found");
             pool.Recycle();
             pool.Stop();
-            foreach (var p in pool.WorkerProcesses)
+            foreach (WorkerProcess p in pool.WorkerProcesses)
                 Process.GetProcessById(p.ProcessId).Kill();
 
             while (_manager.ApplicationPools.Where(x => x.Name == appPoolName).SingleOrDefault()?.State != ObjectState.Stopped)

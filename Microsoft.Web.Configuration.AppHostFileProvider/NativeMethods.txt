@@ -1,0 +1,14 @@
+CryptAcquireContextW
+CryptReleaseContext
+CryptDecrypt
+CryptDestroyKey
+CryptEncrypt
+CryptImportKey
+CryptGetUserKey
+CryptGenRandom
+PROV_RSA_AES
+CERT_KEY_SPEC
+WIN32_ERROR
+CRYPT_KEY_FLAGS
+CRYPT_NEWKEYSET
+NTE_EXISTS

@@ -9,18 +9,13 @@ namespace IIGO.Services
 {
     internal static class IISService
     {
-        public static async Task<List<ApplicationPool>> GetAppPools()
+        public static List<ApplicationPool> GetAppPools()
         {
             try
             {
-                return await Task.Run(() =>
-                {
-                    using (ServerManager manager = new ServerManager())
-                    {
-                        ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
-                        return applicationPoolCollection.OrderBy(x => x.Name).ToList();
-                    }
-                });
+                var manager = new IisServerManager();
+                    ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
+                    return applicationPoolCollection.OrderBy(x => x.Name).ToList();
             }
             catch (Exception ex)
             {
@@ -28,18 +23,13 @@ namespace IIGO.Services
                 return [];
             }
         }
-        public static async Task<ApplicationPool?> GetAppPool(string name)
+        public static ApplicationPool? GetAppPool(string name)
         {
             try
             {
-                return await Task.Run(() =>
-                {
-                    using (ServerManager manager = new ServerManager())
-                    {
-                        ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
-                        return applicationPoolCollection.SingleOrDefault(x => x.Name == name);
-                    }
-                });
+                var manager = new IisServerManager();
+                    ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
+                    return applicationPoolCollection.SingleOrDefault(x => x.Name == name);
             }
             catch (Exception ex)
             {
@@ -47,14 +37,11 @@ namespace IIGO.Services
                 return null;
             }
         }
-        public static async Task<List<Site>> GetSites()
+        public static List<Site> GetSites()
         {
             try
             {
-                return await Task.Run(() =>
-                {
-                    return new IISWrapper().ListSites();
-                });
+                return new IISWrapper().ListSites();
             }
             catch
             {
@@ -62,14 +49,11 @@ namespace IIGO.Services
             }
         }
 
-        public static async Task<Site?> GetSite(long id)
+        public static Site? GetSite(long id)
         {
             try
             {
-                return await Task.Run(() =>
-                {
-                    return new IISWrapper().GetSite(id);
-                });
+                return new IISWrapper().GetSite(id);
             }
             catch
             {
@@ -77,32 +61,32 @@ namespace IIGO.Services
             }
         }
 
-        public static async Task Recycle(string name)
+        public static void Recycle(string name)
         {
-            var pools = await GetAppPools();
+            var pools = GetAppPools();
             var p = pools.SingleOrDefault(pool => pool.Name == name);
             p?.Recycle();
         }
 
-        public static async Task StartPool(string name)
+        public static void StartPool(string name)
         {
-            var pools = await GetAppPools();
+            var pools = GetAppPools();
             var p = pools.SingleOrDefault(pool => pool.Name == name);
             if (p != null && p.State == ObjectState.Stopped)
                 p?.Start();
         }
 
-        public static async Task StopPool(string name)
+        public static void StopPool(string name)
         {
-            var pools = await GetAppPools();
+            var pools = GetAppPools();
             var p = pools.SingleOrDefault(pool => pool.Name == name);
             if (p != null && p.State == ObjectState.Started)
                 p?.Stop();
         }
 
-        public static async Task RestartSite(long siteId)
+        public static void RestartSite(long siteId)
         {
-            var site = await GetSite(siteId);
+            var site = GetSite(siteId);
             if (site != null)
             {
                 site.Stop();
@@ -110,16 +94,88 @@ namespace IIGO.Services
             }
         }
 
-        public static async Task StopSite(long siteId)
+        public static void StopSite(long siteId)
         {
-            var site = await GetSite(siteId);
+            var site = GetSite(siteId);
             site?.Stop();
         }
 
-        public static async Task StartSite(long siteId)
+        public static void StartSite(long siteId)
         {
-            var site = await GetSite(siteId);
+            var site = GetSite(siteId);
             site?.Start();
+        }
+
+        public static Dictionary<string, string> GetIPRules()
+        {
+            var manager = new IisServerManager();
+            var ips = new Dictionary<string, string>();
+            Configuration config = manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            foreach (ConfigurationElement element in ipSecurityCollection)
+            {
+                ips.Add(element["ipAddress"].ToString()!, element["allowed"].ToString()!);
+            }
+
+            return ips;
+        }
+
+        public static void DeleteIPRule(string ipaddress)
+        {
+            var manager = new IisServerManager();
+            Configuration config = manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            ConfigurationElement addElement = FindElement(ipSecurityCollection, "add", "ipAddress", ipaddress) ?? throw new InvalidOperationException("Element not found!");
+            ipSecurityCollection.Remove(addElement);
+            manager.CommitChanges();
+        }
+
+        public static void AddIPRule(string ipaddress, bool denyRule)
+        {
+            var manager = new IisServerManager();
+            var ips = GetIPRules();
+            if (ips.ContainsKey(ipaddress))
+                return;
+            Configuration config = manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            ConfigurationElement addElement = ipSecurityCollection.CreateElement("add");
+            addElement["ipAddress"] = ipaddress;
+            addElement["allowed"] = !denyRule;
+            ipSecurityCollection.Add(addElement);
+            manager.CommitChanges();
+        }
+
+        private static ConfigurationElement? FindElement(ConfigurationElementCollection collection, string elementTagName, params string[] keyValues)
+        {
+            foreach (ConfigurationElement element in collection)
+            {
+                if (String.Equals(element.ElementTagName, elementTagName, StringComparison.OrdinalIgnoreCase))
+                {
+                    bool matches = true;
+                    for (int i = 0; i < keyValues.Length; i += 2)
+                    {
+                        object o = element.GetAttributeValue(keyValues[i]);
+                        string? value = null;
+                        if (o != null)
+                        {
+                            value = o.ToString()!;
+                        }
+                        if (!String.Equals(value, keyValues[i + 1], StringComparison.OrdinalIgnoreCase))
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (matches)
+                    {
+                        return element;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

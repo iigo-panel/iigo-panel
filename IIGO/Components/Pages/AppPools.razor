@@ -67,24 +67,21 @@ else
     private string? LastMessage = null;
     private bool Success = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        pools = await IISService.GetAppPools();
+        pools = IISService.GetAppPools();
         timer.Elapsed += (sender, eventArgs) => UpdateValues();
         timer.Start();
     }
 
     protected void UpdateValues()
     {
-        _ = InvokeAsync(async () =>
-        {
-            LastMessage = null;
-            pools = await IISService.GetAppPools();
-            StateHasChanged();
-        });
+        LastMessage = null;
+        pools = IISService.GetAppPools();
+        StateHasChanged();
     }
 
-    protected async Task RecyclePool(string poolName)
+    protected void RecyclePool(string poolName)
     {
         // try
         // {
@@ -92,19 +89,19 @@ else
         // }
         // catch(JSDisconnectedException){}
         LastMessage = $"{poolName} recycled!";
-        await IISService.Recycle(poolName);
+        IISService.Recycle(poolName);
     }
 
-    protected async Task StartPool(string poolName)
+    protected void StartPool(string poolName)
     {
         LastMessage = $"{poolName} started!";
-        await IISService.StartPool(poolName);
+        IISService.StartPool(poolName);
     }
 
-    protected async Task StopPool(string poolName)
+    protected void StopPool(string poolName)
     {
         LastMessage = $"{poolName} stopped!";
-        await IISService.StopPool(poolName);
+        IISService.StopPool(poolName);
     }
 
     List<ToastMessage> messages = new List<ToastMessage>();

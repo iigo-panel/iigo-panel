@@ -17,7 +17,7 @@ namespace IIGO.Api
         readonly ApplicationDbContext _context = serviceProvider.GetService<ApplicationDbContext>()!;
 
         [HttpGet("sites")]
-        public async Task<object> GetIISSites()
+        public object GetIISSites()
         {
             var providedKey = Request.Headers["X-API-KEY"].FirstOrDefault();
             if (String.IsNullOrWhiteSpace(providedKey))
@@ -28,7 +28,7 @@ namespace IIGO.Api
             // TODO: check api key against database
             try
             {
-                var sites = await IISService.GetSites();
+                var sites = IISService.GetSites();
                 return sites.Cast<dynamic>().ToList();
             }
             catch (Exception ex)

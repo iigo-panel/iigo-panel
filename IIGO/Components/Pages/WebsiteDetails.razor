@@ -21,7 +21,7 @@ else
 			<div class="col-4">
 				<h3>Bindings</h3>
 				<ul>
-				@foreach (var b in site.Bindings)
+				@foreach (Binding b in site.Bindings)
 				{
 					<li>@b.BindingInformation</li>
 				}
@@ -70,10 +70,10 @@ else
 
 	private long SiteId;
 
-	protected override async Task OnInitializedAsync()
+	protected override void OnInitialized()
 	{
 		SiteId = Convert.ToInt64(Id);
-		site = await IISService.GetSite(SiteId);
+		site = IISService.GetSite(SiteId);
 	}
 
 	private string ToHex(byte[] data)
@@ -88,18 +88,18 @@ else
 		return hex;
 	}
 
-	protected async Task RestartSite()
+	protected void RestartSite()
 	{
-		await IISService.RestartSite(SiteId);
+		IISService.RestartSite(SiteId);
 	}
 
-	protected async Task StartSite()
+	protected void StartSite()
 	{
-		await IISService.StartSite(SiteId);
+		IISService.StartSite(SiteId);
 	}
 
-	protected async Task StopSite()
+	protected void StopSite()
 	{
-		await IISService.StopSite(SiteId);
+		IISService.StopSite(SiteId);
 	}
 }

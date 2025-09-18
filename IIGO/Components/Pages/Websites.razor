@@ -71,45 +71,45 @@ else
     private string? LastMessage = null;
     private bool Success = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         try
         {
-            sites = await IISService.GetSites();
+            sites = IISService.GetSites();
         }
         catch { }
     }
 
-    protected async Task RestartSite(long siteId)
+    protected void RestartSite(long siteId)
     {
         try
         {
-            var site = await IISService.GetSite(siteId);
+            var site = IISService.GetSite(siteId);
             LastMessage = $"{site?.Name} restarted!";
         }
         catch {}
-        await IISService.RestartSite(siteId);
+        IISService.RestartSite(siteId);
     }
 
-    protected async Task StartSite(long siteId)
+    protected void StartSite(long siteId)
     {
         try
         {
-            var site = await IISService.GetSite(siteId);
+            var site = IISService.GetSite(siteId);
             LastMessage = $"{site?.Name} started!";
         }
         catch { }
-        await IISService.StartSite(siteId);
+        IISService.StartSite(siteId);
     }
 
-    protected async Task StopSite(long siteId)
+    protected void StopSite(long siteId)
     {
         try
         {
-            var site = await IISService.GetSite(siteId);
+            var site = IISService.GetSite(siteId);
             LastMessage = $"{site?.Name} stopped!";
         }
         catch { }
-        await IISService.StopSite(siteId);
+        IISService.StopSite(siteId);
     }
 }

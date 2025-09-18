@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using WUApiLib;
+﻿using WUApiLib;
 
 namespace IIGO.Services
 {
@@ -25,6 +24,17 @@ namespace IIGO.Services
                 UpdateDownloader downloader = uSession.CreateUpdateDownloader();
                 downloader.Updates = updates;
                 downloader.Download();
+            });
+        }
+
+        public async Task InstallUpdates(UpdateCollection updates)
+        {
+            await Task.Run(() =>
+            {
+                UpdateSession uSession = new UpdateSession();
+                IUpdateInstaller installer = uSession.CreateUpdateInstaller();
+                installer.Updates = updates;
+                installer.Install();
             });
         }
     }
