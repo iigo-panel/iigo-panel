@@ -27,9 +27,28 @@
                 </div>
                 <div class="col-md-6">
                     <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.ApplicationPool" id="applicationPool" aria-required="true" placeholder="Website Name" />
-                        <label for="applicationPool" class="form-label">Website ApplicationPool</label>
+                        <InputText class="form-control" @bind-Value="NewWebsite.ApplicationPool" id="applicationPool" aria-required="true" placeholder="Application Pool" />
+                        <label for="applicationPool" class="form-label">Application Pool</label>
                         <ValidationMessage For="() => NewWebsite.ApplicationPool" class="text-danger" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputSelect class="form-control" @bind-Value="NewWebsite.Scheme" id="scheme" aria-required="true" placeholder="Scheme">
+                           <option value="http">http</option>
+                            <option value="https">https</option>
+                        </InputSelect>
+                        <label for="scheme" class="form-label">Type</label>
+                        <ValidationMessage For="() => NewWebsite.Scheme" class="text-danger" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewWebsite.IPAddress" id="IPAddress" aria-required="true" placeholder="IP Address" />
+                        <label for="IPAddress" class="form-label">IP Address</label>
+                        <ValidationMessage For="() => NewWebsite.IPAddress" class="text-danger" />
                     </div>
                 </div>
             </div>
