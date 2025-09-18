@@ -20,9 +20,16 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.Name" id="name" aria-required="true" placeholder="Website Name" />
+                        <InputText class="form-control" @bind-Value="NewWebsite.Name" id="name" @oninput="NameInput" aria-required="true" placeholder="Website Name" />
                         <label for="name" class="form-label">Website Name</label>
                         <ValidationMessage For="() => NewWebsite.Name" class="text-danger" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewWebsite.ApplicationPool" id="applicationPool" aria-required="true" placeholder="Website Name" />
+                        <label for="applicationPool" class="form-label">Website ApplicationPool</label>
+                        <ValidationMessage For="() => NewWebsite.ApplicationPool" class="text-danger" />
                     </div>
                 </div>
             </div>
@@ -46,6 +53,11 @@
     protected void SubmitWebsite()
     {
 
+    }
+
+    protected void NameInput(ChangeEventArgs e)
+    {
+        NewWebsite.ApplicationPool = e.Value?.ToString() ?? "DefaultAppPool";
     }
 
     public class NewWebsiteModel
