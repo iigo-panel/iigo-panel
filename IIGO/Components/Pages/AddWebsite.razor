@@ -3,6 +3,7 @@
 @using IIGO.Services
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.Web.Administration
+@using System.ComponentModel.DataAnnotations
 @inject IHttpContextAccessor httpContextAccessor
 @attribute [Authorize]
 @attribute [StreamRendering]
@@ -12,13 +13,23 @@
 
 <h1>Add Website</h1>
 
-<div class="container">
-    <div class="row">
-        <div class="col-12">
-            <EditForm method="post" OnValidSubmit="SubmitWebsite" Model="NewWebsite" FormName="NewWebsite">
-
-            </EditForm>
-        </div>
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <EditForm method="post" OnValidSubmit="SubmitWebsite" Model="NewWebsite" FormName="NewWebsite">
+            <DataAnnotationsValidator />
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewWebsite.Name" id="name" aria-required="true" placeholder="Website Name" />
+                        <label for="name" class="form-label">Website Name</label>
+                        <ValidationMessage For="() => NewWebsite.Name" class="text-danger" />
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </EditForm>
     </div>
 </div>
 
@@ -39,12 +50,24 @@
 
     public class NewWebsiteModel
     {
+        [Required]
         public string Name { get; set; } = "";
+
+        [Required]
         public string Scheme { get; set; } = "http";
+
+        [Required]
         public string IPAddress { get; set; } = "*";
+
         public string Hostname { get; set; } = "";
+
+        [Required]
         public string Port { get; set; } = "80";
+
+        [Required]
         public string PhysicalPath { get; set; } = "";
+
+        [Required]
         public string ApplicationPool { get; set; } = "DefaultAppPool";
     }
 }
