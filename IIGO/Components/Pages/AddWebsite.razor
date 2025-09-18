@@ -12,9 +12,39 @@
 
 <h1>Add Website</h1>
 
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <EditForm method="post" OnValidSubmit="SubmitWebsite" Model="NewWebsite" FormName="NewWebsite">
+
+            </EditForm>
+        </div>
+    </div>
+</div>
+
 @code {
+
+    [SupplyParameterFromForm]
+    private NewWebsiteModel NewWebsite { get; set; } = new NewWebsiteModel();
+
     protected override void OnInitialized()
     {
 
+    }
+
+    protected void SubmitWebsite()
+    {
+
+    }
+
+    public class NewWebsiteModel
+    {
+        public string Name { get; set; } = "";
+        public string Scheme { get; set; } = "http";
+        public string IPAddress { get; set; } = "*";
+        public string Hostname { get; set; } = "";
+        public string Port { get; set; } = "80";
+        public string PhysicalPath { get; set; } = "";
+        public string ApplicationPool { get; set; } = "DefaultAppPool";
     }
 }
