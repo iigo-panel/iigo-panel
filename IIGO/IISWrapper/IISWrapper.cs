@@ -219,17 +219,15 @@ namespace IISManager.Services
         /// <param name="path"></param>
         /// <param name="userName"></param>
         /// <param name="password"></param>
-        public void CreateWebsite(string domain, string path, string userName, string password, string serverPrefix = "s1", bool isSdw = true)
+        public void CreateWebsite(string domain, string path)
         {
             var pools = ListAppPools();
             if (!pools.Any(x => x.Name == domain))
-                CreateAppPool(domain, userName, password);
+                CreateAppPool(domain);
 
             Site site = _manager.Sites.Add(domain, path, 80);
             site.ServerAutoStart = true;
             site.Bindings[0].BindingInformation = $"*:80:{domain}";
-            site.Bindings.Add($"*:80:www.{domain}", "http");
-            site.Bindings.Add($"*:80:www.{domain}.{serverPrefix}.{(isSdw ? "sdw" : "mws")}.dev", "http");
             site.Applications[0].ApplicationPoolName = domain;
 
             _manager.CommitChanges();

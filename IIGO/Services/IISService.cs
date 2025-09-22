@@ -7,13 +7,40 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal static class IISService
+    internal class IISService
     {
-        public static List<ApplicationPool> GetAppPools()
+        private readonly IISWrapper _iisWrapper = new IISWrapper();
+
+        public void AddWebsite(string siteName, string appPoolName, string physicalPath, string bindingInformation)
+        {
+            _iisWrapper.CreateWebsite(siteName, appPoolName);
+        }
+
+        public void DeleteWebsite(long siteId)
+        {
+            //_iisWrapper.DeleteWebsite(siteId);
+        }
+
+        public void UpdateWebsite(long siteId, string siteName, string appPoolName, string physicalPath, string bindingInformation)
+        {
+            //_iisWrapper.UpdateWebsite(siteId, siteName, appPoolName, physicalPath, bindingInformation);
+        }
+
+        public void AddAppPool(string appPoolName)
+        {
+            _iisWrapper.CreateAppPool(appPoolName);
+        }
+
+        public void DeleteAppPool(string appPoolName)
+        {
+            _iisWrapper.DeleteAppPool(appPoolName);
+        }
+
+        public List<ApplicationPool> GetAppPools()
         {
             try
             {
-                    return new IISWrapper().ListAppPools();
+                    return _iisWrapper.ListAppPools();
             }
             catch (Exception ex)
             {
@@ -21,13 +48,11 @@ namespace IIGO.Services
                 return [];
             }
         }
-        public static ApplicationPool? GetAppPool(string name)
+        public ApplicationPool? GetAppPool(string name)
         {
             try
             {
-                var manager = new IisServerManager();
-                    ApplicationPoolCollection applicationPoolCollection = manager.ApplicationPools;
-                    return applicationPoolCollection.SingleOrDefault(x => x.Name == name);
+                return _iisWrapper.ListAppPools().SingleOrDefault(x => x.Name == name);
             }
             catch (Exception ex)
             {
@@ -35,11 +60,11 @@ namespace IIGO.Services
                 return null;
             }
         }
-        public static List<Site> GetSites()
+        public List<Site> GetSites()
         {
             try
             {
-                return new IISWrapper().ListSites();
+                return _iisWrapper.ListSites();
             }
             catch
             {
@@ -47,11 +72,11 @@ namespace IIGO.Services
             }
         }
 
-        public static Site? GetSite(long id)
+        public Site? GetSite(long id)
         {
             try
             {
-                return new IISWrapper().GetSite(id);
+                return _iisWrapper.GetSite(id);
             }
             catch
             {
@@ -59,30 +84,27 @@ namespace IIGO.Services
             }
         }
 
-        public static void Recycle(string name)
+        public void Recycle(string name)
         {
-            var pools = GetAppPools();
-            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            var p = GetAppPools().SingleOrDefault(pool => pool.Name == name);
             p?.Recycle();
         }
 
-        public static void StartPool(string name)
+        public void StartPool(string name)
         {
-            var pools = GetAppPools();
-            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            var p = GetAppPools().SingleOrDefault(pool => pool.Name == name);
             if (p != null && p.State == ObjectState.Stopped)
                 p?.Start();
         }
 
-        public static void StopPool(string name)
+        public void StopPool(string name)
         {
-            var pools = GetAppPools();
-            var p = pools.SingleOrDefault(pool => pool.Name == name);
+            var p = GetAppPools().SingleOrDefault(pool => pool.Name == name);
             if (p != null && p.State == ObjectState.Started)
                 p?.Stop();
         }
 
-        public static void RestartSite(long siteId)
+        public void RestartSite(long siteId)
         {
             var site = GetSite(siteId);
             if (site != null)
@@ -92,19 +114,19 @@ namespace IIGO.Services
             }
         }
 
-        public static void StopSite(long siteId)
+        public void StopSite(long siteId)
         {
             var site = GetSite(siteId);
             site?.Stop();
         }
 
-        public static void StartSite(long siteId)
+        public void StartSite(long siteId)
         {
             var site = GetSite(siteId);
             site?.Start();
         }
 
-        public static Dictionary<string, string> GetIPRules()
+        public Dictionary<string, string> GetIPRules()
         {
             var manager = new IisServerManager();
             var ips = new Dictionary<string, string>();
@@ -119,7 +141,7 @@ namespace IIGO.Services
             return ips;
         }
 
-        public static void DeleteIPRule(string ipaddress)
+        public void DeleteIPRule(string ipaddress)
         {
             var manager = new IisServerManager();
             Configuration config = manager.GetApplicationHostConfiguration();
@@ -130,7 +152,7 @@ namespace IIGO.Services
             manager.CommitChanges();
         }
 
-        public static void AddIPRule(string ipaddress, bool denyRule)
+        public void AddIPRule(string ipaddress, bool denyRule)
         {
             var manager = new IisServerManager();
             var ips = GetIPRules();
