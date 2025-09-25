@@ -12,7 +12,7 @@ namespace IIGO.Api
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class IISApiController(ILogger<IISApiController> logger, IServiceProvider serviceProvider) : ControllerBase
+    public class IISApiController(ILogger<IISApiController> logger, IServiceProvider serviceProvider, IISService IISService) : ControllerBase
     {
         readonly ApplicationDbContext _context = serviceProvider.GetService<ApplicationDbContext>()!;
 

@@ -2,6 +2,7 @@
 @using Microsoft.Web.Administration
 @using IIGO.Services
 @inject IHttpContextAccessor httpContextAccessor
+@inject IISService IISService
 @attribute [Authorize(Roles = "Administrator,Manager")]
 @attribute [StreamRendering]
 @rendermode InteractiveServer

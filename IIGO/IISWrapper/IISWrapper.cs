@@ -233,6 +233,45 @@ namespace IISManager.Services
             _manager.CommitChanges();
         }
 
+        public Dictionary<string, string> GetIPRules()
+        {
+            var ips = new Dictionary<string, string>();
+            Configuration config = _manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            foreach (ConfigurationElement element in ipSecurityCollection)
+            {
+                ips.Add(element["ipAddress"].ToString()!, element["allowed"].ToString()!);
+            }
+
+            return ips;
+        }
+
+        public void DeleteIPRule(string ipaddress)
+        {
+            Configuration config = _manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            ConfigurationElement addElement = FindElement(ipSecurityCollection, "add", "ipAddress", ipaddress) ?? throw new InvalidOperationException("Element not found!");
+            ipSecurityCollection.Remove(addElement);
+            _manager.CommitChanges();
+        }
+
+        public void AddIPRule(string ipaddress, bool denyRule)
+        {
+            var ips = GetIPRules();
+            if (ips.ContainsKey(ipaddress))
+                return;
+            Configuration config = _manager.GetApplicationHostConfiguration();
+            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
+            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
+            ConfigurationElement addElement = ipSecurityCollection.CreateElement("add");
+            addElement["ipAddress"] = ipaddress;
+            addElement["allowed"] = !denyRule;
+            ipSecurityCollection.Add(addElement);
+            _manager.CommitChanges();
+        }
+
         public void Dispose()
         {
             _manager.Dispose();

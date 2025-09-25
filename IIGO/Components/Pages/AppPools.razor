@@ -3,6 +3,7 @@
 @using System.Timers
 @using Microsoft.Web.Administration
 @inject IHttpContextAccessor httpContextAccessor
+@inject IISService IISService
 @attribute [Authorize(Roles = "Administrator,Manager")]
 @rendermode InteractiveServer
 

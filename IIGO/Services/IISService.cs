@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class IISService
+    public class IISService
     {
         private readonly IISWrapper _iisWrapper = new IISWrapper();
 
@@ -126,76 +126,10 @@ namespace IIGO.Services
             site?.Start();
         }
 
-        public Dictionary<string, string> GetIPRules()
-        {
-            var manager = new IisServerManager();
-            var ips = new Dictionary<string, string>();
-            Configuration config = manager.GetApplicationHostConfiguration();
-            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
-            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
-            foreach (ConfigurationElement element in ipSecurityCollection)
-            {
-                ips.Add(element["ipAddress"].ToString()!, element["allowed"].ToString()!);
-            }
+        public Dictionary<string, string> GetIPRules() => _iisWrapper.GetIPRules();
 
-            return ips;
-        }
+        public void DeleteIPRule(string ipaddress)=> _iisWrapper.DeleteIPRule(ipaddress);
 
-        public void DeleteIPRule(string ipaddress)
-        {
-            var manager = new IisServerManager();
-            Configuration config = manager.GetApplicationHostConfiguration();
-            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
-            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
-            ConfigurationElement addElement = FindElement(ipSecurityCollection, "add", "ipAddress", ipaddress) ?? throw new InvalidOperationException("Element not found!");
-            ipSecurityCollection.Remove(addElement);
-            manager.CommitChanges();
-        }
-
-        public void AddIPRule(string ipaddress, bool denyRule)
-        {
-            var manager = new IisServerManager();
-            var ips = GetIPRules();
-            if (ips.ContainsKey(ipaddress))
-                return;
-            Configuration config = manager.GetApplicationHostConfiguration();
-            var ipSecuritySection = config.GetSection("system.webServer/security/ipSecurity");
-            ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
-            ConfigurationElement addElement = ipSecurityCollection.CreateElement("add");
-            addElement["ipAddress"] = ipaddress;
-            addElement["allowed"] = !denyRule;
-            ipSecurityCollection.Add(addElement);
-            manager.CommitChanges();
-        }
-
-        private static ConfigurationElement? FindElement(ConfigurationElementCollection collection, string elementTagName, params string[] keyValues)
-        {
-            foreach (ConfigurationElement element in collection)
-            {
-                if (String.Equals(element.ElementTagName, elementTagName, StringComparison.OrdinalIgnoreCase))
-                {
-                    bool matches = true;
-                    for (int i = 0; i < keyValues.Length; i += 2)
-                    {
-                        object o = element.GetAttributeValue(keyValues[i]);
-                        string? value = null;
-                        if (o != null)
-                        {
-                            value = o.ToString()!;
-                        }
-                        if (!String.Equals(value, keyValues[i + 1], StringComparison.OrdinalIgnoreCase))
-                        {
-                            matches = false;
-                            break;
-                        }
-                    }
-                    if (matches)
-                    {
-                        return element;
-                    }
-                }
-            }
-            return null;
-        }
+        public void AddIPRule(string ipaddress, bool denyRule)=> _iisWrapper.AddIPRule(ipaddress, denyRule);
     }
 }

@@ -97,6 +97,7 @@ namespace IIGO
             builder.Services.AddScoped<IMessengerService, SlackService>();
             builder.Services.AddScoped<IMessengerService, SMTPService>();
             builder.Services.AddScoped<IMessengerService, SNSService>();
+            builder.Services.AddScoped<IISService>();
 
             builder.Services.AddTransient<ServiceResolver>(serviceProvider => serviceTypeName =>
             {
