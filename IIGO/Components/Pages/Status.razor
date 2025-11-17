@@ -164,35 +164,20 @@
         return interfaces.FirstOrDefault(x => x.Description.Replace("#", "_") == ni)?.GetIPProperties().UnicastAddresses.Select(x => x.Address.ToString()).ToList() ?? interfaces.Select(x => $"{x.Name} - {x.Description}").ToList();
     }
 
-    private void UpdateValues()
+    private async Task UpdateValues()
     {
-        _ = InvokeAsync(() =>
-        {
-            //var pcgInstances = pcg.GetInstanceNames();
-            //interfaces = new List<InterfaceStats>();
-            //foreach (var i in pcgInstances)
-            //{
-            //    interfaces.Add(new InterfaceStats
-            //    {
-            //        InterfaceName = i,
-            //        PCReceived = new PerformanceCounter("Network Interface", "Bytes Received/sec", i),
-            //        PCSent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", i),
-            //    });
-            //}
-
-            totalMemory = service.GetTotalMemoryInMiB(true);
-            availableMemory = service.GetPhysicalAvailableMemoryInMiB();
-            Total = FormatSize(totalMemory);
-            Available = FormatSize(availableMemory);
-            Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
-            PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
-            Processes = service.GetProcessCount();
-            PagedPool = FormatSize(service.GetPagedPool());
-            NonPagedPool = FormatSize(service.GetNonPagedPool());
-            UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
-            CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
-            StateHasChanged();
-        });
+        totalMemory = service.GetTotalMemoryInMiB(true);
+        availableMemory = service.GetPhysicalAvailableMemoryInMiB();
+        Total = FormatSize(totalMemory);
+        Available = FormatSize(availableMemory);
+        Percent = ((decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        PercentInUse = (1 - (decimal)availableMemory / (decimal)totalMemory).ToString("P1");
+        Processes = service.GetProcessCount();
+        PagedPool = FormatSize(service.GetPagedPool());
+        NonPagedPool = FormatSize(service.GetNonPagedPool());
+        UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
+        CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
+        await InvokeAsync(StateHasChanged);
     }
 
     private string FormatSize(long size)

@@ -8,9 +8,9 @@
 @using Windows.Win32
 @using System.Runtime.InteropServices
 @using Microsoft.Win32.SafeHandles
+@using System.Threading.Tasks
 @inject IHttpContextAccessor httpContextAccessor
 @attribute [Authorize]
-@attribute [StreamRendering]
 @rendermode InteractiveServer
 
 <PageTitle>Processes</PageTitle>
@@ -30,6 +30,7 @@ else
                 <th>Name</th>
                 <th>User</th>
                 <th>Memory Usage</th>
+                <th>CPU %</th>
                 <th>Command Line</th>
             </tr>
         </thead>
@@ -41,6 +42,18 @@ else
                     <td>@proc.ProcessName</td>
                     <td>@GetProcessUser(proc)</td>
                     <td>@((proc.WorkingSet64 / 1024).ToString("N0")) KB</td>
+                    <td>
+                        @{
+                            if (cpuUsages.TryGetValue(proc.Id, out var cpu))
+                            {
+                                <text>@($"{cpu:F1} %")</text>;
+                            }
+                            else
+                            {
+                                <text>—</text>;
+                            }
+                        }
+                    </td>
                     <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@GetCommandLineOfProcess(proc)</td>
                 </tr>
             }
@@ -50,9 +63,125 @@ else
 
 @code {
     Process[]? processes;
-    protected override void OnInitialized()
+    private PeriodicTimer timer;// = new(5000);
+
+    // previous sample info per PID
+    readonly Dictionary<int, TimeSpan> prevTotalProcTimes = new();
+    readonly Dictionary<int, DateTime> prevSampleTimes = new();
+
+    // computed CPU usage per PID
+    readonly Dictionary<int, double> cpuUsages = new();
+
+    CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
     {
-        processes = Process.GetProcesses().OrderByDescending(x => x.WorkingSet64).ToArray();
+        // initial population
+        processes = Process.GetProcesses().Where(x => x.ProcessName != "Memory Compression").OrderByDescending(x => x.WorkingSet64).ToArray();
+        // timer.Elapsed += (sender, ev) => UpdateValues();
+        // timer.Start();
+        var now = DateTime.UtcNow;
+        foreach (var p in processes)
+        {
+            try
+            {
+                prevTotalProcTimes[p.Id] = p.TotalProcessorTime;
+                prevSampleTimes[p.Id] = now;
+            }
+            catch
+            {
+                // ignore processes we can't access
+            }
+        }
+
+        // start periodic sampling (1s interval)
+        cts = new CancellationTokenSource();
+        // timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        // try
+        // {
+        //     while (await timer.WaitForNextTickAsync(cts.Token))
+        //     {
+        //         var sampleTime = DateTime.UtcNow;
+        //         Process[] currentProcs;
+        //         try
+        //         {
+        //             currentProcs = Process.GetProcesses();
+        //         }
+        //         catch
+        //         {
+        //             // if we can't enumerate, skip this tick
+        //             await InvokeAsync(StateHasChanged);
+        //             continue;
+        //         }
+
+        //         // refresh visible process list
+        //         processes = currentProcs.OrderByDescending(x => x.WorkingSet64).ToArray();
+
+        //         foreach (var p in currentProcs)
+        //         {
+        //             try
+        //             {
+        //                 var currentTotal = p.TotalProcessorTime;
+
+        //                 if (prevTotalProcTimes.TryGetValue(p.Id, out var prevTotal) &&
+        //                     prevSampleTimes.TryGetValue(p.Id, out var prevTime))
+        //                 {
+        //                     var deltaMs = (currentTotal - prevTotal).TotalMilliseconds;
+        //                     var intervalMs = (sampleTime - prevTime).TotalMilliseconds;
+
+        //                     if (intervalMs > 0)
+        //                     {
+        //                         // CPU% = (deltaTotalTime / interval) / logicalProcessorCount * 100
+        //                         var cpu = (deltaMs / (intervalMs * Environment.ProcessorCount)) * 100.0;
+        //                         cpuUsages[p.Id] = Math.Max(0.0, cpu);
+        //                     }
+        //                     else
+        //                     {
+        //                         cpuUsages[p.Id] = 0.0;
+        //                     }
+        //                 }
+        //                 else
+        //                 {
+        //                     // no prior sample for this PID
+        //                     cpuUsages[p.Id] = 0.0;
+        //                 }
+
+        //                 prevTotalProcTimes[p.Id] = currentTotal;
+        //                 prevSampleTimes[p.Id] = sampleTime;
+        //             }
+        //             catch
+        //             {
+        //                 // process may have exited or be inaccessible
+        //                 cpuUsages[p.Id] = 0.0;
+        //             }
+        //         }
+
+        //         await InvokeAsync(StateHasChanged);
+        //     }
+        // }
+        // catch (OperationCanceledException)
+        // {
+        //     // normal shutdown
+        // }
+    }
+
+    private void UpdateValues()
+    {
+        _ = InvokeAsync(() =>
+        {
+            processes = Process.GetProcesses().Where(x => x.ProcessName != "Memory Compression").OrderByDescending(x => x.WorkingSet64).ToArray();
+            StateHasChanged(); 
+        });
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            cts?.Cancel();
+            timer?.Dispose();
+        }
+        catch { }
     }
 
     private static string? GetProcessUser(Process process)

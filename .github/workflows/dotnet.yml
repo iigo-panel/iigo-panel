@@ -23,6 +23,6 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore dependencies
-      run: dotnet restore IIGO\IIGO.sln
+      run: dotnet restore IIGO\IIGO.slnx
     - name: Build
-      run: msbuild IIGO\IIGO.sln /verbosity:minimal
+      run: msbuild IIGO\IIGO.slnx /verbosity:minimal
