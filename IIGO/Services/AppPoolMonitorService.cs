@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    public class AppPoolMonitorService
+    internal class AppPoolMonitorService
     {
 
     }

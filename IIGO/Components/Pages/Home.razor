@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using IIGO.Data
+@using IIGO.Services
 @using Microsoft.AspNetCore.Identity;
 @inject IConfiguration configuration
 @inject SignInManager<ApplicationUser> _signinManager
@@ -7,10 +8,13 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @using System.Security.Claims
 @attribute [Authorize]
+@rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
 
 <h1>Dashboard</h1>
+
+<button @onclick="Reboot">Reboot</button>
 
 @code {
     private string? authMessage;
@@ -32,5 +36,10 @@
         {
             authMessage = "The user is NOT authenticated.";
         }
+    }
+
+    private void Reboot()
+    {
+        ComputerControlService.Reboot();
     }
 }

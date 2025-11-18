@@ -7,7 +7,7 @@ namespace IIGO.Data
 {
     [Table("AppPoolMonitoring")]
     [PrimaryKey(nameof(Id))]
-    internal class AppPoolMonitoring
+    public class AppPoolMonitoring
     {
         [Key]
         public int Id { get; set; }

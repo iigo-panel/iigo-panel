@@ -217,8 +217,6 @@ namespace IISManager.Services
         /// </summary>
         /// <param name="domain"></param>
         /// <param name="path"></param>
-        /// <param name="userName"></param>
-        /// <param name="password"></param>
         public void CreateWebsite(string domain, string path)
         {
             var pools = ListAppPools();

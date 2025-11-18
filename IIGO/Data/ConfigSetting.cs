@@ -6,7 +6,7 @@ namespace IIGO.Data
 {
     [Table(nameof(ConfigSetting))]
     [PrimaryKey(nameof(Id))]
-    internal class ConfigSetting
+    public class ConfigSetting
     {
         [Key,Required]
         public int Id { get; set; }

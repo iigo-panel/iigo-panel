@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace IIGO.Services
 {
-    internal abstract class ServiceBase(ApplicationDbContext context)
+    public abstract class ServiceBase(ApplicationDbContext context)
     {
         protected string GetSetting(string setting, string defaultValue = "")
         {

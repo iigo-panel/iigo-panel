@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IIGO.Data
 {
-    internal class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
     {
         public DbSet<ConfigSetting> ConfigSetting { get; set; }
         public DbSet<AppPoolMonitoring> AppPoolMonitoring { get; set; }

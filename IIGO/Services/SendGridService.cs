@@ -1,22 +1,14 @@
-﻿using IIGO.Models;
+﻿using IIGO.Data;
+using IIGO.Models;
 using IIGO.Services.Interfaces;
-using SendGrid.Helpers.Mail;
 using SendGrid;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using IIGO.Data;
-using System.Linq;
+using SendGrid.Helpers.Mail;
 
 namespace IIGO.Services
 {
-    internal class SendGridService : ServiceBase, IMessengerService
+    internal class SendGridService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private readonly ApplicationDbContext _context;
-        public SendGridService(ApplicationDbContext context) : base(context)
-        {
-            _context = context;
-        }
+        private readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "SendGrid Email Relay";
         public string ServiceIdentifier => nameof(SendGridService);
