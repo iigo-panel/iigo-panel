@@ -12,13 +12,9 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SNSService : ServiceBase, IMessengerService
+    internal class SNSService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
     {
-        private readonly ApplicationDbContext _context;
-        public SNSService(ApplicationDbContext context) : base(context)
-        {
-            _context = context;
-        }
+        private readonly ApplicationDbContext _context = context;
 
         public string ServiceName => "Simple Notification Service (Amazon SNS)";
         public string ServiceIdentifier => nameof(SNSService);

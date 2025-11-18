@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="../Microsoft.Web.Administration/Microsoft.Web.Administration.csproj" />
+  <Project Path="../Microsoft.Web.Configuration.AppHostFileProvider/Microsoft.Web.Configuration.AppHostFileProvider.csproj" />
+  <Project Path="IIGO.csproj" />
+</Solution>
