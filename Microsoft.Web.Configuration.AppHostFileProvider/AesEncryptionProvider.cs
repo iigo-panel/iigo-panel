@@ -71,7 +71,8 @@ namespace Microsoft.ApplicationHost
                 uint pdwDataLen = (uint)array.Length;
                 fixed (byte* arrayPtr = array)
                 {
-                    if (!Windows.Win32.PInvoke.CryptDecrypt(hEncryptKey, 0, Final: false, 0u, arrayPtr, ref pdwDataLen))
+                    var span = new Span<byte>(arrayPtr, (int)pdwDataLen);
+                    if (!Windows.Win32.PInvoke.CryptDecrypt(hEncryptKey, 0, Final: false, 0u, span, ref pdwDataLen))
                     {
                         throw new Win32Exception(Marshal.GetLastWin32Error());
                     }
@@ -127,8 +128,9 @@ namespace Microsoft.ApplicationHost
                 }
 
                 uint pdwDataLen = (uint)array.Length;
-                ReadOnlySpan<byte> arrayPtr = array;
-                if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, arrayPtr, ref pdwDataLen))
+                // FIX: Use Span<byte> instead of ReadOnlySpan<byte>
+                Span<byte> arraySpan = array;
+                if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, arraySpan, ref pdwDataLen))
                 {
                     int lastWin32Error = Marshal.GetLastWin32Error();
                     if (lastWin32Error != 234)
@@ -140,8 +142,8 @@ namespace Microsoft.ApplicationHost
                 byte[] array2 = new byte[pdwDataLen];
                 array.CopyTo(array2, 0);
                 pdwDataLen = (uint)array.Length;
-                ReadOnlySpan<byte> array2Ptr = array2;
-                if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, array2Ptr, ref pdwDataLen))
+                Span<byte> array2Span = array2;
+                if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, array2Span, ref pdwDataLen))
                 {
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
