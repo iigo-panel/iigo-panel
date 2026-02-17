@@ -13,5 +13,7 @@ Modify `appsettings.json` as necessary if default settings need to be changed.
 
 On first-run a new admin user is created with the following credentials (these can be adjusted in `Program.cs`:
 
+```
 Username: admin
 Password: IIGOAdmin#10
+```
