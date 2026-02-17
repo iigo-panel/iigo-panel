@@ -69,12 +69,10 @@ namespace Microsoft.ApplicationHost
                 byte[] array = new byte[encrypted.Length];
                 encrypted.CopyTo(array, 0);
                 uint pdwDataLen = (uint)array.Length;
-                fixed (byte* arrayPtr = array)
+                Span<byte> arrayPtr = array;
+                if (!Windows.Win32.PInvoke.CryptDecrypt(hEncryptKey, 0, Final: false, 0u, arrayPtr, ref pdwDataLen))
                 {
-                    if (!Windows.Win32.PInvoke.CryptDecrypt(hEncryptKey, 0, Final: false, 0u, arrayPtr, ref pdwDataLen))
-                    {
-                        throw new Win32Exception(Marshal.GetLastWin32Error());
-                    }
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
 
                 int num = 0;
@@ -127,7 +125,7 @@ namespace Microsoft.ApplicationHost
                 }
 
                 uint pdwDataLen = (uint)array.Length;
-                ReadOnlySpan<byte> arrayPtr = array;
+                Span<byte> arrayPtr = array;
                 if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, arrayPtr, ref pdwDataLen))
                 {
                     int lastWin32Error = Marshal.GetLastWin32Error();
@@ -140,7 +138,7 @@ namespace Microsoft.ApplicationHost
                 byte[] array2 = new byte[pdwDataLen];
                 array.CopyTo(array2, 0);
                 pdwDataLen = (uint)array.Length;
-                ReadOnlySpan<byte> array2Ptr = array2;
+                Span<byte> array2Ptr = array2;
                 if (!Windows.Win32.PInvoke.CryptEncrypt(hEncryptKey, 0, Final: true, 0u, array2Ptr, ref pdwDataLen))
                 {
                     throw new Win32Exception(Marshal.GetLastWin32Error());

@@ -27,59 +27,59 @@
     <PackageReference Include="AsyncAwaitBestPractices" Version="10.0.0" />
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
     <PackageReference Include="Blazor.Bootstrap" Version="3.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.0">
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.0-rc.1.25458.5" />
-    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.242">
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.3" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.269">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Semver" Version="3.0.0" />
     <PackageReference Include="StatefulReconnection" Version="0.1.0" />
-    <PackageReference Include="System.Management" Version="10.0.0" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.0" />
-    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.0" />
-    <PackageReference Include="System.Security.Permissions" Version="10.0.0" />
-    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+    <PackageReference Include="System.Management" Version="10.0.3" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.3" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.3" />
+    <PackageReference Include="System.Security.Permissions" Version="10.0.3" />
+    <PackageReference Include="System.Text.Json" Version="10.0.3" />
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
     <PackageReference Include="W3CParser" Version="1.0.0" />
     <PackageReference Include="Whois" Version="3.0.1" />
     <PackageReference Include="WindowsFirewallHelper" Version="2.2.0.86" />
-    <PackageReference Include="NodaTime" Version="3.2.2" />
+    <PackageReference Include="NodaTime" Version="3.3.0" />
   </ItemGroup>
 
   <!-- Transitive dependencies that had vulnerabilities -->
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Build" Version="18.0.2" />
-    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.15.0" />
-    <PackageReference Include="NuGet.Protocol" Version="7.0.0" />
-    <PackageReference Include="NuGet.Common" Version="7.0.1" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Build" Version="18.3.3" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.16.0" />
+    <PackageReference Include="NuGet.Protocol" Version="7.3.0" />
+    <PackageReference Include="NuGet.Common" Version="7.3.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MailKit" Version="4.14.1" />
-    <PackageReference Include="Postmark" Version="5.2.0" />
-    <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.2.5" />
+    <PackageReference Include="MailKit" Version="4.15.0" />
+    <PackageReference Include="Postmark" Version="5.3.0" />
+    <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.2.13" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Slack.Webhooks" Version="1.1.5" />
     <PackageReference Include="Discord.Net.Webhook" Version="3.18.0" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2.7" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2.16" />
   </ItemGroup>
 
   <ItemGroup>
