@@ -179,24 +179,24 @@ namespace IISManager.Services
         /// </summary>
         /// <param name="domain"></param>
         /// <param name="path"></param>
-        public void CreateWebsite(string domain, string path, string serverPrefix = "s1", bool addBindings = true, bool isSdw = true)
-        {
-            var pools = ListAppPools();
-            if (!pools.Any(x => x.Name == domain))
-                throw new AppPoolNotFoundException(domain);
+        //public void CreateWebsite(string domain, string path, string serverPrefix = "s1", bool addBindings = true, bool isSdw = true)
+        //{
+        //    var pools = ListAppPools();
+        //    if (!pools.Any(x => x.Name == domain))
+        //        throw new AppPoolNotFoundException(domain);
 
-            Site site = _manager.Sites.Add(domain, path, 80);
-            site.ServerAutoStart = true;
-            site.Bindings[0].BindingInformation = $"*:80:{domain}";
-            if (addBindings)
-            {
-                site.Bindings.Add($"*:80:www.{domain}", "http");
-                site.Bindings.Add($"*:80:www.{domain}.{serverPrefix}.{(isSdw ? "sdw" : "mws")}.dev", "http");
-            }
-            site.Applications[0].ApplicationPoolName = domain;
+        //    Site site = _manager.Sites.Add(domain, path, 80);
+        //    site.ServerAutoStart = true;
+        //    site.Bindings[0].BindingInformation = $"*:80:{domain}";
+        //    if (addBindings)
+        //    {
+        //        site.Bindings.Add($"*:80:www.{domain}", "http");
+        //        site.Bindings.Add($"*:80:www.{domain}.{serverPrefix}.{(isSdw ? "sdw" : "mws")}.dev", "http");
+        //    }
+        //    site.Applications[0].ApplicationPoolName = domain;
 
-            _manager.CommitChanges();
-        }
+        //    _manager.CommitChanges();
+        //}
 
         /// <summary>
         /// Get Site ID based on name. Returns -1 if not found
@@ -215,19 +215,29 @@ namespace IISManager.Services
         /// <summary>
         /// Creates a website using the specified domain and path and creates an application pool if it doesn't already exist
         /// </summary>
-        /// <param name="domain"></param>
-        /// <param name="path"></param>
-        public void CreateWebsite(string domain, string path)
+        /// <param name="siteName"></param>
+        /// <param name="appPoolName"></param>
+        /// <param name="physicalPath"></param>
+        /// <param name="bindingInformation"></param>
+        /// <param name="protocol"></param>
+        public void CreateWebsite(string siteName, string appPoolName, string physicalPath, string bindingInformation, string protocol = "http")
         {
             var pools = ListAppPools();
-            if (!pools.Any(x => x.Name == domain))
-                CreateAppPool(domain);
+            if (!pools.Any(x => x.Name == appPoolName))
+                CreateAppPool(appPoolName);
 
-            Site site = _manager.Sites.Add(domain, path, 80);
+            Site site = _manager.Sites.Add(siteName, physicalPath, 80);
             site.ServerAutoStart = true;
-            site.Bindings[0].BindingInformation = $"*:80:{domain}";
-            site.Applications[0].ApplicationPoolName = domain;
+            site.Bindings[0].BindingInformation = bindingInformation;
+            site.Bindings[0].Protocol = protocol;
+            site.Applications[0].ApplicationPoolName = appPoolName;
 
+            _manager.CommitChanges();
+        }
+
+        public void DeleteWebsite(long siteId)
+        {
+            _manager.Sites.Remove(_manager.Sites.SingleOrDefault(x => x.Id == siteId) ?? throw new NullReferenceException("Site not found"));
             _manager.CommitChanges();
         }
 
