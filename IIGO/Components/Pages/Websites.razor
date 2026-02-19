@@ -140,13 +140,20 @@ else
 
         if (confirmation)
         {
+            string? siteName = null;
             try
             {
                 var site = IISService.GetSite(siteId);
-                LastMessage = $"{site?.Name} deleted!";
+                siteName = site?.Name;
             }
             catch { }
-            IISService.DeleteWebsite(siteId);
+
+            try
+            {
+                IISService.DeleteWebsite(siteId);
+                LastMessage = $"{siteName} deleted!";
+            }
+            catch { }
 
             try
             {
