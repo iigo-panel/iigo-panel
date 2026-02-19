@@ -57,6 +57,7 @@ namespace IISManager.Services
 
         public List<Site> ListSites()
         {
+            _manager.Dispose();
             _manager = new IisServerManager(@"C:\Windows\System32\inetsrv\config\applicationHost.config");
             return [.. _manager.Sites.OrderBy(x => x.Name)];
         }

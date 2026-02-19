@@ -18,7 +18,10 @@
 }
 else
 {
-    <a href="/websites/new" class="btn btn-primary">Add Website</a>
+    @if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
+    {
+           <a href="/websites/new" class="btn btn-primary">Add Website</a>
+    }
     <button @onclick="Reload" class="btn btn-success">Reload</button>
 
     if (LastMessage != null)

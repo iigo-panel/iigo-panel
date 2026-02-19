@@ -8,7 +8,7 @@
 @inject NavigationManager NavigationManager
 @inject IISService IISService
 @inject ILogger<AddWebsite> logger
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
 <PageTitle>Add Website</PageTitle>
