@@ -35,21 +35,24 @@ namespace Microsoft.Web.Administration
 
         public Site Add(string name, string physicalPath, int port)
         {
-            long largestId = 0;
-            foreach (Site s in this)
+            lock (this)
             {
-                if (s.Id > largestId)
+                long largestId = 0;
+                foreach (Site s in this)
                 {
-                    largestId = s.Id;
+                    if (s.Id > largestId)
+                    {
+                        largestId = s.Id;
+                    }
                 }
-            }
 
-            largestId++;
-            var site = new Site(this) { Name = name, Id = largestId };
-            //site.Name = name;
-            site.Bindings.Add($"*:{port}:", "http");
-            site.Applications.Add(Application.RootPath, physicalPath);
-            return Add(site);
+                largestId++;
+                var site = new Site(this) { Name = name, Id = largestId };
+                //site.Name = name;
+                site.Bindings.Add($"*:{port}:", "http");
+                site.Applications.Add(Application.RootPath, physicalPath);
+                return Add(site);
+            }
         }
 
         public Site Add(string name, string bindingInformation, string physicalPath, byte[] certificateHash)
