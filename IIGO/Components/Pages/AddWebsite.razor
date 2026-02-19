@@ -7,13 +7,20 @@
 @inject IHttpContextAccessor httpContextAccessor
 @inject NavigationManager NavigationManager
 @inject IISService IISService
-@attribute [Authorize]
-@attribute [StreamRendering]
+@inject ILogger<AddWebsite> logger
+@attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
 <PageTitle>Add Website</PageTitle>
 
 <h1>Add Website</h1>
+
+@if (LastMessage != null)
+{
+    <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
+        @LastMessage
+    </div>
+}
 
 <div class="row">
     <div class="col-md-8 mx-auto">
@@ -38,6 +45,22 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewWebsite.Hostname" id="hostname" aria-required="true" placeholder="Host Name" />
+                        <label for="hostname" class="form-label">Host Name</label>
+                        <ValidationMessage For="() => NewWebsite.Hostname" class="text-danger" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewWebsite.PhysicalPath" id="physicalPath" aria-required="true" placeholder="Physical Path" />
+                        <label for="physicalPath" class="form-label">Physical Path</label>
+                        <ValidationMessage For="() => NewWebsite.PhysicalPath" class="text-danger" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
                         <InputSelect class="form-control" @bind-Value="NewWebsite.Scheme" id="scheme" aria-required="true" placeholder="Scheme">
                            <option value="http">http</option>
                             <option value="https">https</option>
@@ -55,7 +78,7 @@
                 </div>
             </div>
             <div>
-                <button type="submit" class="btn btn-primary">Submit</button>
+                <button type="submit" @onclick="SubmitWebsite" class="btn btn-primary">Submit</button>
                 <a href="/websites" class="btn btn-danger">Back</a>
             </div>
         </EditForm>
@@ -66,6 +89,8 @@
 
     [SupplyParameterFromForm]
     private NewWebsiteModel NewWebsite { get; set; } = new NewWebsiteModel();
+    private string? LastMessage = null;
+    private bool Success = true;
 
     protected override void OnInitialized()
     {
@@ -74,8 +99,17 @@
 
     protected void SubmitWebsite()
     {
-        
-        NavigationManager.NavigateTo("/websites");
+        try
+        {
+            IISService.AddWebsite(NewWebsite.Name, NewWebsite.ApplicationPool, NewWebsite.PhysicalPath, $"{NewWebsite.IPAddress}:{NewWebsite.Port}:{NewWebsite.Hostname}", NewWebsite.Scheme);
+            NavigationManager.NavigateTo("/websites");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating website {Name}", NewWebsite.Name);
+            LastMessage = $"Add website failure: {ex.Message}";
+            Success = false;
+        }
     }
 
     protected void NameInput(ChangeEventArgs e)

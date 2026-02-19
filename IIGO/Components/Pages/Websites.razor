@@ -6,7 +6,6 @@
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
 @attribute [Authorize]
-@attribute [StreamRendering]
 @rendermode InteractiveServer
 
 <PageTitle>Websites</PageTitle>
@@ -19,7 +18,11 @@
 }
 else
 {
-    <a href="/websites/new" class="btn btn-primary">Add Website</a>
+    @if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
+    {
+           <a href="/websites/new" class="btn btn-primary">Add Website</a>
+    }
+    <button @onclick="Reload" class="btn btn-success">Reload</button>
 
     if (LastMessage != null)
     {
@@ -28,6 +31,8 @@ else
             @* <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> *@
         </div>
     }
+
+    <ConfirmDialog @ref="dialog" />
 
     <table class="table">
         <thead>
@@ -55,12 +60,13 @@ else
                             <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-primary">Restart</button><text>&nbsp;</text>
                             @if (site.State == ObjectState.Stopped)
                             {
-                                <button @onclick="@(e => StartSite(site.Id))" class="btn btn-success">Start</button>
+                                <button @onclick="@(e => StartSite(site.Id))" class="btn btn-success">Start</button><text>&nbsp;</text>
                             }
                             else if (site.State == ObjectState.Started)
                             {
-                                <button @onclick="@(e => StopSite(site.Id))" class="btn btn-danger">Stop</button>
+                                <button @onclick="@(e => StopSite(site.Id))" class="btn btn-danger">Stop</button><text>&nbsp;</text>
                             }
+                            <button @onclick="@(e => DeleteSite(site.Id))" class="btn btn-danger">Delete</button>
                         }
                     </td>
                 </tr>
@@ -70,9 +76,21 @@ else
 }
 
 @code{
+    private ConfirmDialog dialog = default!;
     List<Site>? sites;
     private string? LastMessage = null;
     private bool Success = true;
+
+    protected async Task Reload()
+    {
+        try
+        {
+            sites = IISService.GetSites();
+            LastMessage = null;
+        }
+        catch { }
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnInitialized()
     {
@@ -114,5 +132,38 @@ else
         }
         catch { }
         IISService.StopSite(siteId);
+    }
+
+    protected async Task DeleteSite(long siteId)
+    {
+        var confirmation = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this website?",
+            message1: "This will delete the website and cannot be reversed.",
+            message2: "Do you want to proceed?");
+
+        if (confirmation)
+        {
+            string? siteName = null;
+            try
+            {
+                var site = IISService.GetSite(siteId);
+                siteName = site?.Name;
+            }
+            catch { }
+
+            try
+            {
+                IISService.DeleteWebsite(siteId);
+                LastMessage = $"{siteName} deleted!";
+            }
+            catch { }
+
+            try
+            {
+                sites = IISService.GetSites();
+            }
+            catch { }
+            await InvokeAsync(StateHasChanged);
+        }
     }
 }

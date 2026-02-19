@@ -11,14 +11,14 @@ namespace IIGO.Services
     {
         private readonly IISWrapper _iisWrapper = new IISWrapper();
 
-        public void AddWebsite(string siteName, string appPoolName, string physicalPath, string bindingInformation)
+        public void AddWebsite(string siteName, string appPoolName, string physicalPath, string bindingInformation, string protocol)
         {
-            _iisWrapper.CreateWebsite(siteName, appPoolName);
+            _iisWrapper.CreateWebsite(siteName, appPoolName, physicalPath, bindingInformation, protocol);
         }
 
         public void DeleteWebsite(long siteId)
         {
-            //_iisWrapper.DeleteWebsite(siteId);
+            _iisWrapper.DeleteWebsite(siteId);
         }
 
         public void UpdateWebsite(long siteId, string siteName, string appPoolName, string physicalPath, string bindingInformation)
