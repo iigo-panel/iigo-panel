@@ -11,7 +11,7 @@ namespace IISManager.Services
 {
     internal sealed class IISWrapper : IDisposable
     {
-        readonly ServerManager _manager;
+        ServerManager _manager;
         public IISWrapper()
         {
             // TODO: make path more dynamic
@@ -57,6 +57,7 @@ namespace IISManager.Services
 
         public List<Site> ListSites()
         {
+            _manager = new IisServerManager(@"C:\Windows\System32\inetsrv\config\applicationHost.config");
             return [.. _manager.Sites.OrderBy(x => x.Name)];
         }
 
@@ -222,6 +223,16 @@ namespace IISManager.Services
         /// <param name="protocol"></param>
         public void CreateWebsite(string siteName, string appPoolName, string physicalPath, string bindingInformation, string protocol = "http")
         {
+            long siteId = 0;
+            var sites = ListSites();
+            foreach (var s in sites)
+            {
+                if (s.Id > siteId)
+                {
+                    siteId = s.Id;
+                }
+            }
+            siteId++;
             var pools = ListAppPools();
             if (!pools.Any(x => x.Name == appPoolName))
                 CreateAppPool(appPoolName);

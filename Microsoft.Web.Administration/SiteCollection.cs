@@ -3,6 +3,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Xml.Linq;
 
 namespace Microsoft.Web.Administration
 {
@@ -34,8 +35,18 @@ namespace Microsoft.Web.Administration
 
         public Site Add(string name, string physicalPath, int port)
         {
-            var site = new Site(this);
-            site.Name = name;
+            long largestId = 0;
+            foreach (Site s in this)
+            {
+                if (s.Id > largestId)
+                {
+                    largestId = s.Id;
+                }
+            }
+
+            largestId++;
+            var site = new Site(this) { Name = name, Id = largestId };
+            //site.Name = name;
             site.Bindings.Add($"*:{port}:", "http");
             site.Applications.Add(Application.RootPath, physicalPath);
             return Add(site);

@@ -6,7 +6,6 @@
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
 @attribute [Authorize]
-@attribute [StreamRendering]
 @rendermode InteractiveServer
 
 <PageTitle>Websites</PageTitle>
@@ -20,6 +19,7 @@
 else
 {
     <a href="/websites/new" class="btn btn-primary">Add Website</a>
+    <button @onclick="Reload" class="btn btn-success">Reload</button>
 
     if (LastMessage != null)
     {
@@ -77,6 +77,17 @@ else
     List<Site>? sites;
     private string? LastMessage = null;
     private bool Success = true;
+
+    protected async Task Reload()
+    {
+        try
+        {
+            sites = IISService.GetSites();
+            LastMessage = null;
+        }
+        catch { }
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnInitialized()
     {
@@ -136,6 +147,13 @@ else
             }
             catch { }
             IISService.DeleteWebsite(siteId);
+
+            try
+            {
+                sites = IISService.GetSites();
+            }
+            catch { }
+            await InvokeAsync(StateHasChanged);
         }
     }
 }
