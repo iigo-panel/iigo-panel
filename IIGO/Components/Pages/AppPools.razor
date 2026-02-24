@@ -68,18 +68,18 @@ else
     private string? LastMessage = null;
     private bool Success = true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         pools = IISService.GetAppPools();
-        timer.Elapsed += (sender, eventArgs) => UpdateValues();
+        timer.Elapsed += async (sender, eventArgs) => await UpdateValues();
         timer.Start();
     }
 
-    protected void UpdateValues()
+    protected async Task UpdateValues()
     {
         LastMessage = null;
         pools = IISService.GetAppPools();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     protected void RecyclePool(string poolName)
