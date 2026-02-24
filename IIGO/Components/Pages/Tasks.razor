@@ -1,7 +1,8 @@
 ﻿@page "/tasks"
 @using Microsoft.Win32.TaskScheduler
+@using IIGO.Services
 @inject IHttpContextAccessor httpContextAccessor
-@attribute [Authorize]
+@attribute [Authorize(Policy = Feature.ViewScheduledTasks)]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 

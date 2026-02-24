@@ -1,9 +1,11 @@
 using AsyncAwaitBestPractices;
+using IIGO.Authorization;
 using IIGO.Components;
 using IIGO.Components.Account;
 using IIGO.Data;
 using IIGO.Services;
 using IIGO.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -81,6 +83,20 @@ namespace IIGO
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
             builder.Services.Configure<DataProtectionTokenProviderOptions>(opt => opt.TokenLifespan = TimeSpan.FromHours(2));
+
+            builder.Services.AddAuthorization(options =>
+            {
+                foreach (var feature in Feature.All)
+                {
+                    options.AddPolicy(feature, policy =>
+                    {
+                        policy.RequireAuthenticatedUser();
+                        policy.Requirements.Add(new FeatureRequirement(feature));
+                    });
+                }
+            });
+            builder.Services.AddSingleton<IAuthorizationHandler, FeatureAuthorizationHandler>();
+            builder.Services.AddScoped<RolePermissionService>();
 
             builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
@@ -244,6 +260,30 @@ namespace IIGO
                         {
                             await manager.AddToRoleAsync(managerUser, "Administrator");
                         }
+                    }
+                }
+
+                // Seed default Manager role permissions
+                var managerRole = await roleManager.FindByNameAsync("Manager");
+                if (managerRole != null)
+                {
+                    using var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    if (!dbContext.RolePermission.Any(rp => rp.RoleId == managerRole.Id))
+                    {
+                        var defaultManagerFeatures = new[]
+                        {
+                            Feature.ViewWebsites,
+                            Feature.ViewAppPools,
+                            Feature.ViewFirewallRules,
+                            Feature.ViewScheduledTasks,
+                            Feature.ViewServices,
+                            Feature.ViewRoles
+                        };
+                        foreach (var feature in defaultManagerFeatures)
+                        {
+                            dbContext.RolePermission.Add(new RolePermission { RoleId = managerRole.Id, Feature = feature });
+                        }
+                        await dbContext.SaveChangesAsync();
                     }
                 }
             }

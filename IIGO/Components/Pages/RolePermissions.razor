@@ -1,0 +1,113 @@
+@page "/roles/{id}"
+@using IIGO.Services
+@using Microsoft.AspNetCore.Identity
+@inject RoleManager<IdentityRole> _roleManager
+@inject RolePermissionService _permissionService
+@inject NavigationManager _nav
+@attribute [Authorize(Policy = Feature.ViewRoles)]
+@rendermode InteractiveServer
+
+<PageTitle>Role Permissions</PageTitle>
+
+<h3>Role Permissions</h3>
+
+@if (role == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h5>@role.Name</h5>
+
+    <AuthorizeView Roles="Administrator">
+        <Authorized>
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Features</h6>
+                    @foreach (var feature in Feature.All)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="@feature"
+                                   checked="@selectedFeatures.Contains(feature)"
+                                   @onchange="@(e => ToggleFeature(feature, (bool)e.Value!))" />
+                            <label class="form-check-label" for="@feature">@FormatFeatureName(feature)</label>
+                        </div>
+                    }
+                    <button class="btn btn-primary mt-3" @onclick="Save">Save</button>
+                    @if (!string.IsNullOrEmpty(saveMessage))
+                    {
+                        <span class="ms-3 text-success">@saveMessage</span>
+                    }
+                </div>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Features</h6>
+                    @foreach (var feature in Feature.All)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="@feature"
+                                   checked="@selectedFeatures.Contains(feature)"
+                                   disabled />
+                            <label class="form-check-label" for="@feature">@FormatFeatureName(feature)</label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <a href="/roles" class="btn btn-secondary mt-3">Back to Roles</a>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    IdentityRole? role;
+    HashSet<string> selectedFeatures = new();
+    string? saveMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        role = await _roleManager.FindByIdAsync(Id);
+        if (role != null)
+        {
+            var features = await _permissionService.GetRoleFeaturesAsync(role.Id);
+            selectedFeatures = new HashSet<string>(features);
+        }
+    }
+
+    void ToggleFeature(string feature, bool selected)
+    {
+        saveMessage = null;
+        if (selected)
+            selectedFeatures.Add(feature);
+        else
+            selectedFeatures.Remove(feature);
+    }
+
+    async Task Save()
+    {
+        if (role != null)
+        {
+            await _permissionService.SetRoleFeaturesAsync(role.Id, selectedFeatures);
+            saveMessage = "Saved!";
+        }
+    }
+
+    static string FormatFeatureName(string feature)
+    {
+        // Insert spaces before uppercase letters: "ViewWebsites" -> "View Websites"
+        var result = new System.Text.StringBuilder();
+        foreach (var ch in feature)
+        {
+            if (char.IsUpper(ch) && result.Length > 0)
+                result.Append(' ');
+            result.Append(ch);
+        }
+        return result.ToString();
+    }
+}

@@ -1,0 +1,110 @@
+@page "/roles"
+@using IIGO.Services
+@using Microsoft.AspNetCore.Identity
+@inject NavigationManager _nav
+@inject RoleManager<IdentityRole> _roleManager
+@inject IJSRuntime JsRuntime
+@attribute [Authorize(Policy = Feature.ViewRoles)]
+@rendermode InteractiveServer
+
+<PageTitle>Roles</PageTitle>
+
+<h3>Roles</h3>
+
+<AuthorizeView Roles="Administrator">
+    <Authorized>
+        <div class="mb-3">
+            <input class="form-control d-inline-block w-auto" @bind="newRoleName" placeholder="New role name" />
+            <button class="btn btn-primary" @onclick="CreateRole">Create Role</button>
+        </div>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@if (roles == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var role in roles)
+            {
+                <tr>
+                    <td>@role.Name</td>
+                    <td>
+                        @if (role.Name != "Administrator")
+                        {
+                            <button class="btn btn-primary" @onclick="@(() => _nav.NavigateTo($"/roles/{role.Id}"))">Permissions</button>
+                            <AuthorizeView Roles="Administrator">
+                                <Authorized>
+                                    <button class="btn btn-danger ms-1" @onclick="@(() => DeleteRole(role.Id))">Delete</button>
+                                </Authorized>
+                            </AuthorizeView>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Built-in (all permissions)</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<IdentityRole>? roles;
+    string newRoleName = "";
+    string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        roles = _roleManager.Roles.ToList();
+    }
+
+    async Task CreateRole()
+    {
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(newRoleName))
+        {
+            errorMessage = "Role name cannot be empty.";
+            return;
+        }
+
+        var result = await _roleManager.CreateAsync(new IdentityRole { Name = newRoleName.Trim() });
+        if (result.Succeeded)
+        {
+            newRoleName = "";
+            roles = _roleManager.Roles.ToList();
+        }
+        else
+        {
+            errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+        }
+    }
+
+    async Task DeleteRole(string id)
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this role?");
+        if (confirmed)
+        {
+            var role = await _roleManager.FindByIdAsync(id);
+            if (role != null)
+            {
+                await _roleManager.DeleteAsync(role);
+                roles = _roleManager.Roles.ToList();
+            }
+        }
+    }
+}

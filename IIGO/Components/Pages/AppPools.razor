@@ -4,7 +4,7 @@
 @using Microsoft.Web.Administration
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
-@attribute [Authorize(Roles = "Administrator,Manager")]
+@attribute [Authorize(Policy = Feature.ViewAppPools)]
 @rendermode InteractiveServer
 
 <PageTitle>Application Pools</PageTitle>
