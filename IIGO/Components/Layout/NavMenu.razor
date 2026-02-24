@@ -21,7 +21,7 @@
                     </NavLink>
                 </div>
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewWebsites">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/websites">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span> Websites
@@ -30,7 +30,7 @@
                     </Authorized>
                 </AuthorizeView>
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewAppPools">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/apppools">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span> App Pools
@@ -57,7 +57,7 @@
                     </NavLink>
                 </div>
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewFirewallRules">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/firewall">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span>Firewall
@@ -66,7 +66,7 @@
                     </Authorized>
                 </AuthorizeView>
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewScheduledTasks">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/tasks">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span>Task Scheduler
@@ -75,7 +75,7 @@
                     </Authorized>
                 </AuthorizeView>
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewServices">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/services">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span>Services
@@ -100,7 +100,7 @@
                 </div>
                 }
                 <AuthorizeView Policy="@IIGO.Services.Feature.ViewRoles">
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="/roles">
                                 <span class="oi oi-list-rich" aria-hidden="true"></span>Roles
