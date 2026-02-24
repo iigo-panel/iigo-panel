@@ -5,7 +5,7 @@
 @using Microsoft.Web.Administration
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
-@attribute [Authorize]
+@attribute [Authorize(Policy = Feature.ViewWebsites)]
 @rendermode InteractiveServer
 
 <PageTitle>Websites</PageTitle>

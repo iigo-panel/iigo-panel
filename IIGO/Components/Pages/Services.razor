@@ -2,6 +2,8 @@
 @using System.ServiceProcess;
 @using System.Management;
 @using Microsoft.Win32;
+@using IIGO.Services
+@attribute [Authorize(Policy = Feature.ViewServices)]
 @attribute [StreamRendering]
 
 <h3>Services</h3>

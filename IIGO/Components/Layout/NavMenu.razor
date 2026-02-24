@@ -20,16 +20,24 @@
                         <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
                     </NavLink>
                 </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/websites">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Websites
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/apppools">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> App Pools
-                    </NavLink>
-                </div>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewWebsites">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/websites">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span> Websites
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewAppPools">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/apppools">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span> App Pools
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
                 @if (context.User.IsInRole("Administrator"))
                 {
                 <div class="nav-item px-3">
@@ -48,21 +56,33 @@
                         <span class="oi oi-list-rich" aria-hidden="true"></span>Status
                     </NavLink>
                 </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/firewall">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span>Firewall
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/tasks">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span>Task Scheduler
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/services">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span>Services
-                    </NavLink>
-                </div>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewFirewallRules">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/firewall">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span>Firewall
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewScheduledTasks">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/tasks">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span>Task Scheduler
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewServices">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/services">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span>Services
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
                 @if (context.User.IsInRole("Administrator"))
                 {
                 <div class="nav-item px-3">
@@ -79,6 +99,15 @@
                     </NavLink>
                 </div>
                 }
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewRoles">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/roles">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span>Roles
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name

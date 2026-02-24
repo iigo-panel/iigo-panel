@@ -36,6 +36,30 @@ namespace IIGO.Migrations
                     b.ToTable("AppPoolMonitoring");
                 });
 
+            modelBuilder.Entity("IIGO.Data.RolePermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RoleId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Feature")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId", "Feature")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RolePermissions_RoleId_Feature");
+
+                    b.ToTable("RolePermissions");
+                });
+
             modelBuilder.Entity("IIGO.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")

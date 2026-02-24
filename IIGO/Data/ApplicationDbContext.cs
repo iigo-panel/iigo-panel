@@ -10,6 +10,7 @@ namespace IIGO.Data
         public DbSet<ConfigSetting> ConfigSetting { get; set; }
         public DbSet<AppPoolMonitoring> AppPoolMonitoring { get; set; }
         public DbSet<DomainStatus> DomainStatus { get; set; }
+        public DbSet<RolePermission> RolePermission { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -48,6 +49,12 @@ namespace IIGO.Data
             builder.Entity<IdentityUserRole<string>>(b =>
             {
                 b.ToTable("UserRoles");
+            });
+
+            builder.Entity<RolePermission>(b =>
+            {
+                b.ToTable("RolePermissions");
+                b.HasIndex(e => new { e.RoleId, e.Feature }).IsUnique();
             });
 
             builder.Entity<ConfigSetting>()
