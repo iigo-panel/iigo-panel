@@ -20,7 +20,7 @@ else
 {
     @if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
     {
-           <a href="/websites/new" class="btn btn-primary">Add Website</a>
+           <a href="/websites/new" class="btn btn-primary">Add Website</a><text>&nbsp;</text>
     }
     <button @onclick="Reload" class="btn btn-success">Reload</button>
 

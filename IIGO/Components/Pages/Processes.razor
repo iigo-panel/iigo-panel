@@ -63,7 +63,7 @@ else
 
 @code {
     Process[]? processes;
-    private PeriodicTimer timer;// = new(5000);
+    //private PeriodicTimer timer;// = new(5000);
 
     // previous sample info per PID
     readonly Dictionary<int, TimeSpan> prevTotalProcTimes = new();
@@ -179,7 +179,7 @@ else
         try
         {
             cts?.Cancel();
-            timer?.Dispose();
+            //timer?.Dispose();
         }
         catch { }
     }

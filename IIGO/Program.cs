@@ -71,6 +71,9 @@ namespace IIGO
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
             var conn = new SqliteConnectionStringBuilder(connectionString);
             conn.DataSource = AppDomain.CurrentDomain.MapPath(conn.DataSource);
+            var fullPath = Path.GetDirectoryName(conn.DataSource);
+            if (!Directory.Exists(fullPath))
+                Directory.CreateDirectory(fullPath!);
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlite(conn.ConnectionString));
 #if DEBUG
@@ -122,23 +125,38 @@ namespace IIGO
 
             var app = builder.Build();
 
-            app.Logger.LogInformation(new EventId(1000), "Application Starting");
+            if (app.Logger.IsEnabled(LogLevel.Information))
+            {
+                app.Logger.LogInformation(new EventId(1000), "Application Starting");
+            }
             EventLog.WriteEntry(Constants.EventLogSource, $"Attempting to connect to database using connection string: {connectionString}", EventLogEntryType.Information, 1001);
             EventLog.WriteEntry(Constants.EventLogSource, $"Transformed DataSource: {conn.DataSource}", EventLogEntryType.Information, 1001);
-            app.Logger.LogInformation(new EventId(1001), "Attempting to connect to database using connection string: {connectionString}", connectionString);
-            app.Logger.LogInformation(new EventId(1001), "Transformed DataSource: {connDataSource}", conn.DataSource);
+            if (app.Logger.IsEnabled(LogLevel.Information))
+            {
+                app.Logger.LogInformation(new EventId(1001), "Attempting to connect to database using connection string: {connectionString}", connectionString);
+                app.Logger.LogInformation(new EventId(1001), "Transformed DataSource: {connDataSource}", conn.DataSource);
+            }
 
             bool validLicense = LicenseKeyService.ValidateLicense(out var licenseKey);
             EventLog.WriteEntry(Constants.EventLogSource, $"License Valid: {validLicense}", EventLogEntryType.Information, 1002);
-            app.Logger.LogInformation(new EventId(1002), "License Valid: {validLicense}", validLicense);
+            if (app.Logger.IsEnabled(LogLevel.Information))
+            {
+                app.Logger.LogInformation(new EventId(1002), "License Valid: {validLicense}", validLicense);
+            }
             if (validLicense)
             {
                 EventLog.WriteEntry(Constants.EventLogSource, $"License Information: {licenseKey}", EventLogEntryType.Information, 1002);
-                app.Logger.LogInformation(new EventId(1002), "License Information: {licenseKey}", licenseKey!.ToString());
+                if (app.Logger.IsEnabled(LogLevel.Information))
+                {
+                    app.Logger.LogInformation(new EventId(1002), "License Information: {licenseKey}", licenseKey?.ToString() ?? "N/A");
+                }
             }
             else
             {
-                app.Logger.LogWarning(new EventId(2001), "License Invalid: {licenseKey}", licenseKey?.ToString() ?? "N/A");
+                if (app.Logger.IsEnabled(LogLevel.Warning))
+                {
+                    app.Logger.LogWarning(new EventId(2001), "License Invalid: {licenseKey}", licenseKey?.ToString() ?? "N/A");
+                }
             }
 
             UpdateDatabase(app);

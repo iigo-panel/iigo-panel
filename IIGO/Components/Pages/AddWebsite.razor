@@ -29,7 +29,7 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.Name" id="name" @oninput="NameInput" aria-required="true" placeholder="Website Name" />
+                        <InputText class="form-control" @bind-Value="NewWebsite!.Name" id="name" @oninput="NameInput" aria-required="true" placeholder="Website Name" />
                         <label for="name" class="form-label">Website Name</label>
                         <ValidationMessage For="() => NewWebsite.Name" class="text-danger" />
                     </div>
@@ -88,17 +88,21 @@
 @code {
 
     [SupplyParameterFromForm]
-    private NewWebsiteModel NewWebsite { get; set; } = new NewWebsiteModel();
+    private NewWebsiteModel? NewWebsite { get; set; }
     private string? LastMessage = null;
     private bool Success = true;
 
-    protected override void OnInitialized()
-    {
-
-    }
+    protected override void OnInitialized() => NewWebsite ??= new NewWebsiteModel();
 
     protected void SubmitWebsite()
     {
+        if (NewWebsite == null)
+        {
+            LastMessage = "Invalid website data.";
+            Success = false;
+            return;
+        }
+
         try
         {
             IISService.AddWebsite(NewWebsite.Name, NewWebsite.ApplicationPool, NewWebsite.PhysicalPath, $"{NewWebsite.IPAddress}:{NewWebsite.Port}:{NewWebsite.Hostname}", NewWebsite.Scheme);
@@ -114,7 +118,7 @@
 
     protected void NameInput(ChangeEventArgs e)
     {
-        NewWebsite.ApplicationPool = e.Value?.ToString() ?? "DefaultAppPool";
+        NewWebsite!.ApplicationPool = e.Value?.ToString() ?? "DefaultAppPool";
     }
 
     public class NewWebsiteModel

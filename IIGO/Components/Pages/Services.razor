@@ -56,12 +56,12 @@ else
             string logon = "";
             try
             {
-                description = service["Description"].ToString()!;
+                description = service["Description"]?.ToString() ?? "";
             }
             catch { }
             try
             {
-                logon = service["startname"].ToString()!.Replace("NT Authority\\", "", StringComparison.OrdinalIgnoreCase);
+                logon = service["startname"]?.ToString()?.Replace("NT Authority\\", "", StringComparison.OrdinalIgnoreCase) ?? "";
             }
             catch { }
 

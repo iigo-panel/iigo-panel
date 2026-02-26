@@ -149,7 +149,7 @@
         Processes = service.GetProcessCount();
         PagedPool = FormatSize(service.GetPagedPool());
         NonPagedPool = FormatSize(service.GetNonPagedPool());
-        timer.Elapsed += (sender, eventArgs) => UpdateValues();
+        timer.Elapsed += async (sender, eventArgs) => await UpdateValues();
         UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:\\hh\\:mm\\:ss");
         CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
         allDrives = DriveInfo.GetDrives().Where(x => x.DriveType == DriveType.Fixed).ToArray();
