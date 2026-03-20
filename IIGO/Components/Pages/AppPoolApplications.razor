@@ -1,0 +1,55 @@
+@page "/apppools/{name}/applications"
+@using IIGO.Services
+@inject IISService IISService
+@attribute [Authorize(Policy = Feature.ViewAppPools)]
+@rendermode InteractiveServer
+
+<PageTitle>Applications - @Name</PageTitle>
+
+<h1>Applications</h1>
+
+<div class="alert alert-info">
+    The applications have been filtered by the <strong>@Name</strong> application pool.
+    <a href="/apppools">Remove filter</a>
+</div>
+
+@if (applications == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Virtual Path</th>
+                <th>Physical Path</th>
+                <th>Site</th>
+                <th>Application Pool</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var app in applications)
+            {
+                <tr>
+                    <td>@app.VirtualPath</td>
+                    <td>@app.PhysicalPath</td>
+                    <td>@app.SiteName</td>
+                    <td>@Name</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public string Name { get; set; } = "";
+
+    private List<(string SiteName, string VirtualPath, string PhysicalPath)>? applications;
+
+    protected override void OnInitialized()
+    {
+        applications = IISService.GetApplicationsByPool(Name);
+    }
+}

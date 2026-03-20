@@ -35,6 +35,7 @@ else
                 <th>Name</th>
                 <th>Status</th>
                 <th>Identity</th>
+                <th>Applications</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -45,6 +46,7 @@ else
                     <td><a href="/apppools/@pool.Name">@pool.Name</a></td>
                     <td>@pool.State</td>
                     <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
+                    <td><a href="/apppools/@pool.Name/applications">@(appCounts.GetValueOrDefault(pool.Name, 0))</a></td>
                     <td>
                         <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
                         @if (pool.State == ObjectState.Stopped)
@@ -64,6 +66,7 @@ else
 
 @code {
     List<ApplicationPool>? pools = null;
+    Dictionary<string, int> appCounts = new();
     private Timer timer = new(5000);
     private string? LastMessage = null;
     private bool Success = true;
@@ -71,6 +74,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         pools = IISService.GetAppPools();
+        appCounts = IISService.GetApplicationCountsByPool();
         timer.Elapsed += async (sender, eventArgs) => await UpdateValues();
         timer.Start();
     }
@@ -79,6 +83,7 @@ else
     {
         LastMessage = null;
         pools = IISService.GetAppPools();
+        appCounts = IISService.GetApplicationCountsByPool();
         await InvokeAsync(StateHasChanged);
     }
 
