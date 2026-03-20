@@ -140,7 +140,7 @@ namespace IIGO.Services
                 var sites = GetSites();
                 foreach (var site in sites)
                 {
-                    foreach (var app in site.Applications)
+                    foreach (Application app in site.Applications)
                     {
                         var poolName = app.ApplicationPoolName;
                         if (counts.ContainsKey(poolName))
@@ -162,7 +162,7 @@ namespace IIGO.Services
                 var sites = GetSites();
                 foreach (var site in sites)
                 {
-                    foreach (var app in site.Applications)
+                    foreach (Application app in site.Applications)
                     {
                         if (app.ApplicationPoolName == appPoolName)
                         {
