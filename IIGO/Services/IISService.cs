@@ -131,5 +131,51 @@ namespace IIGO.Services
         public void DeleteIPRule(string ipaddress)=> _iisWrapper.DeleteIPRule(ipaddress);
 
         public void AddIPRule(string ipaddress, bool denyRule)=> _iisWrapper.AddIPRule(ipaddress, denyRule);
+
+        public Dictionary<string, int> GetApplicationCountsByPool()
+        {
+            var counts = new Dictionary<string, int>();
+            try
+            {
+                var sites = GetSites();
+                foreach (var site in sites)
+                {
+                    foreach (Application app in site.Applications)
+                    {
+                        var poolName = app.ApplicationPoolName;
+                        if (counts.ContainsKey(poolName))
+                            counts[poolName]++;
+                        else
+                            counts[poolName] = 1;
+                    }
+                }
+            }
+            catch { }
+            return counts;
+        }
+
+        public List<(string SiteName, string VirtualPath, string PhysicalPath)> GetApplicationsByPool(string appPoolName)
+        {
+            var apps = new List<(string SiteName, string VirtualPath, string PhysicalPath)>();
+            try
+            {
+                var sites = GetSites();
+                foreach (var site in sites)
+                {
+                    foreach (Application app in site.Applications)
+                    {
+                        if (app.ApplicationPoolName == appPoolName)
+                        {
+                            var physicalPath = app.VirtualDirectories.Count > 0
+                                ? app.VirtualDirectories[0].PhysicalPath
+                                : "";
+                            apps.Add((site.Name, app.Path, physicalPath));
+                        }
+                    }
+                }
+            }
+            catch { }
+            return apps;
+        }
     }
 }
