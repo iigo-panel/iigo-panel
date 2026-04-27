@@ -148,6 +148,8 @@ else
             {
                 _installing = false;
                 _rebootRequired = report.RebootRequired;
+                _selected.Clear();
+                _selectAll = false;
                 _updates = await WindowsUpdateService.GetUpdates();
             }
             await InvokeAsync(StateHasChanged);
@@ -159,6 +161,8 @@ else
                 if (t.IsFaulted)
                 {
                     _installing = false;
+                    _selected.Clear();
+                    _selectAll = false;
                     await InvokeAsync(StateHasChanged);
                 }
             });
