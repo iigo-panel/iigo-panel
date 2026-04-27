@@ -1,47 +1,180 @@
-﻿@page "/checkupdates"
-@using IIGO.Data
+@page "/checkupdates"
 @using IIGO.Services
-@using WUApiLib
-@inject WindowsUpdateService windowsUpdateService
+@inject WindowsUpdateService WindowsUpdateService
 @attribute [Authorize(Roles = "Administrator")]
-@attribute [StreamRendering]
 @rendermode InteractiveServer
-
 
 <PageTitle>Check Updates</PageTitle>
 
 <h1>Check for Updates</h1>
 
-@if (updates == null)
+@if (_rebootRequired)
+{
+    <div class="alert alert-warning mt-2">
+        <strong>Reboot Required</strong> — One or more installed updates require a restart to take effect.
+    </div>
+}
+
+@if (_updates == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (IUpdate update in updates)
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        @if (WindowsUpdateService.LastChecked.HasValue)
         {
-            <tr>
-                <td>@update.Title</td>
-                <td>@update.Description <em>Size: @((update.MaxDownloadSize / (decimal)Math.Pow(2, 20)).ToString("F2")) MB</em></td>
-            </tr>
+            <span class="text-muted small">Last checked: @WindowsUpdateService.LastChecked.Value.ToString("g")</span>
         }
-        </tbody>
-    </table>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="Recheck" disabled="@_installing">Recheck</button>
+        <button class="btn btn-primary btn-sm" @onclick="InstallSelected"
+                disabled="@(_installing || _selected.Count == 0)">
+            Install Selected (@_selected.Count)
+        </button>
+    </div>
+
+    @if (_installing && _progress != null)
+    {
+        <div class="mb-3">
+            <div class="mb-1 text-muted small">
+                @_progress.Phase update @_progress.CurrentIndex of @_progress.TotalCount: @_progress.CurrentTitle
+            </div>
+            <Progress Class="mb-1">
+                <ProgressBar Width="@_progress.OverallPercent" Label="@($"{_progress.OverallPercent}%")" />
+            </Progress>
+        </div>
+    }
+
+    @if (_updates.Count == 0)
+    {
+        <p class="text-success">Your system is up to date.</p>
+    }
+    else
+    {
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th style="width:1%">
+                        <input type="checkbox" @bind="_selectAll" @bind:after="OnSelectAllChanged" />
+                    </th>
+                    <th>Name</th>
+                    <th style="width:8%">Size</th>
+                    <th style="width:10%">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var update in _updates)
+                {
+                    var status = _statusMap.GetValueOrDefault(update.UpdateId, UpdateItemStatus.Pending);
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   checked="@_selected.Contains(update.UpdateId)"
+                                   @onchange="@(e => ToggleSelection(update.UpdateId, (bool)e.Value!))"
+                                   disabled="@_installing" />
+                        </td>
+                        <td>@update.Title</td>
+                        <td class="text-nowrap">@update.SizeMB.ToString("F2") MB</td>
+                        <td>@RenderStatus(status)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
 
 @code {
-    UpdateCollection? updates;
+    List<WindowsUpdateInfo>? _updates;
+    HashSet<string> _selected = [];
+    Dictionary<string, UpdateItemStatus> _statusMap = [];
+    bool _installing;
+    bool _rebootRequired;
+    UpdateInstallProgress? _progress;
+    bool _selectAll;
 
     protected override async Task OnInitializedAsync()
     {
-        updates = await windowsUpdateService.GetUpdates();
+        _updates = await WindowsUpdateService.GetUpdates();
     }
+
+    private async Task Recheck()
+    {
+        _updates = null;
+        _selected.Clear();
+        _statusMap.Clear();
+        _rebootRequired = false;
+        _selectAll = false;
+        _updates = await WindowsUpdateService.RefreshUpdates();
+    }
+
+    private void OnSelectAllChanged()
+    {
+        _selected.Clear();
+        if (_selectAll && _updates != null)
+        {
+            foreach (var u in _updates)
+                _selected.Add(u.UpdateId);
+        }
+    }
+
+    private void ToggleSelection(string updateId, bool isChecked)
+    {
+        if (isChecked)
+            _selected.Add(updateId);
+        else
+        {
+            _selected.Remove(updateId);
+            _selectAll = false;
+        }
+    }
+
+    private async Task InstallSelected()
+    {
+        if (_updates == null || _selected.Count == 0 || _installing)
+            return;
+
+        var toInstall = _updates.Where(u => _selected.Contains(u.UpdateId)).ToList();
+        foreach (var u in toInstall)
+            _statusMap[u.UpdateId] = UpdateItemStatus.Pending;
+
+        _installing = true;
+        _rebootRequired = false;
+        _progress = null;
+
+        var progress = new Progress<UpdateInstallProgress>(async report =>
+        {
+            _progress = report;
+            if (report.Phase == "Done")
+            {
+                _installing = false;
+                _rebootRequired = report.RebootRequired;
+                _selected.Clear();
+                _selectAll = false;
+                _updates = await WindowsUpdateService.GetUpdates();
+            }
+            await InvokeAsync(StateHasChanged);
+        });
+
+        _ = WindowsUpdateService.InstallWithProgressAsync(toInstall, progress, _statusMap, CancellationToken.None)
+            .ContinueWith(async t =>
+            {
+                if (t.IsFaulted)
+                {
+                    _installing = false;
+                    _selected.Clear();
+                    _selectAll = false;
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+    }
+
+    private string RenderStatus(UpdateItemStatus status) => status switch
+    {
+        UpdateItemStatus.Downloading => "⬇ Downloading…",
+        UpdateItemStatus.Installing  => "⚙ Installing…",
+        UpdateItemStatus.Succeeded   => "✓ Succeeded",
+        UpdateItemStatus.Failed      => "✗ Failed",
+        _                            => "—"
+    };
 }
+
