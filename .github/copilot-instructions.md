@@ -21,6 +21,8 @@ dotnet ef migrations add <MigrationName> --project IIGO
 
 There are no automated tests in this repository.
 
+Visual Studio must run as Administrator for full IIS/Windows feature access during development.
+
 ## Architecture
 
 The solution has three projects:
@@ -32,7 +34,7 @@ The solution has three projects:
 ### Key Subsystems
 
 **IIS Management**  
-`IISService` wraps `IISWrapper`, which calls into the local `Microsoft.Web.Administration` project (not the NuGet package). All IIS interactions (sites, app pools, bindings) go through `IISService` → `IISWrapper` → `ServerManager`.
+`IISService` wraps `IISWrapper` (class in `IIGO/IISWrapper/IISWrapper.cs`), which calls into the local `Microsoft.Web.Administration` project (not the NuGet package). All IIS interactions (sites, app pools, bindings) go through `IISService` → `IISWrapper` → `ServerManager`.
 
 **Authorization**  
 Feature-based authorization is layered on top of ASP.NET Identity roles:
@@ -47,7 +49,7 @@ All notification providers (SMTP, SendGrid, Discord, Slack, AWS SES/SNS, Postmar
 var resolver = serviceProvider.GetRequiredService<ServiceResolver>();
 var svc = resolver("SMTPService"); // matches IMessengerService.ServiceName
 ```
-New messenger services must extend `ServiceBase` and implement `IMessengerService`. The active service name is stored in `ConfigSetting` under key `"MessengerService"`.
+New messenger services must extend `ServiceBase` and implement `IMessengerService`. Each service has both a `ServiceName` (human-readable label) and a `ServiceIdentifier` (the class name, e.g. `nameof(SMTPService)`). The active service name is stored in `ConfigSetting` under key `"MessengerService"`.
 
 **Configuration / Settings**  
 App settings are stored in the `ConfigSetting` SQLite table (key/value pairs). `ServiceBase.GetSetting()` reads a setting and auto-creates it with a default if missing. Seed defaults are applied in `InstallInitialSettings` in `Program.cs`.
@@ -61,9 +63,12 @@ The app registers itself as a Windows Service (`"IIGO Panel Service"`). Errors a
 ## Key Conventions
 
 - **Blazor pages** live in `IIGO/Components/Pages/`. Always add `@rendermode InteractiveServer` and the appropriate `[Authorize]` attribute.
+- **UI component library** is [Blazor.Bootstrap](https://docs.blazorbootstrap.com/). Use its `ConfirmDialog`, alert, grid, and other components rather than building custom equivalents.
 - **Roles:** Two built-in roles: `Administrator` (full access) and `Manager` (configurable per-feature via `RolePermission`). Administrators bypass all feature checks.
+- **Authorization patterns:** Pages use either `[Authorize(Policy = Feature.XYZ)]` (for Manager-configurable feature gating) or `[Authorize(Roles = "Administrator")]` / `[Authorize(Roles = "Administrator,Manager")]` for hard-coded role requirements. In-page action buttons are additionally gated in Razor markup via `@inject IHttpContextAccessor httpContextAccessor` and `httpContextAccessor.HttpContext!.User.IsInRole("Administrator")`.
 - **Adding a feature:** Define a new `const string` in `Feature`, add it to `Feature.All`, authorize pages with it, and seed any default `RolePermission` entries for the Manager role in `InstallInitialSettings`.
+- **`~\` path prefix** is resolved relative to `AppDomain.CurrentDomain.BaseDirectory` using the `MapPath()` extension in `Services/Extensions.cs` (e.g., `AppDomain.CurrentDomain.MapPath("~\\Data\\cpdata.db")`).
 - **Nullable reference types** are enabled project-wide (`<Nullable>enable</Nullable>`).
 - **`SafeFireAndForget()`** (from `AsyncAwaitBestPractices`) is used for fire-and-forget async calls (e.g., `InstallInitialSettings`).
 - **`ex.Demystify()`** (from `Ben.Demystifier`) is used when logging exceptions to improve stack trace readability.
-- The CI workflow (`dotnet.yml`) runs on `windows-2025-vs2026` runners; the project requires Windows due to IIS and COM interop dependencies.
+- The CI workflow (`dotnet.yml`) runs on `windows-2025-vs2026` runners; the project requires Windows due to IIS and COM interop dependencies (including a COM reference to `WUApiLib` for Windows Update).
