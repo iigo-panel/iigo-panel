@@ -1,0 +1,144 @@
+﻿@page "/users/new"
+@using IIGO.Data
+@using IIGO.Services
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager _nav
+@inject RoleManager<IdentityRole> _roleManager
+@inject UserManagementService _userService
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+
+<PageTitle>Add User</PageTitle>
+
+<h3>Add User</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <EditForm Model="NewUser" OnValidSubmit="CreateUser" FormName="NewUser">
+            <DataAnnotationsValidator />
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewUser.UserName" id="userName" autocomplete="off" aria-required="true" placeholder="Username" />
+                        <label for="userName" class="form-label">Username</label>
+                        <ValidationMessage For="() => NewUser.UserName" class="text-danger" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewUser.Email" id="email" autocomplete="off" aria-required="true" placeholder="Email" />
+                        <label for="email" class="form-label">Email</label>
+                        <ValidationMessage For="() => NewUser.Email" class="text-danger" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText type="password" class="form-control" @bind-Value="NewUser.Password" id="password" autocomplete="new-password" aria-required="true" placeholder="Password" />
+                        <label for="password" class="form-label">Password</label>
+                        <ValidationMessage For="() => NewUser.Password" class="text-danger" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <InputText type="password" class="form-control" @bind-Value="NewUser.ConfirmPassword" id="confirmPassword" autocomplete="new-password" aria-required="true" placeholder="Confirm Password" />
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <ValidationMessage For="() => NewUser.ConfirmPassword" class="text-danger" />
+                    </div>
+                </div>
+            </div>
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" @bind-Value="NewUser.EmailConfirmed" id="emailConfirmed" />
+                <label class="form-check-label" for="emailConfirmed">Email confirmed (required to sign in)</label>
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Roles</h6>
+                    @foreach (var role in roles)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="role-@role"
+                                   checked="@selectedRoles.Contains(role)"
+                                   @onchange="@(e => ToggleRole(role, (bool)e.Value!))" />
+                            <label class="form-check-label" for="role-@role">@role</label>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary">Create User</button>
+                <a href="/users" class="btn btn-secondary">Back</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    NewUserModel NewUser = new();
+    List<string> roles = new();
+    HashSet<string> selectedRoles = new();
+    string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        roles = _roleManager.Roles.Select(x => x.Name!).OrderBy(x => x).ToList();
+    }
+
+    void ToggleRole(string role, bool selected)
+    {
+        if (selected)
+            selectedRoles.Add(role);
+        else
+            selectedRoles.Remove(role);
+    }
+
+    async Task CreateUser()
+    {
+        errorMessage = null;
+        var user = new ApplicationUser
+        {
+            UserName = NewUser.UserName.Trim(),
+            Email = NewUser.Email.Trim(),
+            EmailConfirmed = NewUser.EmailConfirmed
+        };
+
+        var result = await _userService.CreateUserAsync(user, NewUser.Password, selectedRoles);
+        if (result.Succeeded)
+        {
+            _nav.NavigateTo($"/users/{user.Id}");
+        }
+        else
+        {
+            errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+        }
+    }
+
+    public class NewUserModel
+    {
+        [Required]
+        public string UserName { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+
+        public bool EmailConfirmed { get; set; } = true;
+    }
+}

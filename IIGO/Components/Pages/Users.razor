@@ -1,13 +1,26 @@
 ﻿@page "/users"
 @using IIGO.Data
+@using IIGO.Services
 @using Microsoft.AspNetCore.Identity
 @inject NavigationManager _nav
 @inject UserManager<ApplicationUser> _userManager
+@inject UserManagementService _userService
 @inject IJSRuntime JsRuntime
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
+<PageTitle>Users</PageTitle>
+
 <h3>Users</h3>
+
+<div class="mb-3">
+    <a href="/users/new" class="btn btn-success">Add User</a>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 
 @if (users == null)
 {
@@ -18,9 +31,10 @@ else
     <table class="table">
         <thead>
             <tr>
-                <th>Id</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Roles</th>
+                <th>MFA</th>
                 <th></th>
             </tr>
         </thead>
@@ -28,13 +42,22 @@ else
             @foreach (var user in users)
             {
                 <tr>
-                    <td>@user.Id</td>
                     <td>@user.UserName</td>
                     <td>@user.Email</td>
+                    <td>@string.Join(", ", userRoles.GetValueOrDefault(user.Id, []))</td>
+                    <td>
+                        @if (user.TwoFactorEnabled)
+                        {
+                            <span class="badge bg-success">Enabled</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Off</span>
+                        }
+                    </td>
                     <td>
                         <button class="btn btn-primary" @onclick="@(() => _nav.NavigateTo($"/users/{user.Id}"))">Edit</button>
-                        @* <button class="btn btn-success">Reset Password</button> *@
-                        <button class="btn btn-danger" @onclick="() => DeleteSymbol(user.Id)">Delete</button>
+                        <button class="btn btn-danger ms-1" @onclick="() => DeleteUser(user.Id)">Delete</button>
                     </td>
                 </tr>
             }
@@ -44,21 +67,41 @@ else
 
 @code {
     List<ApplicationUser>? users;
+    Dictionary<string, IList<string>> userRoles = new();
+    string? errorMessage;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        users = _userManager.Users.ToList();
+        await LoadUsers();
     }
 
-    async Task DeleteSymbol(string id)
+    async Task LoadUsers()
     {
+        var list = _userManager.Users.OrderBy(x => x.UserName).ToList();
+        var roles = new Dictionary<string, IList<string>>();
+        foreach (var user in list)
+        {
+            roles[user.Id] = await _userManager.GetRolesAsync(user);
+        }
+        userRoles = roles;
+        users = list;
+    }
+
+    async Task DeleteUser(string id)
+    {
+        errorMessage = null;
         bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this user?");
         if (confirmed)
         {
             var u = await _userManager.FindByIdAsync(id);
             if (u != null)
             {
-                await _userManager.DeleteAsync(u);
+                var result = await _userService.DeleteUserAsync(u);
+                if (!result.Succeeded)
+                {
+                    errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
+                }
+                await LoadUsers();
             }
         }
     }
