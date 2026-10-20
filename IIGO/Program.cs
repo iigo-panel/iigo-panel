@@ -100,6 +100,7 @@ namespace IIGO
             });
             builder.Services.AddSingleton<IAuthorizationHandler, FeatureAuthorizationHandler>();
             builder.Services.AddScoped<RolePermissionService>();
+            builder.Services.AddScoped<UserManagementService>();
 
             builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 

@@ -1,51 +1,250 @@
 ﻿@page "/users/{id}"
 @using IIGO.Data
+@using IIGO.Services
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.Mvc.Rendering
+@using System.ComponentModel.DataAnnotations
 @inject UserManager<ApplicationUser> _userManager
 @inject RoleManager<IdentityRole> _roleManager
+@inject UserManagementService _userService
+@inject IJSRuntime JsRuntime
 @attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
 
-<h3>User</h3>
+<PageTitle>Edit User</PageTitle>
 
-@if (user == null)
+<h3>Edit User</h3>
+
+@if (loaded && user == null)
 {
-    
+    <div class="alert alert-warning">User not found.</div>
+    <a href="/users" class="btn btn-secondary">Back to Users</a>
+}
+else if (user == null)
+{
+    <p><em>Loading...</em></p>
 }
 else
 {
-    <select class="form-select" multiple>
-        @foreach (var r in roles)
-        {
-            <option value="@r.Value" selected="@r.Selected">@r.Text</option>
-        }
-    </select>
+    <h5>@user.UserName</h5>
+
+    @if (lastMessage != null)
+    {
+        <div class="alert alert-@(success ? "success" : "danger") mt-3">@lastMessage</div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Details</h6>
+                    <EditForm Model="Details" OnValidSubmit="SaveDetails" FormName="UserDetails">
+                        <DataAnnotationsValidator />
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText class="form-control" @bind-Value="Details.UserName" id="userName" autocomplete="off" aria-required="true" placeholder="Username" />
+                                    <label for="userName" class="form-label">Username</label>
+                                    <ValidationMessage For="() => Details.UserName" class="text-danger" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText class="form-control" @bind-Value="Details.Email" id="email" autocomplete="off" placeholder="Email" />
+                                    <label for="email" class="form-label">Email</label>
+                                    <ValidationMessage For="() => Details.Email" class="text-danger" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText class="form-control" @bind-Value="Details.PhoneNumber" id="phoneNumber" autocomplete="off" placeholder="Phone Number" />
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <ValidationMessage For="() => Details.PhoneNumber" class="text-danger" />
+                                </div>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center">
+                                <div class="form-check">
+                                    <InputCheckbox class="form-check-input" @bind-Value="Details.EmailConfirmed" id="emailConfirmed" />
+                                    <label class="form-check-label" for="emailConfirmed">Email confirmed (required to sign in)</label>
+                                </div>
+                            </div>
+                        </div>
+                        <h6>Roles</h6>
+                        @foreach (var role in roles)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="role-@role"
+                                       checked="@selectedRoles.Contains(role)"
+                                       @onchange="@(e => ToggleRole(role, (bool)e.Value!))" />
+                                <label class="form-check-label" for="role-@role">@role</label>
+                            </div>
+                        }
+                        <button type="submit" class="btn btn-primary mt-3">Save</button>
+                    </EditForm>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Multi-factor authentication</h6>
+                    @if (user.TwoFactorEnabled)
+                    {
+                        <p>MFA is <span class="badge bg-success">Enabled</span></p>
+                        <p class="text-muted">Disable MFA if this user lost access to their authenticator app. Their authenticator key and recovery codes are reset. They can set up MFA again after signing in.</p>
+                        <button class="btn btn-warning" @onclick="DisableMfa">Disable MFA</button>
+                    }
+                    else
+                    {
+                        <p class="mb-0">MFA is <span class="badge bg-secondary">Off</span></p>
+                    }
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Reset password</h6>
+                    <EditForm Model="Password" OnValidSubmit="ResetPassword" FormName="ResetPassword">
+                        <DataAnnotationsValidator />
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" class="form-control" @bind-Value="Password.NewPassword" id="newPassword" autocomplete="new-password" aria-required="true" placeholder="New Password" />
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <ValidationMessage For="() => Password.NewPassword" class="text-danger" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" class="form-control" @bind-Value="Password.ConfirmPassword" id="confirmPassword" autocomplete="new-password" aria-required="true" placeholder="Confirm Password" />
+                                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                    <ValidationMessage For="() => Password.ConfirmPassword" class="text-danger" />
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">Reset Password</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="/users" class="btn btn-secondary mt-3">Back to Users</a>
 }
 
 @code {
-    ApplicationUser? user;
-    List<SelectListItem> roles = new List<SelectListItem>();
-
     [Parameter]
     public string Id { get; set; } = "";
+
+    ApplicationUser? user;
+    bool loaded;
+    UserDetailsModel Details = new();
+    ResetPasswordModel Password = new();
+    List<string> roles = new();
+    HashSet<string> selectedRoles = new();
+    string? lastMessage;
+    bool success = true;
 
     protected override async Task OnInitializedAsync()
     {
         user = await _userManager.FindByIdAsync(Id);
         if (user != null)
         {
-            var r = (List<string>)await _userManager.GetRolesAsync(user);
-            roles = _roleManager.Roles.Select(x => new SelectListItem(x.Name, x.Id) { Selected = r.Contains(x.Name!) }).ToList();
+            Details = new UserDetailsModel
+            {
+                UserName = user.UserName ?? "",
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                EmailConfirmed = user.EmailConfirmed
+            };
+            roles = _roleManager.Roles.Select(x => x.Name!).OrderBy(x => x).ToList();
+            selectedRoles = new HashSet<string>(await _userManager.GetRolesAsync(user));
+        }
+        loaded = true;
+    }
+
+    void ToggleRole(string role, bool selected)
+    {
+        if (selected)
+            selectedRoles.Add(role);
+        else
+            selectedRoles.Remove(role);
+    }
+
+    async Task SaveDetails()
+    {
+        if (user == null)
+            return;
+
+        var result = await _userService.UpdateDetailsAsync(user, Details.UserName.Trim(), NullIfEmpty(Details.Email), Details.EmailConfirmed, NullIfEmpty(Details.PhoneNumber));
+        if (result.Succeeded)
+        {
+            result = await _userService.SetRolesAsync(user, selectedRoles);
+        }
+
+        // Reload so the form reflects what was actually saved
+        selectedRoles = new HashSet<string>(await _userManager.GetRolesAsync(user));
+        ShowResult(result, "User saved.");
+    }
+
+    async Task DisableMfa()
+    {
+        if (user == null)
+            return;
+
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"Disable MFA for {user.UserName}?");
+        if (confirmed)
+        {
+            ShowResult(await _userService.DisableMfaAsync(user), "MFA disabled.");
         }
     }
 
-    async Task ResetPassword(string id)
+    async Task ResetPassword()
     {
-        var u = await _userManager.FindByIdAsync(id);
-        if (u != null)
+        if (user == null)
+            return;
+
+        var result = await _userService.ResetPasswordAsync(user, Password.NewPassword);
+        if (result.Succeeded)
         {
-            string resetToken = await _userManager.GeneratePasswordResetTokenAsync(u);
-            IdentityResult passwordChangeResult = await _userManager.ResetPasswordAsync(u, resetToken, "");
+            Password = new ResetPasswordModel();
         }
+        ShowResult(result, "Password reset.");
+    }
+
+    void ShowResult(IdentityResult result, string successMessage)
+    {
+        success = result.Succeeded;
+        lastMessage = result.Succeeded ? successMessage : string.Join(", ", result.Errors.Select(e => e.Description));
+    }
+
+    static string? NullIfEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public class UserDetailsModel
+    {
+        [Required]
+        public string UserName { get; set; } = "";
+
+        [EmailAddress]
+        public string? Email { get; set; }
+
+        [Phone]
+        public string? PhoneNumber { get; set; }
+
+        public bool EmailConfirmed { get; set; }
+    }
+
+    public class ResetPasswordModel
+    {
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "New password")]
+        public string NewPassword { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
     }
 }
