@@ -13,7 +13,7 @@ Modify `appsettings.json` as necessary if default settings need to be changed.
 
 Visual Studio must run as Administrator for full testing/development (some features will work as limited user, but websites, app pools, system updates in particular have to be admin).
 
-On first-run a new admin user is created with the following credentials (these can be adjusted in `Program.cs`:
+On first-run a new admin user is created with the following credentials which can be updated once logged in (or updated in `Program.cs` before building and running):
 
 ```
 Username: admin
