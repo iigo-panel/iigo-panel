@@ -16,6 +16,21 @@ namespace IIGO.Services
                 .ToDictionary(x => x.SettingName, x => x.SettingValue);
         }
 
+        public HashSet<string> GetNotificationServices(string feature) =>
+            [.. context.NotificationSubscription.Where(x => x.Feature == feature).Select(x => x.ServiceIdentifier)];
+
+        public void SetNotificationServices(string feature, IEnumerable<string> serviceIdentifiers)
+        {
+            var selected = serviceIdentifiers.ToHashSet();
+            var existing = context.NotificationSubscription.Where(x => x.Feature == feature).ToList();
+
+            context.NotificationSubscription.RemoveRange(existing.Where(x => !selected.Contains(x.ServiceIdentifier)));
+            foreach (var identifier in selected.Except(existing.Select(x => x.ServiceIdentifier)))
+                context.NotificationSubscription.Add(new NotificationSubscription { Feature = feature, ServiceIdentifier = identifier });
+
+            context.SaveChanges();
+        }
+
         public void SaveSettings(IDictionary<string, string> values)
         {
             var names = values.Keys.ToList();

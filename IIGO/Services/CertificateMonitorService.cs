@@ -32,7 +32,6 @@ namespace IIGO.Services
             new("CertificateMonitorInterval", "Check interval (minutes)", MonitorSettingType.Number, "10"),
             new("CertificateExpirationThreshold", "Warn before expiry (days)", MonitorSettingType.Number, "30"),
             new("CertificateNotificationFrequency", "Repeat notifications (hours)", MonitorSettingType.Number, "24", "How often an unresolved issue is logged and reported again."),
-            new("CertificateNotificationMethod", "Notification method", MonitorSettingType.Messenger, nameof(SMTPService)),
             new("CertificateNotificationEmail", "Notification recipients", MonitorSettingType.EmailList, "admin@example.com", "Comma-separated email addresses, used by email notification methods."),
             new("CertificateHistoryLength", "Keep history (days)", MonitorSettingType.Number, "365")
         ];
@@ -174,7 +173,7 @@ namespace IIGO.Services
                 var body = "The following HTTPS bindings need attention:\n\n" +
                     string.Join("\n", due.Select(x => $"{x.SiteName} ({x.Binding}): {x.Description}"));
 
-                await SendNotificationAsync(services, context, "CertificateNotificationMethod", "CertificateNotificationEmail", "Certificate Notification", body, ct);
+                await SendNotificationAsync(services, context, NotificationFeature.CertificateMonitor, "CertificateNotificationEmail", "Certificate Notification", body, ct);
             }
 
             var cutoff = now.AddDays(-GetIntSetting(context, "CertificateHistoryLength", 365));

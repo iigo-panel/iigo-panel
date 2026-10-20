@@ -10,6 +10,7 @@ namespace IIGO.Data
         public DbSet<ConfigSetting> ConfigSetting { get; set; }
         public DbSet<AppPoolMonitoring> AppPoolMonitoring { get; set; }
         public DbSet<CertificateMonitoring> CertificateMonitoring { get; set; }
+        public DbSet<NotificationSubscription> NotificationSubscription { get; set; }
         public DbSet<DomainStatus> DomainStatus { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
 
@@ -57,6 +58,10 @@ namespace IIGO.Data
                 b.ToTable("RolePermissions");
                 b.HasIndex(e => new { e.RoleId, e.Feature }).IsUnique();
             });
+
+            builder.Entity<NotificationSubscription>()
+                .HasIndex(e => new { e.Feature, e.ServiceIdentifier })
+                .IsUnique();
 
             builder.Entity<ConfigSetting>()
                 .HasIndex(e => e.SettingName)

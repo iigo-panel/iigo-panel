@@ -194,6 +194,30 @@ namespace IIGO.Migrations
                     b.ToTable("DomainStatus");
                 });
 
+            modelBuilder.Entity("IIGO.Data.NotificationSubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Feature")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServiceIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Feature", "ServiceIdentifier")
+                        .IsUnique();
+
+                    b.ToTable("NotificationSubscriptions");
+                });
+
             modelBuilder.Entity("IIGO.Data.RolePermission", b =>
                 {
                     b.Property<int>("Id")

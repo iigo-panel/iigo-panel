@@ -78,10 +78,10 @@
     <div class="col-lg-5">
         <AuthorizeView Roles="Administrator">
             <Authorized>
-                <MonitorSettings Settings="AppPoolMonitorService.Settings" />
+                <MonitorSettings Settings="AppPoolMonitorService.Settings" NotificationFeature="@NotificationFeature.AppPoolMonitor" />
             </Authorized>
             <NotAuthorized>
-                <MonitorSettings Settings="AppPoolMonitorService.Settings" ReadOnly="true" />
+                <MonitorSettings Settings="AppPoolMonitorService.Settings" NotificationFeature="@NotificationFeature.AppPoolMonitor" ReadOnly="true" />
             </NotAuthorized>
         </AuthorizeView>
     </div>

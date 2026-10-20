@@ -6,7 +6,6 @@ namespace IIGO.Models
         Number,
         Text,
         EmailList,
-        Messenger,
         // Two positive numbers separated by a comma, e.g. "5,30"
         NumberPair
     }

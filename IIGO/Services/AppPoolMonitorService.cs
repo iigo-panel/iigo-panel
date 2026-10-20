@@ -17,7 +17,6 @@ namespace IIGO.Services
             new("AppPoolMonitorInterval", "Check interval (minutes)", MonitorSettingType.Number, "2"),
             new("AppPoolMonitorExclusions", "Excluded pools", MonitorSettingType.Text, "", "Comma-separated. Pools whose name contains any of these are never restarted."),
             new("AppPoolNotificationThreshold", "Notification threshold", MonitorSettingType.NumberPair, "5,30", "Restarts,days. \"5,30\" notifies from the 5th restart within 30 days."),
-            new("AppPoolNotificationMethod", "Notification method", MonitorSettingType.Messenger, nameof(SMTPService)),
             new("AppPoolNotificationEmail", "Notification recipients", MonitorSettingType.EmailList, "admin@example.com", "Comma-separated email addresses, used by email notification methods."),
             new("AppPoolHistoryLength", "Keep history (days)", MonitorSettingType.Number, "365")
         ];
@@ -63,7 +62,7 @@ namespace IIGO.Services
 
             if (notify.Count > 0)
             {
-                await SendNotificationAsync(services, context, "AppPoolNotificationMethod", "AppPoolNotificationEmail", "App Pool Notification",
+                await SendNotificationAsync(services, context, NotificationFeature.AppPoolMonitor, "AppPoolNotificationEmail", "App Pool Notification",
                     "The following application pools were stopped and have been restarted:\n\n" + string.Join("\n", notify), ct);
             }
 
