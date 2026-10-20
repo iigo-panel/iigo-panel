@@ -1,15 +1,98 @@
 ﻿@page "/apppoolmonitor"
+@using IIGO.Components.Shared
+@using IIGO.Data
 @using IIGO.Services
-@inject ConfigurationService configService
 @inject AppPoolMonitorService monitorService
-@inject IHttpContextAccessor httpContextAccessor
-@attribute [Authorize]
+@inject MonitorHistoryService historyService
+@attribute [Authorize(Policy = Feature.ViewAppPools)]
+@rendermode InteractiveServer
 
 <PageTitle>Application Pool Monitor</PageTitle>
 
-<h1>AppPoolMonitor</h1>
+<h1>Application Pool Monitor</h1>
 
+<p class="text-muted">
+    Stopped application pools are started automatically. A notification is sent when a pool keeps stopping.
+    Last check: @(monitorService.LastRun?.ToLocalTime().ToString("g") ?? "not run yet")
+</p>
+
+<a href="/apppools" class="btn btn-secondary">Back to Application Pools</a>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Restarts in the last @HistoryDays days</h5>
+                @if (events == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else if (events.Count == 0)
+                {
+                    <p class="mb-0">No application pools were restarted.</p>
+                }
+                else
+                {
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Application Pool</th>
+                                <th>Restarts</th>
+                                <th>Last Restart</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var pool in events.GroupBy(x => x.AppPoolName).OrderByDescending(x => x.Count()))
+                            {
+                                <tr>
+                                    <td><a href="/apppools/@Uri.EscapeDataString(pool.Key)">@pool.Key</a></td>
+                                    <td>@pool.Count()</td>
+                                    <td>@pool.Max(x => x.AppPoolStartTime).ToLocalTime().ToString("g")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    <h6 class="mt-4">All events</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Application Pool</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in events)
+                            {
+                                <tr>
+                                    <td>@e.AppPoolStartTime.ToLocalTime().ToString("g")</td>
+                                    <td>@e.AppPoolName</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <AuthorizeView Roles="Administrator">
+            <Authorized>
+                <MonitorSettings Settings="AppPoolMonitorService.Settings" />
+            </Authorized>
+            <NotAuthorized>
+                <MonitorSettings Settings="AppPoolMonitorService.Settings" ReadOnly="true" />
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
 
 @code {
+    const int HistoryDays = 30;
+    List<AppPoolMonitoring>? events;
 
+    protected override async Task OnInitializedAsync()
+    {
+        events = await historyService.GetAppPoolEventsAsync(HistoryDays);
+    }
 }

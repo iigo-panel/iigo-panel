@@ -34,14 +34,18 @@ namespace IIGO.Services
                 email.From.Add(new MailboxAddress(GetSetting("SMTP_FromName", "IIGO Panel"), GetSetting("SMTP_FromAddress", "admin@example.com")));
                 email.Sender = new MailboxAddress(GetSetting("SMTP_SenderName", "IIGO Panel"), GetSetting("SMTP_SenderAddress", "admin@example.com"));
 
-                email.To.Add(new MailboxAddress("adam@mws.dev", "adam@mws.dev"));
+                if (message.Recipients.Count == 0)
+                    return false;
 
-                email.Subject = "Test Message";
+                foreach (var recipient in message.Recipients)
+                    email.To.Add(MailboxAddress.Parse(recipient));
+
+                email.Subject = message.Subject;
 
                 var body = new BodyBuilder()
                 {
-                    HtmlBody = "<p>Test Message</p>",
-                    TextBody = "Test Message"
+                    HtmlBody = "<p>" + System.Net.WebUtility.HtmlEncode(message.Body).Replace("\n", "<br>") + "</p>",
+                    TextBody = message.Body
                 };
                 email.Body = body.ToMessageBody();
 

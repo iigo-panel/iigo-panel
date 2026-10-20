@@ -1,0 +1,116 @@
+@using IIGO.Models
+@using IIGO.Services
+@using IIGO.Services.Interfaces
+@inject ConfigurationService configService
+@inject IEnumerable<IMessengerService> messengers
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Settings</h5>
+        @foreach (var setting in Settings)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="@setting.Name">@setting.Label</label>
+                <div>
+                    @switch (setting.Type)
+                    {
+                        case MonitorSettingType.Toggle:
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="@setting.Name" disabled="@ReadOnly"
+                                       checked="@IsOn(setting.Name)"
+                                       @onchange="@(e => values[setting.Name] = ((bool)e.Value!) ? "true" : "false")" />
+                            </div>
+                            break;
+                        case MonitorSettingType.Number:
+                            <input class="form-control" type="number" min="1" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
+                            break;
+                        case MonitorSettingType.Messenger:
+                            <select class="form-select" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]">
+                                @foreach (var messenger in messengers)
+                                {
+                                    <option value="@messenger.ServiceIdentifier">@messenger.ServiceName</option>
+                                }
+                            </select>
+                            break;
+                        default:
+                            <input class="form-control" type="text" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
+                            break;
+                    }
+                    @if (setting.Help != null)
+                    {
+                        <div class="form-text">@setting.Help</div>
+                    }
+                    @if (errors.TryGetValue(setting.Name, out var error))
+                    {
+                        <div class="text-danger">@error</div>
+                    }
+                </div>
+            </div>
+        }
+        @if (!ReadOnly)
+        {
+            <button class="btn btn-primary" @onclick="Save">Save Settings</button>
+            @if (saveMessage != null)
+            {
+                <span class="ms-3 text-success">@saveMessage</span>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MonitorSetting> Settings { get; set; } = [];
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    Dictionary<string, string> values = new();
+    Dictionary<string, string> errors = new();
+    string? saveMessage;
+
+    protected override void OnInitialized()
+    {
+        var stored = configService.GetSettings(Settings.Select(x => x.Name));
+        values = Settings.ToDictionary(x => x.Name, x => stored.GetValueOrDefault(x.Name, x.DefaultValue));
+    }
+
+    bool IsOn(string name) => bool.TryParse(values[name], out var on) && on;
+
+    void Save()
+    {
+        saveMessage = null;
+        errors = Settings
+            .Select(x => (x.Name, Error: Validate(x, values[x.Name]?.Trim() ?? "")))
+            .Where(x => x.Error != null)
+            .ToDictionary(x => x.Name, x => x.Error!);
+
+        if (errors.Count > 0)
+            return;
+
+        configService.SaveSettings(Settings.ToDictionary(x => x.Name, x => values[x.Name]?.Trim() ?? ""));
+        saveMessage = "Saved!";
+    }
+
+    static string? Validate(MonitorSetting setting, string value)
+    {
+        // ConfigSetting.SettingValue is varchar(300)
+        if (value.Length > 300)
+            return "Must be 300 characters or fewer.";
+
+        switch (setting.Type)
+        {
+            case MonitorSettingType.Number:
+                return int.TryParse(value, out var n) && n > 0 ? null : "Enter a whole number greater than 0.";
+            case MonitorSettingType.NumberPair:
+                var parts = value.Split(',', StringSplitOptions.TrimEntries);
+                return parts.Length == 2 && parts.All(p => int.TryParse(p, out var x) && x > 0) ? null : "Enter two whole numbers separated by a comma, e.g. 5,30.";
+            case MonitorSettingType.EmailList:
+                var addresses = value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var invalid = addresses.Where(a => !System.Net.Mail.MailAddress.TryCreate(a, out _)).ToList();
+                return invalid.Count == 0 ? null : $"Not a valid email address: {string.Join(", ", invalid)}";
+            default:
+                return null;
+        }
+    }
+}

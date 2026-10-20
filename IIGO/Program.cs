@@ -104,7 +104,12 @@ namespace IIGO
             builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
             builder.Services.AddScoped<ConfigurationService>();
-            builder.Services.AddScoped<AppPoolMonitorService>();
+            builder.Services.AddScoped<MonitorHistoryService>();
+            // Singletons so pages can read their status, and hosted services so they run in the background
+            builder.Services.AddSingleton<AppPoolMonitorService>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<AppPoolMonitorService>());
+            builder.Services.AddSingleton<CertificateMonitorService>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<CertificateMonitorService>());
             //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
             builder.Services.AddScoped<IMessengerService, DiscordService>();
@@ -120,7 +125,7 @@ namespace IIGO
             builder.Services.AddTransient<ServiceResolver>(serviceProvider => serviceTypeName =>
             {
                 var services = serviceProvider.GetServices<IMessengerService>().ToList();
-                return services.First(x => x.ServiceName == serviceTypeName);
+                return services.First(x => x.ServiceIdentifier == serviceTypeName);
             });
 
             var app = builder.Build();
@@ -211,8 +216,41 @@ namespace IIGO
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationEmail") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationEmail", SettingValue = "admin@example.com" });
 
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationMethod") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationMethod", SettingValue = nameof(SMTPService) });
+
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolHistoryLength") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolHistoryLength", SettingValue = "365" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolMonitorEnabled") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolMonitorEnabled", SettingValue = "true" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolMonitorInterval") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolMonitorInterval", SettingValue = "2" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolMonitorExclusions") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolMonitorExclusions", SettingValue = "" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateMonitorEnabled") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateMonitorEnabled", SettingValue = "true" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateMonitorInterval") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateMonitorInterval", SettingValue = "10" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateExpirationThreshold") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateExpirationThreshold", SettingValue = "30" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationFrequency") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationFrequency", SettingValue = "24" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationEmail") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationEmail", SettingValue = "admin@example.com" });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationMethod") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationMethod", SettingValue = nameof(SMTPService) });
+
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateHistoryLength") == null)
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateHistoryLength", SettingValue = "365" });
 
                     context.SaveChanges();
                 }

@@ -9,6 +9,7 @@ namespace IIGO.Data
     {
         public DbSet<ConfigSetting> ConfigSetting { get; set; }
         public DbSet<AppPoolMonitoring> AppPoolMonitoring { get; set; }
+        public DbSet<CertificateMonitoring> CertificateMonitoring { get; set; }
         public DbSet<DomainStatus> DomainStatus { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
 

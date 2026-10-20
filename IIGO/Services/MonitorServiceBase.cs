@@ -1,0 +1,129 @@
+using IIGO.Data;
+using IIGO.Models;
+using IIGO.Services.Interfaces;
+using System.Diagnostics;
+
+namespace IIGO.Services
+{
+    /// <summary>
+    /// Runs a check on a repeating interval for the lifetime of the application.
+    /// Settings are re-read on every run so changes apply without a restart.
+    /// </summary>
+    internal abstract class MonitorServiceBase(IServiceScopeFactory scopeFactory, ILogger logger) : BackgroundService
+    {
+        protected static string ApplicationHostConfigPath =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "config", "applicationHost.config");
+
+        protected abstract string EnabledSetting { get; }
+        protected abstract string IntervalSetting { get; }
+        protected abstract int DefaultIntervalMinutes { get; }
+
+        public DateTime? LastRun { get; private set; }
+
+        protected abstract Task RunCheckAsync(IServiceProvider services, ApplicationDbContext context, CancellationToken ct);
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            var interval = TimeSpan.FromMinutes(DefaultIntervalMinutes);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                // Wait before each run (including the first) so a run never overlaps the next
+                try
+                {
+                    await Task.Delay(interval, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                    interval = TimeSpan.FromMinutes(Math.Max(1, GetIntSetting(context, IntervalSetting, DefaultIntervalMinutes)));
+                    if (!GetBoolSetting(context, EnabledSetting, true))
+                        continue;
+
+                    await RunCheckAsync(scope.ServiceProvider, context, stoppingToken);
+                    LastRun = DateTime.UtcNow;
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "{Monitor} check failed", GetType().Name);
+                }
+            }
+        }
+
+        protected async Task<bool> SendNotificationAsync(IServiceProvider services, ApplicationDbContext context, string methodSetting, string recipientSetting, string subject, string body, CancellationToken ct)
+        {
+            var method = GetSetting(context, methodSetting, nameof(SMTPService));
+            var messenger = services.GetServices<IMessengerService>().FirstOrDefault(x => x.ServiceIdentifier == method);
+            if (messenger == null)
+            {
+                logger.LogWarning("{Monitor} notification not sent: unknown messenger service '{Method}' in setting {Setting}", GetType().Name, method, methodSetting);
+                return false;
+            }
+
+            var message = new MessageData
+            {
+                Subject = $"[{Environment.MachineName}] {subject}",
+                Body = body,
+                Recipients = [.. GetSetting(context, recipientSetting).Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]
+            };
+
+            var sent = await messenger.SendMessageAsync(message, ct);
+            if (!sent)
+                logger.LogWarning("{Monitor} notification failed to send through {Messenger}", GetType().Name, messenger.ServiceName);
+
+            return sent;
+        }
+
+        /// <summary>
+        /// Lists object names with one appcmd call, e.g. "list apppool /state:Stopped".
+        /// Throws if appcmd fails, so an access or IIS error is never mistaken for an empty or stopped list.
+        /// </summary>
+        protected static async Task<HashSet<string>> ListAppCmdNamesAsync(string arguments, CancellationToken ct)
+        {
+            var appcmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "appcmd.exe");
+            if (!File.Exists(appcmd))
+                throw new FileNotFoundException("IIS appcmd.exe was not found", appcmd);
+
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = appcmd,
+                    Arguments = $"{arguments} /text:name",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync(ct);
+            var error = await process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException($"appcmd {arguments} failed with exit code {process.ExitCode}: {error}{output}".Trim());
+
+            return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        protected static string GetSetting(ApplicationDbContext context, string setting, string defaultValue = "") =>
+            context.ConfigSetting.FirstOrDefault(x => x.SettingName == setting)?.SettingValue ?? defaultValue;
+
+        protected static int GetIntSetting(ApplicationDbContext context, string setting, int defaultValue) =>
+            int.TryParse(GetSetting(context, setting), out var value) ? value : defaultValue;
+
+        protected static bool GetBoolSetting(ApplicationDbContext context, string setting, bool defaultValue) =>
+            bool.TryParse(GetSetting(context, setting), out var value) ? value : defaultValue;
+    }
+}
