@@ -217,9 +217,6 @@ namespace IIGO
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationEmail") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationEmail", SettingValue = "admin@example.com" });
 
-                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationMethod") == null)
-                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationMethod", SettingValue = nameof(SMTPService) });
-
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolHistoryLength") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolHistoryLength", SettingValue = "365" });
 
@@ -246,9 +243,6 @@ namespace IIGO
 
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationEmail") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationEmail", SettingValue = "admin@example.com" });
-
-                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationMethod") == null)
-                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationMethod", SettingValue = nameof(SMTPService) });
 
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateHistoryLength") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateHistoryLength", SettingValue = "365" });

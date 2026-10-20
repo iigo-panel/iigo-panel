@@ -24,14 +24,6 @@
                         case MonitorSettingType.Number:
                             <input class="form-control" type="number" min="1" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
                             break;
-                        case MonitorSettingType.Messenger:
-                            <select class="form-select" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]">
-                                @foreach (var messenger in messengers)
-                                {
-                                    <option value="@messenger.ServiceIdentifier">@messenger.ServiceName</option>
-                                }
-                            </select>
-                            break;
                         default:
                             <input class="form-control" type="text" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
                             break;
@@ -45,6 +37,22 @@
                         <div class="text-danger">@error</div>
                     }
                 </div>
+            </div>
+        }
+        @if (NotificationFeature != null)
+        {
+            <div class="mb-3">
+                <span class="form-label d-block">Send notifications through</span>
+                @foreach (var messenger in messengers)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="notify-@messenger.ServiceIdentifier" disabled="@ReadOnly"
+                               checked="@selectedServices.Contains(messenger.ServiceIdentifier)"
+                               @onchange="@(e => ToggleService(messenger.ServiceIdentifier, (bool)e.Value!))" />
+                        <label class="form-check-label" for="notify-@messenger.ServiceIdentifier">@messenger.ServiceName</label>
+                    </div>
+                }
+                <div class="form-text">Notifications go to every service ticked here. Leave them all unticked to turn notifications off.</div>
             </div>
         }
         @if (!ReadOnly)
@@ -65,17 +73,33 @@
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    // One of the NotificationFeature constants; shows the notification service checkboxes when set
+    [Parameter]
+    public string? NotificationFeature { get; set; }
+
     Dictionary<string, string> values = new();
     Dictionary<string, string> errors = new();
+    HashSet<string> selectedServices = new();
     string? saveMessage;
 
     protected override void OnInitialized()
     {
         var stored = configService.GetSettings(Settings.Select(x => x.Name));
         values = Settings.ToDictionary(x => x.Name, x => stored.GetValueOrDefault(x.Name, x.DefaultValue));
+
+        if (NotificationFeature != null)
+            selectedServices = configService.GetNotificationServices(NotificationFeature);
     }
 
     bool IsOn(string name) => bool.TryParse(values[name], out var on) && on;
+
+    void ToggleService(string identifier, bool selected)
+    {
+        if (selected)
+            selectedServices.Add(identifier);
+        else
+            selectedServices.Remove(identifier);
+    }
 
     void Save()
     {
@@ -85,10 +109,20 @@
             .Where(x => x.Error != null)
             .ToDictionary(x => x.Name, x => x.Error!);
 
+        // Email services have no one to send to without recipients
+        if (messengers.Any(x => x.IsEmail && selectedServices.Contains(x.ServiceIdentifier)))
+        {
+            foreach (var setting in Settings.Where(x => x.Type == MonitorSettingType.EmailList && string.IsNullOrWhiteSpace(values[x.Name])))
+                errors.TryAdd(setting.Name, "Enter at least one address, or untick the email services.");
+        }
+
         if (errors.Count > 0)
             return;
 
         configService.SaveSettings(Settings.ToDictionary(x => x.Name, x => values[x.Name]?.Trim() ?? ""));
+        if (NotificationFeature != null)
+            configService.SetNotificationServices(NotificationFeature, selectedServices);
+
         saveMessage = "Saved!";
     }
 

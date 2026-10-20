@@ -97,10 +97,10 @@
     <div class="col-lg-5">
         <AuthorizeView Roles="Administrator">
             <Authorized>
-                <MonitorSettings Settings="CertificateMonitorService.Settings" />
+                <MonitorSettings Settings="CertificateMonitorService.Settings" NotificationFeature="@NotificationFeature.CertificateMonitor" />
             </Authorized>
             <NotAuthorized>
-                <MonitorSettings Settings="CertificateMonitorService.Settings" ReadOnly="true" />
+                <MonitorSettings Settings="CertificateMonitorService.Settings" NotificationFeature="@NotificationFeature.CertificateMonitor" ReadOnly="true" />
             </NotAuthorized>
         </AuthorizeView>
     </div>

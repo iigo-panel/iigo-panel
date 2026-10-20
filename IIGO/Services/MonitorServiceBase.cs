@@ -1,6 +1,7 @@
 using IIGO.Data;
 using IIGO.Models;
 using IIGO.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 
 namespace IIGO.Services
@@ -60,13 +61,19 @@ namespace IIGO.Services
             }
         }
 
-        protected async Task<bool> SendNotificationAsync(IServiceProvider services, ApplicationDbContext context, string methodSetting, string recipientSetting, string subject, string body, CancellationToken ct)
+        /// <summary>
+        /// Sends through every messenger service assigned to the feature. Returns true only if all of them succeeded.
+        /// </summary>
+        protected async Task<bool> SendNotificationAsync(IServiceProvider services, ApplicationDbContext context, string feature, string recipientSetting, string subject, string body, CancellationToken ct)
         {
-            var method = GetSetting(context, methodSetting, nameof(SMTPService));
-            var messenger = services.GetServices<IMessengerService>().FirstOrDefault(x => x.ServiceIdentifier == method);
-            if (messenger == null)
+            var assigned = await context.NotificationSubscription
+                .Where(x => x.Feature == feature)
+                .Select(x => x.ServiceIdentifier)
+                .ToListAsync(ct);
+
+            if (assigned.Count == 0)
             {
-                logger.LogWarning("{Monitor} notification not sent: unknown messenger service '{Method}' in setting {Setting}", GetType().Name, method, methodSetting);
+                logger.LogInformation("{Monitor} notification not sent: no notification services are assigned to {Feature}", GetType().Name, feature);
                 return false;
             }
 
@@ -77,11 +84,38 @@ namespace IIGO.Services
                 Recipients = [.. GetSetting(context, recipientSetting).Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)]
             };
 
-            var sent = await messenger.SendMessageAsync(message, ct);
-            if (!sent)
-                logger.LogWarning("{Monitor} notification failed to send through {Messenger}", GetType().Name, messenger.ServiceName);
+            var messengers = services.GetServices<IMessengerService>().ToList();
+            var allSent = true;
+            foreach (var identifier in assigned)
+            {
+                var messenger = messengers.FirstOrDefault(x => x.ServiceIdentifier == identifier);
+                if (messenger == null)
+                {
+                    logger.LogWarning("{Monitor} notification not sent: unknown messenger service '{Service}' is assigned to {Feature}", GetType().Name, identifier, feature);
+                    allSent = false;
+                    continue;
+                }
 
-            return sent;
+                // One failing service must not stop the others
+                bool sent;
+                try
+                {
+                    sent = await messenger.SendMessageAsync(message, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "{Monitor} notification threw an error in {Messenger}", GetType().Name, messenger.ServiceName);
+                    sent = false;
+                }
+
+                if (!sent)
+                {
+                    logger.LogWarning("{Monitor} notification failed to send through {Messenger}", GetType().Name, messenger.ServiceName);
+                    allSent = false;
+                }
+            }
+
+            return allSent;
         }
 
         /// <summary>
