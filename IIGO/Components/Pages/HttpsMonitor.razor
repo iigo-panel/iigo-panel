@@ -1,0 +1,124 @@
+@page "/httpsmonitor"
+@using IIGO.Components.Shared
+@using IIGO.Data
+@using IIGO.Services
+@inject CertificateMonitorService monitorService
+@inject MonitorHistoryService historyService
+@attribute [Authorize(Policy = Feature.ViewWebsites)]
+@rendermode InteractiveServer
+
+<PageTitle>HTTPS Monitor</PageTitle>
+
+<h1>HTTPS Monitor</h1>
+
+<p class="text-muted">
+    Certificates on the HTTPS bindings of running sites are checked for expiration, missing certificates, and host name mismatches.
+    Last check: @(monitorService.LastRun?.ToLocalTime().ToString("g") ?? "not run yet")
+</p>
+
+<a href="/websites" class="btn btn-secondary">Back to Websites</a>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Current issues</h5>
+                @if (monitorService.LastRun == null)
+                {
+                    <p class="mb-0">The first check hasn't run yet.</p>
+                }
+                else if (monitorService.LastIssues.Count == 0)
+                {
+                    <p class="mb-0">No issues found in the last check.</p>
+                }
+                else
+                {
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Site</th>
+                                <th>Binding</th>
+                                <th>Issue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var issue in monitorService.LastIssues)
+                            {
+                                <tr>
+                                    <td>@issue.SiteName</td>
+                                    <td>@issue.Binding</td>
+                                    <td><span class="badge @BadgeClass(issue.Type.ToString())">@issue.Type</span> @issue.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Logged events in the last @HistoryDays days</h5>
+                @if (events == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else if (events.Count == 0)
+                {
+                    <p class="mb-0">No certificate issues were logged.</p>
+                }
+                else
+                {
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Site</th>
+                                <th>Binding</th>
+                                <th>Issue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in events)
+                            {
+                                <tr>
+                                    <td>@e.LoggedTime.ToLocalTime().ToString("g")</td>
+                                    <td>@e.SiteName</td>
+                                    <td>@e.Binding</td>
+                                    <td><span class="badge @BadgeClass(e.IssueType)">@e.IssueType</span> @e.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <AuthorizeView Roles="Administrator">
+            <Authorized>
+                <MonitorSettings Settings="CertificateMonitorService.Settings" />
+            </Authorized>
+            <NotAuthorized>
+                <MonitorSettings Settings="CertificateMonitorService.Settings" ReadOnly="true" />
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+@code {
+    const int HistoryDays = 30;
+    List<CertificateMonitoring>? events;
+
+    protected override async Task OnInitializedAsync()
+    {
+        events = await historyService.GetCertificateEventsAsync(HistoryDays);
+    }
+
+    static string BadgeClass(string issueType) => issueType switch
+    {
+        nameof(CertificateIssueType.Expiring) => "bg-warning text-dark",
+        nameof(CertificateIssueType.HostMismatch) => "bg-warning text-dark",
+        _ => "bg-danger"
+    };
+}
