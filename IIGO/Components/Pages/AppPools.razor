@@ -6,6 +6,7 @@
 @inject IISService IISService
 @attribute [Authorize(Policy = Feature.ViewAppPools)]
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Application Pools</PageTitle>
 
@@ -109,6 +110,9 @@ else
         LastMessage = $"{poolName} stopped!";
         IISService.StopPool(poolName);
     }
+
+    // Stop refreshing when the user leaves the page
+    public void Dispose() => timer.Dispose();
 
     List<ToastMessage> messages = new List<ToastMessage>();
 

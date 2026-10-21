@@ -33,8 +33,12 @@ namespace IIGO.Services
             var since = now.AddDays(-days);
             var notify = new List<string>();
 
-            // One appcmd call for every pool's state, instead of one per pool
-            var stopped = await ListAppCmdNamesAsync("list apppool /state:Stopped", ct);
+            // One appcmd call for every pool's state, instead of one per pool. Throws if appcmd fails,
+            // so an access or IIS error is never mistaken for every pool being stopped.
+            var stopped = IisStateReader.GetStates(IisStateReader.AppPools, useCache: false)
+                .Where(x => x.Value == "Stopped")
+                .Select(x => x.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // A new manager each run so pool settings (e.g. AutoStart) are current
             var manager = new IisServerManager(true, ApplicationHostConfigPath);

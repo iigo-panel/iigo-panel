@@ -13,8 +13,8 @@
 
 <p class="text-muted">
     Certificates on the HTTPS bindings of running sites are checked for expiration, missing certificates, and host name mismatches.
-    Last check: @(monitorService.LastRun?.ToLocalTime().ToString("g") ?? "not run yet")
 </p>
+<MonitorStatus Monitor="monitorService" />
 
 <a href="/websites" class="btn btn-secondary">Back to Websites</a>
 

@@ -45,56 +45,22 @@ namespace Microsoft.Web.Administration
             Mode = WorkingMode.Iis;
         }
 
-        internal override bool GetSiteState(Site site)
+        internal override bool GetSiteState(Site site) => IsStarted(IisStateReader.Sites, site.Name);
+
+        internal override bool GetPoolState(ApplicationPool pool) => IsStarted(IisStateReader.AppPools, pool.Name);
+
+        // One cached appcmd call covers every object, instead of one appcmd call per object
+        private static bool IsStarted(string objectType, string name)
         {
-            var appcmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "appcmd.exe");
-            if (!File.Exists(appcmd))
+            try
             {
+                return IisStateReader.GetStates(objectType).TryGetValue(name, out var state) && state == "Started";
+            }
+            catch (Exception)
+            {
+                // Same as before: report stopped when appcmd is missing or fails
                 return false;
             }
-
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = appcmd,
-                    Arguments = $"list site /state:Started",
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true
-                }
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return output.Contains($"SITE \"{site.Name}\"");
-        }
-
-        internal override bool GetPoolState(ApplicationPool pool)
-        {
-            var appcmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "appcmd.exe");
-            if (!File.Exists(appcmd))
-            {
-                return false;
-            }
-
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = appcmd,
-                    Arguments = $"list apppool /state:Started",
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true
-                }
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return output.Contains($"APPPOOL \"{pool.Name}\"");
         }
 
         internal override void Start(Site site)
@@ -116,6 +82,7 @@ namespace Microsoft.Web.Administration
                 };
                 process.Start();
                 process.WaitForExit();
+                IisStateReader.Invalidate();
             }
         }
 
@@ -138,6 +105,7 @@ namespace Microsoft.Web.Administration
                 };
                 process.Start();
                 process.WaitForExit();
+                IisStateReader.Invalidate();
             }
         }
 
@@ -160,6 +128,7 @@ namespace Microsoft.Web.Administration
                 };
                 process.Start();
                 process.WaitForExit();
+                IisStateReader.Invalidate();
             }
         }
 
@@ -182,6 +151,7 @@ namespace Microsoft.Web.Administration
                 };
                 process.Start();
                 process.WaitForExit();
+                IisStateReader.Invalidate();
             }
         }
 
@@ -204,6 +174,7 @@ namespace Microsoft.Web.Administration
                 };
                 process.Start();
                 process.WaitForExit();
+                IisStateReader.Invalidate();
             }
         }
 

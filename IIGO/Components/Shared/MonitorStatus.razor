@@ -1,0 +1,31 @@
+@using IIGO.Services
+@implements IDisposable
+
+<p class="text-muted mb-2">
+    Last check: @Format(Monitor.LastRun)
+    @if (Monitor.IsRunning)
+    {
+        <span class="badge bg-info text-dark ms-2">Check in progress</span>
+    }
+</p>
+@if (Monitor.LastError != null)
+{
+    <div class="alert alert-danger">Last check failed at @Format(Monitor.LastAttempt): @Monitor.LastError</div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MonitorServiceBase Monitor { get; set; } = default!;
+
+    // Only re-renders this status; it doesn't touch IIS
+    System.Threading.Timer? timer;
+
+    protected override void OnInitialized()
+    {
+        timer = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+    }
+
+    static string Format(DateTime? time) => time?.ToLocalTime().ToString("g") ?? "not run yet";
+
+    public void Dispose() => timer?.Dispose();
+}

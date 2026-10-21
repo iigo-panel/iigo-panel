@@ -8,6 +8,7 @@
 @inject IHttpContextAccessor httpContextAccessor
 @attribute [Authorize]
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>System Status</PageTitle>
 
@@ -178,6 +179,18 @@
         UpTime = TimeSpan.FromMilliseconds(Environment.TickCount64).ToString("d\\:hh\\:mm\\:ss");
         CpuUsage = cpuUsage.NextValue().ToString("N1") + "%";
         await InvokeAsync(StateHasChanged);
+    }
+
+    // Stop refreshing and release the counters when the user leaves the page
+    public void Dispose()
+    {
+        timer.Dispose();
+        cpuUsage.Dispose();
+        foreach (var i in interfaces)
+        {
+            i.PCSent?.Dispose();
+            i.PCReceived?.Dispose();
+        }
     }
 
     private string FormatSize(long size)
