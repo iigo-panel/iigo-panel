@@ -2,7 +2,6 @@ using IIGO.Data;
 using IIGO.Models;
 using IIGO.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
 
 namespace IIGO.Services
 {
@@ -10,7 +9,7 @@ namespace IIGO.Services
     /// Runs a check on a repeating interval for the lifetime of the application.
     /// Settings are re-read on every run so changes apply without a restart.
     /// </summary>
-    internal abstract class MonitorServiceBase(IServiceScopeFactory scopeFactory, ILogger logger) : BackgroundService
+    public abstract class MonitorServiceBase(IServiceScopeFactory scopeFactory, ILogger logger) : BackgroundService
     {
         protected static string ApplicationHostConfigPath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "config", "applicationHost.config");
@@ -19,36 +18,61 @@ namespace IIGO.Services
         protected abstract string IntervalSetting { get; }
         protected abstract int DefaultIntervalMinutes { get; }
 
+        // Short first delay so the app finishes starting, then the configured interval between runs
+        static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
+
+        /// <summary>When the last check completed successfully (UTC).</summary>
         public DateTime? LastRun { get; private set; }
+
+        /// <summary>When the last check started (UTC), whether or not it succeeded.</summary>
+        public DateTime? LastAttempt { get; private set; }
+
+        /// <summary>Why the last check failed, or null if it succeeded.</summary>
+        public string? LastError { get; private set; }
+
+        /// <summary>True while a check is running.</summary>
+        public bool IsRunning => _running;
+        volatile bool _running;
 
         protected abstract Task RunCheckAsync(IServiceProvider services, ApplicationDbContext context, CancellationToken ct);
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var interval = TimeSpan.FromMinutes(DefaultIntervalMinutes);
+            var delay = StartupDelay;
             while (!stoppingToken.IsCancellationRequested)
             {
-                // Wait before each run (including the first) so a run never overlaps the next
+                // Wait before each run so a run never overlaps the next
                 try
                 {
-                    await Task.Delay(interval, stoppingToken);
+                    await Task.Delay(delay, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
 
+                delay = TimeSpan.FromMinutes(DefaultIntervalMinutes);
                 try
                 {
                     using var scope = scopeFactory.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                    interval = TimeSpan.FromMinutes(Math.Max(1, GetIntSetting(context, IntervalSetting, DefaultIntervalMinutes)));
+                    delay = TimeSpan.FromMinutes(Math.Max(1, GetIntSetting(context, IntervalSetting, DefaultIntervalMinutes)));
                     if (!GetBoolSetting(context, EnabledSetting, true))
                         continue;
 
-                    await RunCheckAsync(scope.ServiceProvider, context, stoppingToken);
+                    LastAttempt = DateTime.UtcNow;
+                    _running = true;
+                    try
+                    {
+                        await RunCheckAsync(scope.ServiceProvider, context, stoppingToken);
+                    }
+                    finally
+                    {
+                        _running = false;
+                    }
                     LastRun = DateTime.UtcNow;
+                    LastError = null;
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -56,6 +80,7 @@ namespace IIGO.Services
                 }
                 catch (Exception ex)
                 {
+                    LastError = ex.Message;
                     logger.LogError(ex, "{Monitor} check failed", GetType().Name);
                 }
             }
@@ -116,39 +141,6 @@ namespace IIGO.Services
             }
 
             return allSent;
-        }
-
-        /// <summary>
-        /// Lists object names with one appcmd call, e.g. "list apppool /state:Stopped".
-        /// Throws if appcmd fails, so an access or IIS error is never mistaken for an empty or stopped list.
-        /// </summary>
-        protected static async Task<HashSet<string>> ListAppCmdNamesAsync(string arguments, CancellationToken ct)
-        {
-            var appcmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "inetsrv", "appcmd.exe");
-            if (!File.Exists(appcmd))
-                throw new FileNotFoundException("IIS appcmd.exe was not found", appcmd);
-
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = appcmd,
-                    Arguments = $"{arguments} /text:name",
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                }
-            };
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync(ct);
-            var error = await process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
-
-            if (process.ExitCode != 0)
-                throw new InvalidOperationException($"appcmd {arguments} failed with exit code {process.ExitCode}: {error}{output}".Trim());
-
-            return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
         protected static string GetSetting(ApplicationDbContext context, string setting, string defaultValue = "") =>

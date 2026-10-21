@@ -4,7 +4,7 @@
     {
         public const string EventLogSource = "IIGO";
         public const string EventLogName= "IIGO";
-        public const string IIGOVersion = "1.0.0-beta4";
-        public readonly static DateTime BuildDate = DateTime.Parse("2026/10/20");
+        public const string IIGOVersion = "1.0.0-beta5";
+        public readonly static DateTime BuildDate = DateTime.Parse("2026/10/21");
     }
 }

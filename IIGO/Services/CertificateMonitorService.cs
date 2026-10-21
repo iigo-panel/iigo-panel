@@ -47,9 +47,14 @@ namespace IIGO.Services
             var thresholdDays = GetIntSetting(context, "CertificateExpirationThreshold", 30);
             var issues = new List<CertificateIssue>();
 
-            var started = await ListAppCmdNamesAsync("list site /state:Started", ct);
+            var started = IisStateReader.GetStates(IisStateReader.Sites, useCache: false)
+                .Where(x => x.Value == "Started")
+                .Select(x => x.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var manager = new IisServerManager(true, ApplicationHostConfigPath);
+            // Not read-only: loading an SNI binding's certificate sets its SslFlags in memory, which throws on a
+            // read-only manager. Nothing is saved because CommitChanges() is never called.
+            var manager = new IisServerManager(false, ApplicationHostConfigPath);
             foreach (Site site in manager.Sites)
             {
                 ct.ThrowIfCancellationRequested();
