@@ -16,7 +16,11 @@
 
 <button @onclick="Reboot">Reboot</button>
 
+
+
 @code {
+    //[Inject] protected ToastService ToastService { get; set; } = default!;
+
     private string? authMessage;
     private string? surname;
     private IEnumerable<Claim> claims = Enumerable.Empty<Claim>();
@@ -38,8 +42,10 @@
         }
     }
 
-    private void Reboot()
+    private async Task Reboot()
     {
-        ComputerControlService.Reboot();
+        //await ToastService.NotifyAsync(new ToastMessage(ToastType.Success) { Message = "The system is rebooting...", Type = ToastType.Info });
+        //messages.Add(new ToastMessage(ToastType.Success) { Message = "The system is rebooting...", Type = ToastType.Info });
+        //ComputerControlService.Reboot();
     }
 }

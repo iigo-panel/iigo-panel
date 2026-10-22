@@ -22,14 +22,6 @@ else
 {
     <a href="/apppoolmonitor" class="btn btn-primary">Monitor</a>
 
-    if (LastMessage != null)
-    {
-        <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
-            @LastMessage
-            @* <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> *@
-        </div>
-    }
-
     <table class="table">
         <thead>
             <tr>
@@ -69,7 +61,6 @@ else
     List<ApplicationPool>? pools = null;
     Dictionary<string, int> appCounts = new();
     private Timer timer = new(5000);
-    private string? LastMessage = null;
     private bool Success = true;
 
     protected override async Task OnInitializedAsync()
@@ -82,7 +73,6 @@ else
 
     protected async Task UpdateValues()
     {
-        LastMessage = null;
         pools = IISService.GetAppPools();
         appCounts = IISService.GetApplicationCountsByPool();
         await InvokeAsync(StateHasChanged);
@@ -90,24 +80,31 @@ else
 
     protected void RecyclePool(string poolName)
     {
-        // try
-        // {
-        //     ShowMessage($"{poolName} recycled!", "Success", ToastType.Success);
-        // }
-        // catch(JSDisconnectedException){}
-        LastMessage = $"{poolName} recycled!";
+        try
+        {
+            ShowMessage($"{poolName} recycled!", "Success", ToastType.Success);
+        }
+        catch(JSDisconnectedException){}
         IISService.Recycle(poolName);
     }
 
     protected void StartPool(string poolName)
     {
-        LastMessage = $"{poolName} started!";
+        try
+        {
+            ShowMessage($"{poolName} started!", "Success", ToastType.Success);
+        }
+        catch (JSDisconnectedException) { }
         IISService.StartPool(poolName);
     }
 
     protected void StopPool(string poolName)
     {
-        LastMessage = $"{poolName} stopped!";
+        try
+        {
+            ShowMessage($"{poolName} stopped", "Success", ToastType.Success);
+        }
+        catch (JSDisconnectedException) { }
         IISService.StopPool(poolName);
     }
 
