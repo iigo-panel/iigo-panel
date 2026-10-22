@@ -12,6 +12,8 @@
 
 <h1>Websites</h1>
 
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
+
 @if (sites == null)
 {
     <p><em>Loading...</em></p>
@@ -24,14 +26,6 @@ else
     }
     <button @onclick="Reload" class="btn btn-success">Reload</button><text>&nbsp;</text>
     <a href="/httpsmonitor" class="btn btn-info">HTTPS Monitor</a>
-
-    if (LastMessage != null)
-    {
-        <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
-            @LastMessage
-            @* <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> *@
-        </div>
-    }
 
     <ConfirmDialog @ref="dialog" />
 
@@ -87,7 +81,6 @@ else
         try
         {
             sites = IISService.GetSites();
-            LastMessage = null;
         }
         catch { }
         await InvokeAsync(StateHasChanged);
@@ -107,7 +100,7 @@ else
         try
         {
             var site = IISService.GetSite(siteId);
-            LastMessage = $"{site?.Name} restarted!";
+            ShowMessage($"{site?.Name} restarted!", "Success", ToastType.Success);
         }
         catch {}
         IISService.RestartSite(siteId);
@@ -118,7 +111,7 @@ else
         try
         {
             var site = IISService.GetSite(siteId);
-            LastMessage = $"{site?.Name} started!";
+            ShowMessage($"{site?.Name} started!", "Success", ToastType.Success);
         }
         catch { }
         IISService.StartSite(siteId);
@@ -129,7 +122,7 @@ else
         try
         {
             var site = IISService.GetSite(siteId);
-            LastMessage = $"{site?.Name} stopped!";
+            ShowMessage($"{site?.Name} stopped!", "Success", ToastType.Success);
         }
         catch { }
         IISService.StopSite(siteId);
@@ -155,7 +148,7 @@ else
             try
             {
                 IISService.DeleteWebsite(siteId);
-                LastMessage = $"{siteName} deleted!";
+                ShowMessage($"{siteName} deleted!", "Success", ToastType.Success);
             }
             catch { }
 
@@ -167,4 +160,17 @@ else
             await InvokeAsync(StateHasChanged);
         }
     }
+
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(string message, string title, ToastType toastType) => messages.Add(CreateToastMessage(message, title, toastType));
+
+    private ToastMessage CreateToastMessage(string message, string title, ToastType toastType)
+    => new ToastMessage
+    {
+        Title = title,
+        Type = toastType,
+        HelpText = $"{DateTime.Now}",
+        Message = message,
+    };
 }

@@ -1,11 +1,5 @@
 ﻿using Microsoft.Web.Administration;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Xml.Linq;
 
 namespace IISManager.Services
 {
@@ -24,7 +18,7 @@ namespace IISManager.Services
         {
             ApplicationPoolCollection appPoolCollection = _manager.ApplicationPools;
 
-            return appPoolCollection.ToList();
+            return [.. appPoolCollection.OrderBy(x => x.Name)];
         }
 
         public dynamic? GetAppPool(string name)
