@@ -13,6 +13,7 @@ namespace IIGO.Data
         public DbSet<NotificationSubscription> NotificationSubscription { get; set; }
         public DbSet<DomainStatus> DomainStatus { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
+        public DbSet<ApiKey> ApiKey { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -58,6 +59,10 @@ namespace IIGO.Data
                 b.ToTable("RolePermissions");
                 b.HasIndex(e => new { e.RoleId, e.Feature }).IsUnique();
             });
+
+            builder.Entity<ApiKey>()
+                .HasIndex(e => e.KeyHash)
+                .IsUnique();
 
             builder.Entity<NotificationSubscription>()
                 .HasIndex(e => new { e.Feature, e.ServiceIdentifier })

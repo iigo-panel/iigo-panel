@@ -56,6 +56,9 @@ namespace IIGO
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            // API controllers (IIGO.Api), protected by keys from the API Keys page
+            builder.Services.AddControllers();
+
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IdentityUserAccessor>();
             builder.Services.AddScoped<IdentityRedirectManager>();
@@ -100,6 +103,7 @@ namespace IIGO
             });
             builder.Services.AddSingleton<IAuthorizationHandler, FeatureAuthorizationHandler>();
             builder.Services.AddScoped<RolePermissionService>();
+            builder.Services.AddScoped<ApiKeyService>();
             builder.Services.AddScoped<UserManagementService>();
 
             builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
@@ -181,6 +185,8 @@ namespace IIGO
 
             app.UseStaticFiles();
             app.UseAntiforgery();
+
+            app.MapControllers();
 
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();

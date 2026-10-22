@@ -16,6 +16,8 @@ namespace IIGO.Services
         public const string ViewSettings = "ViewSettings";
         public const string ViewRoles = "ViewRoles";
         public const string ManageRoles = "ManageRoles";
+        // Viewing only; creating, disabling and deleting keys is limited to the Administrator role
+        public const string ViewApiKeys = "ViewApiKeys";
 
         public static readonly IReadOnlyList<string> All =
         [
@@ -24,7 +26,8 @@ namespace IIGO.Services
             ViewFirewallRules, EditFirewallRules,
             ViewScheduledTasks, EditScheduledTasks,
             ViewServices, ViewSettings,
-            ViewRoles, ManageRoles
+            ViewRoles, ManageRoles,
+            ViewApiKeys
         ];
     }
 }

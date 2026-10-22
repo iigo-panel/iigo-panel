@@ -1,40 +1,38 @@
-﻿using IIGO.Components;
-using IIGO.Data;
+﻿using IIGO.Data;
 using IIGO.Services;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IIGO.Api
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class IISApiController(ILogger<IISApiController> logger, IServiceProvider serviceProvider, IISService IISService) : ControllerBase
+    [RequireApiKey]
+    public class IISApiController(ILogger<IISApiController> logger, IISService IISService) : ControllerBase
     {
-        readonly ApplicationDbContext _context = serviceProvider.GetService<ApplicationDbContext>()!;
-
         [HttpGet("sites")]
-        public object GetIISSites()
+        public ActionResult<List<IISSiteInfo>> GetIISSites()
         {
-            var providedKey = Request.Headers["X-API-KEY"].FirstOrDefault();
-            if (String.IsNullOrWhiteSpace(providedKey))
-            {
-                return Results.Unauthorized();
-            }
-            var apiKey = _context.ConfigSetting.FirstOrDefault(x => x.SettingName == "ApiKey");
-            // TODO: check api key against database
             try
             {
-                var sites = IISService.GetSites();
-                return sites.Cast<dynamic>().ToList();
+                return IISService.GetSites().Select(site => new IISSiteInfo
+                {
+                    Id = site.Id,
+                    Name = site.Name,
+                    State = site.State.ToString(),
+                    ApplicationPool = site.Applications.Count > 0 ? site.Applications[0].ApplicationPoolName : "",
+                    PhysicalPath = site.Applications.Count > 0 && site.Applications[0].VirtualDirectories.Count > 0
+                        ? site.Applications[0].VirtualDirectories[0].PhysicalPath
+                        : "",
+                    Bindings = [.. site.Bindings.Select(b => new IISBindingInfo { Protocol = b.Protocol, BindingInformation = b.BindingInformation })]
+                }).ToList();
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error loading IIS sites");
-                return Results.Problem(statusCode: 500, detail: "Error loading IIS sites");
+                return Problem(statusCode: 500, detail: "Error loading IIS sites");
             }
         }
     }

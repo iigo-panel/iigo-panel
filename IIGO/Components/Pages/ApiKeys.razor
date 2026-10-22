@@ -1,0 +1,228 @@
+@page "/apikeys"
+@using IIGO.Data
+@using IIGO.Services
+@using System.ComponentModel.DataAnnotations
+@inject ApiKeyService apiKeyService
+@inject IJSRuntime JsRuntime
+@attribute [Authorize(Policy = Feature.ViewApiKeys)]
+@rendermode InteractiveServer
+
+<PageTitle>API Keys</PageTitle>
+
+<h1>API Keys</h1>
+
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
+<ConfirmDialog @ref="dialog" />
+
+<p class="text-muted">Keys are sent in the <code>X-API-KEY</code> header. Only a hash of each key is stored, so a key can't be shown again after it's created.</p>
+
+@if (isAdmin)
+{
+    @if (newKey != null)
+    {
+        <div class="alert alert-success">
+            <p class="mb-2"><strong>Copy this key now.</strong> It won't be shown again.</p>
+            <div class="input-group">
+                <input class="form-control font-monospace" readonly value="@newKey" aria-label="New API key" />
+                <button class="btn btn-outline-secondary" @onclick="CopyKey">Copy</button>
+            </div>
+            <button class="btn btn-link px-0 mt-2" @onclick="() => newKey = null">I've saved the key</button>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Create a key</h5>
+            <EditForm Model="NewKey" OnValidSubmit="CreateKey" FormName="NewApiKey">
+                <DataAnnotationsValidator />
+                <div class="row g-3 align-items-start">
+                    <div class="col-md-5">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewKey.Name" id="keyName" autocomplete="off" placeholder="Name" />
+                            <label for="keyName">Name</label>
+                        </div>
+                        <ValidationMessage For="() => NewKey.Name" class="text-danger" />
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <InputDate class="form-control" @bind-Value="NewKey.ExpiresOn" id="keyExpires" />
+                            <label for="keyExpires">Expires (optional)</label>
+                        </div>
+                        <ValidationMessage For="() => NewKey.ExpiresOn" class="text-danger" />
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary mt-2">Create Key</button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (keys == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (keys.Count == 0)
+{
+    <p>No API keys have been created.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Key</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Expires</th>
+                <th>Last Used</th>
+                @if (isAdmin)
+                {
+                    <th></th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var key in keys)
+            {
+                <tr>
+                    <td>@key.Name</td>
+                    <td class="font-monospace">@key.KeyPrefix…</td>
+                    <td><span class="badge @StatusClass(key)">@Status(key)</span></td>
+                    <td>@key.CreatedAt.ToLocalTime().ToString("g")<br /><small class="text-muted">@key.CreatedBy</small></td>
+                    <td>@(key.ExpiresAt?.ToLocalTime().ToString("d") ?? "Never")</td>
+                    <td>@(key.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                    @if (isAdmin)
+                    {
+                        <td>
+                            @if (key.Enabled)
+                            {
+                                <button class="btn btn-warning" @onclick="() => SetEnabled(key, false)">Disable</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-success" @onclick="() => SetEnabled(key, true)">Enable</button>
+                            }
+                            <button class="btn btn-danger ms-1" @onclick="() => DeleteKey(key)">Delete</button>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private ConfirmDialog dialog = default!;
+    List<ApiKey>? keys;
+    NewKeyModel NewKey = new();
+    string? newKey;
+    bool isAdmin;
+    string userName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        isAdmin = user.IsInRole("Administrator");
+        userName = user.Identity?.Name ?? "";
+        keys = await apiKeyService.GetKeysAsync();
+    }
+
+    async Task CreateKey()
+    {
+        // Checked again here so only administrators can change keys, whatever the UI shows
+        if (!isAdmin)
+            return;
+
+        // The date picker gives a local date; the key works through the last moment of that day
+        DateTime? expiresAt = NewKey.ExpiresOn?.Date.AddDays(1).AddTicks(-1).ToUniversalTime();
+        newKey = await apiKeyService.CreateKeyAsync(NewKey.Name.Trim(), expiresAt, userName);
+        ShowMessage($"{NewKey.Name.Trim()} created!", "Success", ToastType.Success);
+        NewKey = new();
+        keys = await apiKeyService.GetKeysAsync();
+    }
+
+    async Task CopyKey()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", newKey);
+            ShowMessage("Key copied to the clipboard.", "Copied", ToastType.Info);
+        }
+        catch (JSException)
+        {
+            ShowMessage("Couldn't copy automatically. Select the key and copy it.", "Copy failed", ToastType.Warning);
+        }
+    }
+
+    async Task SetEnabled(ApiKey key, bool enabled)
+    {
+        if (!isAdmin)
+            return;
+
+        await apiKeyService.SetEnabledAsync(key.Id, enabled);
+        ShowMessage($"{key.Name} {(enabled ? "enabled" : "disabled")}!", "Success", ToastType.Success);
+        keys = await apiKeyService.GetKeysAsync();
+    }
+
+    async Task DeleteKey(ApiKey key)
+    {
+        if (!isAdmin)
+            return;
+
+        var confirmation = await dialog.ShowAsync(
+            title: $"Delete the {key.Name} API key?",
+            message1: "Anything using this key will stop working. This can't be undone.",
+            message2: "Do you want to proceed?");
+
+        if (confirmation)
+        {
+            await apiKeyService.DeleteKeyAsync(key.Id);
+            ShowMessage($"{key.Name} deleted!", "Success", ToastType.Success);
+            keys = await apiKeyService.GetKeysAsync();
+        }
+    }
+
+    static string Status(ApiKey key) =>
+        !key.Enabled ? "Disabled" : key.ExpiresAt <= DateTime.UtcNow ? "Expired" : "Active";
+
+    static string StatusClass(ApiKey key) => Status(key) switch
+    {
+        "Active" => "bg-success",
+        "Expired" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(string message, string title, ToastType toastType) => messages.Add(CreateToastMessage(message, title, toastType));
+
+    private ToastMessage CreateToastMessage(string message, string title, ToastType toastType)
+    => new ToastMessage
+    {
+        Title = title,
+        Type = toastType,
+        HelpText = $"{DateTime.Now}",
+        Message = message,
+    };
+
+    public class NewKeyModel : IValidatableObject
+    {
+        [Required]
+        [StringLength(100)]
+        public string Name { get; set; } = "";
+
+        public DateTime? ExpiresOn { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (ExpiresOn.HasValue && ExpiresOn.Value.Date < DateTime.Today)
+                yield return new ValidationResult("The expiry date can't be in the past.", [nameof(ExpiresOn)]);
+        }
+    }
+}
