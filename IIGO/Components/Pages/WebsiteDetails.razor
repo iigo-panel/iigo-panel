@@ -1,9 +1,17 @@
 ﻿@page "/websites/{id}"
 @using Microsoft.Web.Administration
+@using IIGO.Components.Shared
 @using IIGO.Services
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using System.Net.NetworkInformation
+@using System.Net.Sockets
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
-@attribute [Authorize]
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<WebsiteDetails> logger
+@attribute [Authorize(Policy = Feature.ViewWebsites)]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
@@ -15,26 +23,36 @@
 }
 else
 {
+	<PageTitle>Website: @site.Name</PageTitle>
+
 	<h1>Website: @site.Name (Id: @site.Id)</h1>
+
+	@if (LastMessage != null)
+	{
+		<div class="alert alert-@(Success ? "success" : "danger") mt-3">
+			@LastMessage
+		</div>
+	}
+
+	<ConfirmDialog @ref="dialog" />
 
 	<div class="container">
 		<div class="row">
-			<div class="col-4">
-				<h3>Bindings</h3>
-				<ul>
-				@foreach (Binding b in site.Bindings)
-				{
-					<li>@b.BindingInformation</li>
-				}
-				</ul>
-			</div>
-			<div class="col-6">
+			<div class="col-10">
 				<h3>Details</h3>
 				<dl>
 					<dt>Status</dt>
 					<dd>@site.State</dd>
-					<dt>Path</dt>
-					<dd>@site.Applications.First().VirtualDirectories.First().PhysicalPath</dd>
+					<dt>Physical path</dt>
+					<dd>
+						@RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/"))?.PhysicalPath
+						@if (canEdit)
+						{
+							<button @onclick="EditSitePath" class="btn btn-sm btn-outline-primary ms-2">Edit</button>
+						}
+					</dd>
+					<dt>Connect as</dt>
+					<dd>@ConnectAsText(RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/")))</dd>
 				</dl>
 			</div>
 			<div class="col-2">
@@ -60,33 +78,319 @@ else
 				</div>
 			</div>
 		</div>
+
+		<div class="d-flex align-items-center mt-4">
+			<h3 class="me-3 mb-0">Bindings</h3>
+			@if (canEdit)
+			{
+				<button @onclick="AddBinding" class="btn btn-sm btn-primary">Add Binding</button>
+			}
+		</div>
+		<table class="table">
+			<thead>
+				<tr>
+					<th>Type</th>
+					<th>IP Address</th>
+					<th>Port</th>
+					<th>Host Name</th>
+					<th>Certificate</th>
+					@if (canEdit)
+					{
+						<th>Actions</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				@foreach (Binding b in site.Bindings)
+				{
+					<tr>
+						<td>@b.Protocol</td>
+						@if (IsWebBinding(b))
+						{
+							var parts = ParseBinding(b.BindingInformation);
+							<td>@(parts.IPAddress == "*" ? "All Unassigned" : parts.IPAddress)</td>
+							<td>@parts.Port</td>
+							<td>@parts.Host</td>
+						}
+						else
+						{
+							<td colspan="3">@b.BindingInformation</td>
+						}
+						<td>
+							@if (b.Protocol == "https")
+							{
+								@CertificateText(b)
+								@if (b.SslFlags.HasFlag(SslFlags.Sni))
+								{
+									<span class="badge bg-secondary ms-1">SNI</span>
+								}
+							}
+						</td>
+						@if (canEdit)
+						{
+							<td>
+								@if (IsWebBinding(b))
+								{
+									<button @onclick="@(e => EditBinding(b))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
+								}
+								<button @onclick="@(e => DeleteBinding(b.Protocol, b.BindingInformation))" class="btn btn-sm btn-danger">Delete</button>
+							</td>
+						}
+					</tr>
+				}
+			</tbody>
+		</table>
+
+		<div class="d-flex align-items-center mt-4">
+			<h3 class="me-3 mb-0">Applications</h3>
+			@if (canEdit)
+			{
+				<button @onclick="AddApplication" class="btn btn-sm btn-primary">Add Application</button>
+			}
+		</div>
+		@if (!site.Applications.Any(x => x.Path != "/"))
+		{
+			<p class="mt-2"><em>This site has no applications.</em></p>
+		}
+		else
+		{
+			<table class="table">
+				<thead>
+					<tr>
+						<th>Virtual Path</th>
+						<th>Physical Path</th>
+						<th>Application Pool</th>
+						<th>Connect As</th>
+						<th>Preload</th>
+						@if (canEdit)
+						{
+							<th>Actions</th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (Application app in site.Applications.Where(x => x.Path != "/").OrderBy(x => x.Path))
+					{
+						<tr>
+							<td>@app.Path</td>
+							<td style="max-width:300px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@RootDirectory(app)?.PhysicalPath</td>
+							<td><a href="/apppools/@app.ApplicationPoolName">@app.ApplicationPoolName</a></td>
+							<td>@ConnectAsText(RootDirectory(app))</td>
+							<td>@(IsPreloadEnabled(app) ? "Yes" : "No")</td>
+							@if (canEdit)
+							{
+								<td>
+									<button @onclick="@(e => EditApplication(app))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
+									<button @onclick="@(e => DeleteApplication(app.Path))" class="btn btn-sm btn-danger">Delete</button>
+								</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
 	</div>
+
+	<Modal @ref="sitePathModal" Title="Edit Physical Path" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="sitePathForm" OnValidSubmit="SaveSitePath">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				<div class="form-floating mb-3">
+					<InputText class="form-control" @bind-Value="sitePathForm.PhysicalPath" id="sitePhysicalPath" placeholder="Physical path" />
+					<label for="sitePhysicalPath">Physical path</label>
+					<ValidationMessage For="() => sitePathForm.PhysicalPath" class="text-danger" />
+				</div>
+				<ConnectAsFields Model="sitePathForm.Credentials" Id="siteConnectAs" />
+				<div class="text-end">
+					<button type="button" @onclick="@(() => sitePathModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
+
+	<Modal @ref="bindingModal" Title="@(editingBinding == null ? "Add Binding" : "Edit Binding")" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="bindingForm" OnValidSubmit="SaveBinding">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				<div class="row g-2 mb-3">
+					<div class="col-md-3">
+						<div class="form-floating">
+							<InputSelect class="form-select" @bind-Value="bindingForm.Protocol" @bind-Value:after="ProtocolChanged" id="bindingProtocol">
+								<option value="http">http</option>
+								<option value="https">https</option>
+							</InputSelect>
+							<label for="bindingProtocol">Type</label>
+						</div>
+					</div>
+					<div class="col-md-6">
+						<div class="form-floating">
+							<InputSelect class="form-select" @bind-Value="bindingForm.IPAddress" id="bindingIPAddress">
+								<option value="*">All Unassigned</option>
+								@foreach (var ip in localAddresses.Append(bindingForm.IPAddress).Where(x => x != "*").Distinct())
+								{
+									<option value="@ip">@ip</option>
+								}
+							</InputSelect>
+							<label for="bindingIPAddress">IP address</label>
+						</div>
+					</div>
+					<div class="col-md-3">
+						<div class="form-floating">
+							<InputNumber class="form-control" @bind-Value="bindingForm.Port" id="bindingPort" placeholder="Port" />
+							<label for="bindingPort">Port</label>
+							<ValidationMessage For="() => bindingForm.Port" class="text-danger" />
+						</div>
+					</div>
+				</div>
+				<div class="form-floating mb-1">
+					<InputText class="form-control" @bind-Value="bindingForm.HostName" id="bindingHostName" placeholder="Host name" />
+					<label for="bindingHostName">Host name</label>
+					<ValidationMessage For="() => bindingForm.HostName" class="text-danger" />
+				</div>
+				<div class="form-text mb-3">Example: www.contoso.com or marketing.contoso.com</div>
+				@if (bindingForm.Protocol == "https")
+				{
+					<div class="form-check mb-3">
+						<InputCheckbox class="form-check-input" @bind-Value="bindingForm.RequireSni" id="bindingRequireSni" />
+						<label class="form-check-label" for="bindingRequireSni">Require Server Name Indication</label>
+					</div>
+					@if (editingBindingUsesCentralStore)
+					{
+						<p class="text-muted">This binding uses the centralized certificate store, so its certificate isn't set here.</p>
+					}
+					else
+					{
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" @bind-Value="bindingForm.Certificate" id="bindingCertificate">
+								<option value="">Not selected</option>
+								@foreach (var cert in certificates)
+								{
+									<option value="@($"{cert.StoreName}|{cert.Thumbprint}")">@cert.DisplayName (@cert.StoreName)</option>
+								}
+							</InputSelect>
+							<label for="bindingCertificate">SSL certificate</label>
+						</div>
+					}
+				}
+				<div class="text-end">
+					<button type="button" @onclick="@(() => bindingModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
+
+	<Modal @ref="applicationModal" Title="@(editingApplicationPath == null ? "Add Application" : "Edit Application")" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="applicationForm" OnValidSubmit="SaveApplication">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				<p class="mb-2"><strong>Site name:</strong> @site.Name</p>
+				<div class="row g-2 mb-1">
+					<div class="col-md-6">
+						<div class="form-floating">
+							<InputText class="form-control" @bind-Value="applicationForm.Alias" id="applicationAlias" placeholder="Alias" disabled="@(editingApplicationPath != null)" />
+							<label for="applicationAlias">Alias</label>
+							<ValidationMessage For="() => applicationForm.Alias" class="text-danger" />
+						</div>
+					</div>
+					<div class="col-md-6">
+						<div class="form-floating">
+							<InputSelect class="form-select" @bind-Value="applicationForm.ApplicationPool" id="applicationPool">
+								@foreach (var pool in appPools)
+								{
+									<option value="@pool">@pool</option>
+								}
+							</InputSelect>
+							<label for="applicationPool">Application pool</label>
+							<ValidationMessage For="() => applicationForm.ApplicationPool" class="text-danger" />
+						</div>
+					</div>
+				</div>
+				@if (editingApplicationPath == null)
+				{
+					<div class="form-text mb-3">Example: sales</div>
+				}
+				<div class="form-floating mb-3 mt-2">
+					<InputText class="form-control" @bind-Value="applicationForm.PhysicalPath" id="applicationPhysicalPath" placeholder="Physical path" />
+					<label for="applicationPhysicalPath">Physical path</label>
+					<ValidationMessage For="() => applicationForm.PhysicalPath" class="text-danger" />
+				</div>
+				<ConnectAsFields Model="applicationForm.Credentials" Id="applicationConnectAs" />
+				<div class="form-check mb-3">
+					<InputCheckbox class="form-check-input" @bind-Value="applicationForm.PreloadEnabled" id="applicationPreload" />
+					<label class="form-check-label" for="applicationPreload">Enable Preload</label>
+				</div>
+				<div class="text-end">
+					<button type="button" @onclick="@(() => applicationModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
 }
 
 @code {
 	private Site? site;
+	private ConfirmDialog dialog = default!;
+	private Modal sitePathModal = default!;
+	private Modal bindingModal = default!;
+	private Modal applicationModal = default!;
 
 	[Parameter]
 	public string Id { get; set; } = "";
 
 	private long SiteId;
+	private bool canEdit;
+	private string? LastMessage = null;
+	private bool Success = true;
+	private string? ModalError = null;
 
-	protected override void OnInitialized()
+	private List<CertificateInfo> certificates = [];
+	private List<string> appPools = [];
+	private List<string> localAddresses = [];
+
+	private SitePathModel sitePathForm = new();
+	private BindingModel bindingForm = new();
+	private (string Protocol, string BindingInformation)? editingBinding;
+	private bool editingBindingUsesCentralStore;
+	private ApplicationModel applicationForm = new();
+	private string? editingApplicationPath;
+
+	protected override async Task OnInitializedAsync()
 	{
 		SiteId = Convert.ToInt64(Id);
-		site = IISService.GetSite(SiteId);
-	}
+		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditWebsites)).Succeeded;
 
-	private string ToHex(byte[] data)
-	{
-		string hex = "";
-		if (data != null)
+		try
 		{
-			foreach (byte b in data)
-				hex += b.ToString("x2");
+			certificates = IISService.GetCertificates();
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error loading certificates");
 		}
 
-		return hex;
+		if (canEdit)
+		{
+			appPools = [.. IISService.GetAppPools().Select(x => x.Name).OrderBy(x => x)];
+			localAddresses = GetLocalAddresses();
+		}
+
+		site = IISService.GetSite(SiteId);
 	}
 
 	protected void RestartSite()
@@ -102,5 +406,351 @@ else
 	protected void StopSite()
 	{
 		IISService.StopSite(SiteId);
+	}
+
+	protected async Task EditSitePath()
+	{
+		var dir = RootDirectory(site!.Applications.FirstOrDefault(x => x.Path == "/"));
+		sitePathForm = new SitePathModel { PhysicalPath = dir?.PhysicalPath ?? "", Credentials = ConnectAsFields.PathCredentials.From(dir) };
+		ModalError = null;
+		await sitePathModal.ShowAsync();
+	}
+
+	protected async Task SaveSitePath()
+	{
+		if (!canEdit)
+			return;
+
+		ModalError = sitePathForm.Credentials.Validate();
+		if (ModalError != null)
+			return;
+
+		try
+		{
+			var credentials = sitePathForm.Credentials;
+			IISService.UpdateSitePath(SiteId, sitePathForm.PhysicalPath.Trim(), credentials.SpecificUser ? credentials.UserName.Trim() : null, credentials.SpecificUser ? credentials.Password : null);
+			await sitePathModal.HideAsync();
+			ShowMessage("Physical path saved.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error updating physical path for site {SiteId}", SiteId);
+			ModalError = ex.Message;
+			site = IISService.GetSite(SiteId);
+		}
+	}
+
+	protected async Task AddBinding()
+	{
+		editingBinding = null;
+		editingBindingUsesCentralStore = false;
+		bindingForm = new BindingModel();
+		ModalError = null;
+		await bindingModal.ShowAsync();
+	}
+
+	protected async Task EditBinding(Binding binding)
+	{
+		var parts = ParseBinding(binding.BindingInformation);
+		editingBinding = (binding.Protocol, binding.BindingInformation);
+		editingBindingUsesCentralStore = binding.Protocol == "https" && binding.SslFlags.HasFlag(SslFlags.CentralCertStore);
+		bindingForm = new BindingModel
+		{
+			Protocol = binding.Protocol,
+			IPAddress = parts.IPAddress,
+			Port = int.TryParse(parts.Port, out int port) ? port : 80,
+			HostName = parts.Host,
+			RequireSni = binding.Protocol == "https" && binding.SslFlags.HasFlag(SslFlags.Sni),
+			Certificate = binding.Protocol == "https" ? FindCertificate(binding) is CertificateInfo cert ? $"{cert.StoreName}|{cert.Thumbprint}" : "" : ""
+		};
+		ModalError = null;
+		await bindingModal.ShowAsync();
+	}
+
+	protected void ProtocolChanged()
+	{
+		if (bindingForm.Protocol == "https" && bindingForm.Port == 80)
+			bindingForm.Port = 443;
+		else if (bindingForm.Protocol == "http" && bindingForm.Port == 443)
+			bindingForm.Port = 80;
+	}
+
+	protected async Task SaveBinding()
+	{
+		if (!canEdit)
+			return;
+
+		bindingForm.HostName = bindingForm.HostName.Trim();
+		bool https = bindingForm.Protocol == "https";
+		string? store = null;
+		string? thumbprint = null;
+		if (https && bindingForm.RequireSni && bindingForm.HostName == "")
+		{
+			ModalError = "A host name is required when Server Name Indication is on.";
+			return;
+		}
+		if (https && !editingBindingUsesCentralStore)
+		{
+			var parts = bindingForm.Certificate.Split('|');
+			if (parts.Length != 2)
+			{
+				ModalError = "Select an SSL certificate.";
+				return;
+			}
+			(store, thumbprint) = (parts[0], parts[1]);
+		}
+
+		try
+		{
+			if (editingBinding == null)
+				IISService.AddBinding(SiteId, bindingForm.Protocol, bindingForm.BindingInformation, thumbprint, store, bindingForm.RequireSni);
+			else
+				IISService.UpdateBinding(SiteId, editingBinding.Value.Protocol, editingBinding.Value.BindingInformation, bindingForm.Protocol, bindingForm.BindingInformation, thumbprint, store, bindingForm.RequireSni);
+
+			await bindingModal.HideAsync();
+			ShowMessage($"Binding {bindingForm.Protocol} {bindingForm.BindingInformation} saved.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error saving binding {BindingInformation} for site {SiteId}", bindingForm.BindingInformation, SiteId);
+			ModalError = ex.Message;
+			site = IISService.GetSite(SiteId);
+		}
+	}
+
+	protected async Task DeleteBinding(string protocol, string bindingInformation)
+	{
+		if (!canEdit)
+			return;
+
+		var confirmation = await dialog.ShowAsync(
+			title: "Are you sure you want to delete this binding?",
+			message1: $"{protocol} {bindingInformation} will be removed from {site!.Name}.",
+			message2: "Do you want to proceed?");
+
+		if (!confirmation)
+			return;
+
+		try
+		{
+			IISService.DeleteBinding(SiteId, protocol, bindingInformation);
+			ShowMessage($"Binding {protocol} {bindingInformation} deleted.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error deleting binding {BindingInformation} for site {SiteId}", bindingInformation, SiteId);
+			ShowMessage($"Delete binding failure: {ex.Message}", false);
+		}
+	}
+
+	protected async Task AddApplication()
+	{
+		editingApplicationPath = null;
+		applicationForm = new ApplicationModel { ApplicationPool = site!.Applications.FirstOrDefault(x => x.Path == "/")?.ApplicationPoolName ?? appPools.FirstOrDefault() ?? "" };
+		ModalError = null;
+		await applicationModal.ShowAsync();
+	}
+
+	protected async Task EditApplication(Application app)
+	{
+		var dir = RootDirectory(app);
+		editingApplicationPath = app.Path;
+		applicationForm = new ApplicationModel
+		{
+			Alias = app.Path.TrimStart('/'),
+			PhysicalPath = dir?.PhysicalPath ?? "",
+			ApplicationPool = app.ApplicationPoolName,
+			PreloadEnabled = IsPreloadEnabled(app),
+			Credentials = ConnectAsFields.PathCredentials.From(dir)
+		};
+		if (!appPools.Contains(app.ApplicationPoolName))
+			appPools.Add(app.ApplicationPoolName);
+		ModalError = null;
+		await applicationModal.ShowAsync();
+	}
+
+	protected async Task SaveApplication()
+	{
+		if (!canEdit)
+			return;
+
+		ModalError = applicationForm.Credentials.Validate();
+		if (ModalError != null)
+			return;
+
+		var credentials = applicationForm.Credentials;
+		string? userName = credentials.SpecificUser ? credentials.UserName.Trim() : null;
+		string? password = credentials.SpecificUser ? credentials.Password : null;
+		try
+		{
+			if (editingApplicationPath == null)
+				IISService.AddApplication(SiteId, applicationForm.Alias, applicationForm.PhysicalPath.Trim(), applicationForm.ApplicationPool, userName, password, applicationForm.PreloadEnabled);
+			else
+				IISService.UpdateApplication(SiteId, editingApplicationPath, applicationForm.PhysicalPath.Trim(), applicationForm.ApplicationPool, userName, password, applicationForm.PreloadEnabled);
+
+			await applicationModal.HideAsync();
+			ShowMessage($"Application {editingApplicationPath ?? "/" + applicationForm.Alias.Trim().Trim('/')} saved.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error saving application {Alias} for site {SiteId}", applicationForm.Alias, SiteId);
+			ModalError = ex.Message;
+			site = IISService.GetSite(SiteId);
+		}
+	}
+
+	protected async Task DeleteApplication(string path)
+	{
+		if (!canEdit)
+			return;
+
+		var confirmation = await dialog.ShowAsync(
+			title: "Are you sure you want to delete this application?",
+			message1: $"{path} will be removed from {site!.Name}. Its files will not be deleted.",
+			message2: "Do you want to proceed?");
+
+		if (!confirmation)
+			return;
+
+		try
+		{
+			IISService.DeleteApplication(SiteId, path);
+			ShowMessage($"Application {path} deleted.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error deleting application {Path} for site {SiteId}", path, SiteId);
+			ShowMessage($"Delete application failure: {ex.Message}", false);
+		}
+	}
+
+	private void ShowMessage(string message, bool success)
+	{
+		LastMessage = message;
+		Success = success;
+		site = IISService.GetSite(SiteId);
+	}
+
+	private static VirtualDirectory? RootDirectory(Application? app) =>
+		app?.VirtualDirectories.FirstOrDefault(x => x.Path == "/") ?? app?.VirtualDirectories.FirstOrDefault();
+
+	private static string ConnectAsText(VirtualDirectory? dir) =>
+		string.IsNullOrEmpty(dir?.UserName) ? "Pass-through authentication" : dir.UserName;
+
+	private static bool IsPreloadEnabled(Application app) => app.GetAttributeValue("preloadEnabled") is true;
+
+	private static bool IsWebBinding(Binding binding) => binding.Protocol == "http" || binding.Protocol == "https";
+
+	/// <summary>
+	/// Splits IP:Port:Host binding information. IPv6 addresses keep their brackets
+	/// </summary>
+	private static (string IPAddress, string Port, string Host) ParseBinding(string bindingInformation)
+	{
+		int last = bindingInformation.LastIndexOf(':');
+		int next = last > 0 ? bindingInformation.LastIndexOf(':', last - 1) : -1;
+		if (next < 0)
+			return (bindingInformation, "", "");
+
+		return (bindingInformation[..next], bindingInformation[(next + 1)..last], bindingInformation[(last + 1)..]);
+	}
+
+	private CertificateInfo? FindCertificate(Binding binding)
+	{
+		try
+		{
+			if (binding.CertificateHash == null || binding.CertificateHash.Length == 0)
+				return null;
+
+			var thumbprint = Convert.ToHexString(binding.CertificateHash);
+			return certificates.FirstOrDefault(x => x.Thumbprint.Equals(thumbprint, StringComparison.OrdinalIgnoreCase) && x.StoreName.Equals(binding.CertificateStoreName, StringComparison.OrdinalIgnoreCase))
+				?? certificates.FirstOrDefault(x => x.Thumbprint.Equals(thumbprint, StringComparison.OrdinalIgnoreCase));
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	private string CertificateText(Binding binding)
+	{
+		if (binding.SslFlags.HasFlag(SslFlags.CentralCertStore))
+			return "Centralized certificate store";
+
+		try
+		{
+			if (binding.CertificateHash == null || binding.CertificateHash.Length == 0)
+				return "None";
+
+			return FindCertificate(binding)?.DisplayName ?? Convert.ToHexString(binding.CertificateHash);
+		}
+		catch
+		{
+			return "Unknown";
+		}
+	}
+
+	private static List<string> GetLocalAddresses()
+	{
+		try
+		{
+			return [.. NetworkInterface.GetAllNetworkInterfaces()
+				.Where(x => x.OperationalStatus == OperationalStatus.Up)
+				.SelectMany(x => x.GetIPProperties().UnicastAddresses)
+				.Select(x => x.Address)
+				.Where(x => x.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(x))
+				.Select(x => x.ToString())
+				.Distinct()
+				.Order()];
+		}
+		catch
+		{
+			return [];
+		}
+	}
+
+	public class SitePathModel
+	{
+		[Required(ErrorMessage = "Enter a physical path.")]
+		public string PhysicalPath { get; set; } = "";
+
+		public ConnectAsFields.PathCredentials Credentials { get; set; } = new();
+	}
+
+	public class BindingModel
+	{
+		public string Protocol { get; set; } = "http";
+
+		public string IPAddress { get; set; } = "*";
+
+		[Range(1, 65535, ErrorMessage = "The port must be between 1 and 65535.")]
+		public int Port { get; set; } = 80;
+
+		[RegularExpression(@"^(\*\.)?([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$", ErrorMessage = "Enter a valid host name, or leave it blank.")]
+		public string HostName { get; set; } = "";
+
+		public bool RequireSni { get; set; }
+
+		/// <summary>
+		/// Store|Thumbprint of the selected certificate
+		/// </summary>
+		public string Certificate { get; set; } = "";
+
+		public string BindingInformation => $"{IPAddress}:{Port}:{HostName.Trim()}";
+	}
+
+	public class ApplicationModel
+	{
+		[Required(ErrorMessage = "Enter an alias.")]
+		public string Alias { get; set; } = "";
+
+		[Required(ErrorMessage = "Enter a physical path.")]
+		public string PhysicalPath { get; set; } = "";
+
+		[Required(ErrorMessage = "Select an application pool.")]
+		public string ApplicationPool { get; set; } = "";
+
+		public bool PreloadEnabled { get; set; }
+
+		public ConnectAsFields.PathCredentials Credentials { get; set; } = new();
 	}
 }

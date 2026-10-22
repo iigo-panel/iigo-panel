@@ -1,0 +1,86 @@
+@* Path credentials, the same choice as IIS Manager's "Connect as" dialog *@
+
+<fieldset class="mb-3">
+    <legend class="form-label fs-6">Path credentials</legend>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="@($"{Id}-connectAs")" id="@($"{Id}-passThrough")" checked="@(!Model.SpecificUser)" @onchange="@(() => Model.SpecificUser = false)" />
+        <label class="form-check-label" for="@($"{Id}-passThrough")">Application user (pass-through authentication)</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="@($"{Id}-connectAs")" id="@($"{Id}-specificUser")" checked="@Model.SpecificUser" @onchange="@(() => Model.SpecificUser = true)" />
+        <label class="form-check-label" for="@($"{Id}-specificUser")">Specific user</label>
+    </div>
+    @if (Model.SpecificUser)
+    {
+        <div class="row g-2 mt-1">
+            <div class="col-md-4">
+                <div class="form-floating">
+                    <InputText class="form-control" @bind-Value="Model.UserName" id="@($"{Id}-userName")" placeholder="User name" autocomplete="off" />
+                    <label for="@($"{Id}-userName")">User name</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-floating">
+                    <InputText type="password" class="form-control" @bind-Value="Model.Password" id="@($"{Id}-password")" placeholder="Password" autocomplete="new-password" />
+                    <label for="@($"{Id}-password")">Password</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-floating">
+                    <InputText type="password" class="form-control" @bind-Value="Model.ConfirmPassword" id="@($"{Id}-confirmPassword")" placeholder="Confirm password" autocomplete="new-password" />
+                    <label for="@($"{Id}-confirmPassword")">Confirm password</label>
+                </div>
+            </div>
+        </div>
+        @if (Model.HasSavedPassword)
+        {
+            <div class="form-text">Leave the password blank to keep the current one.</div>
+        }
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired]
+    public PathCredentials Model { get; set; } = default!;
+
+    /// <summary>
+    /// Prefix for element ids so the component can appear more than once on a page
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = "";
+
+    public class PathCredentials
+    {
+        public bool SpecificUser { get; set; }
+        public string UserName { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+
+        /// <summary>
+        /// User name already in config. Keeping it with a blank password keeps the stored password
+        /// </summary>
+        public string SavedUserName { get; set; } = "";
+
+        public bool HasSavedPassword => SavedUserName != "" && string.Equals(UserName, SavedUserName, StringComparison.OrdinalIgnoreCase);
+
+        public string? Validate()
+        {
+            if (!SpecificUser)
+                return null;
+            if (string.IsNullOrWhiteSpace(UserName))
+                return "Enter a user name, or choose pass-through authentication.";
+            if (Password != ConfirmPassword)
+                return "The passwords don't match.";
+            if (string.IsNullOrEmpty(Password) && !HasSavedPassword)
+                return "Enter a password for the specific user.";
+
+            return null;
+        }
+
+        public static PathCredentials From(Microsoft.Web.Administration.VirtualDirectory? dir)
+        {
+            var userName = dir?.UserName ?? "";
+            return new PathCredentials { SpecificUser = userName != "", UserName = userName, SavedUserName = userName };
+        }
+    }
+}

@@ -316,6 +316,8 @@ namespace Microsoft.Web.Administration
         {
             if (Parent.Parent.Server.SupportsSni)
             {
+                // The SNI bit is already set. Don't reassign SslFlags here: that would drop
+                // other bits (e.g. CentralCertStore) and mark the config as changed on read
                 if (GetIsSni())
                 {
                     try
@@ -325,14 +327,12 @@ namespace Microsoft.Web.Administration
                         {
                             CertificateHash = null;
                             CertificateStoreName = string.Empty;
-                            SslFlags = SslFlags.Sni;
                             return;
                         }
                         else
                         {
                             CertificateHash = sni.Hash;
                             CertificateStoreName = sni.StoreName;
-                            SslFlags = SslFlags.Sni;
                             return;
                         }
                     }
@@ -340,7 +340,6 @@ namespace Microsoft.Web.Administration
                     {
                         CertificateHash = null;
                         CertificateStoreName = string.Empty;
-                        SslFlags = SslFlags.Sni;
                         return;
                     }
                 }

@@ -3,6 +3,8 @@ using Microsoft.Web.Administration;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace IIGO.Services
@@ -24,6 +26,73 @@ namespace IIGO.Services
         public void UpdateWebsite(long siteId, string siteName, string appPoolName, string physicalPath, string bindingInformation)
         {
             //_iisWrapper.UpdateWebsite(siteId, siteName, appPoolName, physicalPath, bindingInformation);
+        }
+
+        public void UpdateSitePath(long siteId, string physicalPath, string? userName, string? password)
+        {
+            _iisWrapper.UpdateSitePath(siteId, physicalPath, userName, password);
+        }
+
+        public void AddApplication(long siteId, string alias, string physicalPath, string appPoolName, string? userName, string? password, bool preloadEnabled)
+        {
+            _iisWrapper.AddApplication(siteId, alias, physicalPath, appPoolName, userName, password, preloadEnabled);
+        }
+
+        public void UpdateApplication(long siteId, string path, string physicalPath, string appPoolName, string? userName, string? password, bool preloadEnabled)
+        {
+            _iisWrapper.UpdateApplication(siteId, path, physicalPath, appPoolName, userName, password, preloadEnabled);
+        }
+
+        public void DeleteApplication(long siteId, string path)
+        {
+            _iisWrapper.DeleteApplication(siteId, path);
+        }
+
+        public void AddBinding(long siteId, string protocol, string bindingInformation, string? certificateHash, string? certificateStore, bool requireSni)
+        {
+            _iisWrapper.AddBinding(siteId, protocol, bindingInformation, certificateHash, certificateStore, requireSni);
+        }
+
+        public void UpdateBinding(long siteId, string originalProtocol, string originalBindingInformation, string protocol, string bindingInformation, string? certificateHash, string? certificateStore, bool requireSni)
+        {
+            _iisWrapper.UpdateBinding(siteId, originalProtocol, originalBindingInformation, protocol, bindingInformation, certificateHash, certificateStore, requireSni);
+        }
+
+        public void DeleteBinding(long siteId, string protocol, string bindingInformation)
+        {
+            _iisWrapper.DeleteBinding(siteId, protocol, bindingInformation);
+        }
+
+        /// <summary>
+        /// Certificates with a private key in the stores IIS can bind to
+        /// </summary>
+        public List<CertificateInfo> GetCertificates()
+        {
+            var certificates = new List<CertificateInfo>();
+            foreach (var storeName in new[] { "My", "WebHosting" })
+            {
+                using var store = new X509Store(storeName, StoreLocation.LocalMachine);
+                try
+                {
+                    store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+                }
+                catch (CryptographicException)
+                {
+                    // Store doesn't exist on this server
+                    continue;
+                }
+
+                foreach (var cert in store.Certificates)
+                {
+                    using (cert)
+                    {
+                        if (cert.HasPrivateKey)
+                            certificates.Add(new CertificateInfo(storeName, cert.Thumbprint, cert.FriendlyName, cert.GetNameInfo(X509NameType.DnsName, false), cert.NotAfter));
+                    }
+                }
+            }
+
+            return [.. certificates.OrderBy(x => x.Name).ThenByDescending(x => x.NotAfter)];
         }
 
         public void AddAppPool(string appPoolName)
@@ -177,5 +246,10 @@ namespace IIGO.Services
             catch { }
             return apps;
         }
+    }
+
+    public record CertificateInfo(string StoreName, string Thumbprint, string FriendlyName, string Name, DateTime NotAfter)
+    {
+        public string DisplayName => $"{(string.IsNullOrEmpty(FriendlyName) ? Name : $"{FriendlyName} ({Name})")} - expires {NotAfter:d}";
     }
 }

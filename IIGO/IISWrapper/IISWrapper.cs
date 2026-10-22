@@ -243,6 +243,249 @@ namespace IISManager.Services
             _manager.CommitChanges();
         }
 
+        /// <summary>
+        /// Updates the physical path and pass-through credentials of the site's root application
+        /// </summary>
+        /// <param name="userName">Specific user to connect as. Null or empty uses pass-through authentication</param>
+        /// <param name="password">Password for the specific user. Null or empty keeps the existing password</param>
+        public void UpdateSitePath(long siteId, string physicalPath, string? userName, string? password)
+        {
+            EditSite(siteId, site =>
+            {
+                var app = site.Applications.FirstOrDefault(x => x.Path == "/") ?? throw new InvalidOperationException("Root application not found");
+                SetRootDirectory(app, physicalPath, userName, password);
+            });
+        }
+
+        public void AddApplication(long siteId, string path, string physicalPath, string appPoolName, string? userName, string? password, bool preloadEnabled)
+        {
+            path = NormalizeApplicationPath(path);
+            EditSite(siteId, site =>
+            {
+                if (site.Applications.Any(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"An application already exists at {path}");
+                if (!_manager.ApplicationPools.Any(x => x.Name == appPoolName))
+                    throw new AppPoolNotFoundException(appPoolName);
+
+                Application app = site.Applications.Add(path, physicalPath);
+                app.ApplicationPoolName = appPoolName;
+                app.SetAttributeValue("preloadEnabled", preloadEnabled);
+                SetRootDirectory(app, physicalPath, userName, password);
+            });
+        }
+
+        public void UpdateApplication(long siteId, string path, string physicalPath, string appPoolName, string? userName, string? password, bool preloadEnabled)
+        {
+            EditSite(siteId, site =>
+            {
+                var app = FindApplication(site, path);
+                if (!_manager.ApplicationPools.Any(x => x.Name == appPoolName))
+                    throw new AppPoolNotFoundException(appPoolName);
+
+                app.ApplicationPoolName = appPoolName;
+                app.SetAttributeValue("preloadEnabled", preloadEnabled);
+                SetRootDirectory(app, physicalPath, userName, password);
+            });
+        }
+
+        public void DeleteApplication(long siteId, string path)
+        {
+            if (path == "/")
+                throw new InvalidOperationException("The root application can't be deleted");
+
+            EditSite(siteId, site => site.Applications.Remove(FindApplication(site, path)));
+        }
+
+        /// <summary>
+        /// Adds a binding to a site. For https bindings the certificate is also registered with HTTP.sys
+        /// </summary>
+        /// <param name="bindingInformation">IP:Port:Host</param>
+        /// <param name="certificateHash">Thumbprint of the certificate (https only)</param>
+        /// <param name="certificateStore">Store the certificate lives in, e.g. My or WebHosting (https only)</param>
+        /// <param name="requireSni">Require Server Name Indication (https only)</param>
+        public void AddBinding(long siteId, string protocol, string bindingInformation, string? certificateHash, string? certificateStore, bool requireSni)
+        {
+            EditSite(siteId, site =>
+            {
+                if (site.Bindings.Any(x => x.Protocol == protocol && string.Equals(x.BindingInformation, bindingInformation, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"The binding {protocol} {bindingInformation} already exists");
+
+                if (protocol == "https")
+                {
+                    byte[] hash = Convert.FromHexString(certificateHash ?? throw new ArgumentException("A certificate is required for https bindings"));
+                    var binding = site.Bindings.Add(bindingInformation, hash, certificateStore, requireSni ? SslFlags.Sni : SslFlags.None);
+                    if (binding.EndPoint == null)
+                        throw new ArgumentException($"Invalid binding information: {bindingInformation}");
+                    SslCertificateBinding.Bind(binding, hash, certificateStore!);
+                }
+                else
+                {
+                    site.Bindings.Add(bindingInformation, protocol);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Replaces an existing binding, identified by its current protocol and binding information
+        /// </summary>
+        public void UpdateBinding(long siteId, string originalProtocol, string originalBindingInformation, string protocol, string bindingInformation, string? certificateHash, string? certificateStore, bool requireSni)
+        {
+            // The old HTTP.sys mapping is removed once the new binding is committed
+            bool hadMapping = false;
+            bool oldSni = false;
+            string oldHost = "";
+            System.Net.IPEndPoint? oldEndPoint = null;
+
+            EditSite(siteId, site =>
+            {
+                var binding = FindBinding(site, originalProtocol, originalBindingInformation);
+                if ((protocol != originalProtocol || !string.Equals(bindingInformation, originalBindingInformation, StringComparison.OrdinalIgnoreCase))
+                    && site.Bindings.Any(x => x.Protocol == protocol && string.Equals(x.BindingInformation, bindingInformation, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"The binding {protocol} {bindingInformation} already exists");
+
+                hadMapping = HasCertificateMapping(binding);
+                oldSni = binding.SslFlags.HasFlag(SslFlags.Sni);
+                oldHost = binding.Host;
+                oldEndPoint = binding.EndPoint;
+
+                // Keep the central certificate store flag, it isn't editable here
+                var centralStore = binding.SslFlags & SslFlags.CentralCertStore;
+                binding.Protocol = protocol;
+                binding.BindingInformation = bindingInformation;
+                if (protocol == "https")
+                {
+                    binding.SslFlags = (requireSni ? SslFlags.Sni : SslFlags.None) | centralStore;
+                    if (binding.EndPoint == null)
+                        throw new ArgumentException($"Invalid binding information: {bindingInformation}");
+                    if (centralStore == SslFlags.None)
+                    {
+                        byte[] hash = Convert.FromHexString(certificateHash ?? throw new ArgumentException("A certificate is required for https bindings"));
+                        binding.CertificateHash = hash;
+                        binding.CertificateStoreName = certificateStore;
+                        SslCertificateBinding.Bind(binding, hash, certificateStore!);
+                    }
+                }
+                else
+                {
+                    binding.SslFlags = SslFlags.None;
+                }
+            });
+
+            if (hadMapping)
+                UnbindIfUnused(oldSni, oldHost, oldEndPoint!);
+        }
+
+        public void DeleteBinding(long siteId, string protocol, string bindingInformation)
+        {
+            bool hadMapping = false;
+            bool sni = false;
+            string host = "";
+            System.Net.IPEndPoint? endPoint = null;
+
+            EditSite(siteId, site =>
+            {
+                var binding = FindBinding(site, protocol, bindingInformation);
+                if (site.Bindings.Count == 1)
+                    throw new InvalidOperationException("A site needs at least one binding");
+
+                hadMapping = HasCertificateMapping(binding);
+                sni = binding.SslFlags.HasFlag(SslFlags.Sni);
+                host = binding.Host;
+                endPoint = binding.EndPoint;
+
+                site.Bindings.Remove(binding);
+            });
+
+            if (hadMapping)
+                UnbindIfUnused(sni, host, endPoint!);
+        }
+
+        /// <summary>
+        /// Loads a fresh copy of the config, applies the change to the site and commits it. If anything fails
+        /// the config is reloaded so the uncommitted change doesn't show up in later reads.
+        /// </summary>
+        private void EditSite(long siteId, Action<Site> change)
+        {
+            Reload();
+            try
+            {
+                change(FindSite(siteId));
+                _manager.CommitChanges();
+            }
+            catch
+            {
+                Reload();
+                throw;
+            }
+        }
+
+        private static bool HasCertificateMapping(Binding binding) =>
+            binding.Protocol == "https" && binding.EndPoint != null && !binding.SslFlags.HasFlag(SslFlags.CentralCertStore);
+
+        /// <summary>
+        /// Removes an HTTP.sys certificate mapping unless an https binding on the server still uses it
+        /// </summary>
+        private void UnbindIfUnused(bool sni, string host, System.Net.IPEndPoint endPoint)
+        {
+            string key = SslCertificateBinding.MappingKey(sni, host, endPoint);
+            bool inUse = _manager.Sites.SelectMany(s => s.Bindings)
+                .Where(HasCertificateMapping)
+                .Any(b => SslCertificateBinding.MappingKey(b) == key);
+
+            if (!inUse)
+                SslCertificateBinding.Unbind(sni, host, endPoint);
+        }
+
+        private void Reload()
+        {
+            _manager.Dispose();
+            _manager = new IisServerManager(@"C:\Windows\System32\inetsrv\config\applicationHost.config");
+        }
+
+        private Site FindSite(long siteId) => _manager.Sites.SingleOrDefault(x => x.Id == siteId) ?? throw new NullReferenceException("Site not found");
+
+        private static Application FindApplication(Site site, string path) =>
+            site.Applications.SingleOrDefault(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"Application {path} not found");
+
+        private static Binding FindBinding(Site site, string protocol, string bindingInformation) =>
+            site.Bindings.FirstOrDefault(x => x.Protocol == protocol && string.Equals(x.BindingInformation, bindingInformation, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException($"Binding {protocol} {bindingInformation} not found");
+
+        /// <summary>
+        /// Turns an alias like "sales" or "/sales/" into an application path like "/sales"
+        /// </summary>
+        private static string NormalizeApplicationPath(string path)
+        {
+            path = "/" + path.Trim().Replace('\\', '/').Trim('/');
+            if (path == "/")
+                throw new ArgumentException("An alias is required");
+            if (path.IndexOfAny(ApplicationCollection.InvalidApplicationPathCharacters()) >= 0)
+                throw new ArgumentException($"The alias contains invalid characters: {string.Join(" ", ApplicationCollection.InvalidApplicationPathCharacters())}");
+
+            return path;
+        }
+
+        private static void SetRootDirectory(Application app, string physicalPath, string? userName, string? password)
+        {
+            var dir = app.VirtualDirectories.FirstOrDefault(x => x.Path == "/") ?? throw new InvalidOperationException("Root virtual directory not found");
+            dir.PhysicalPath = physicalPath;
+
+            if (string.IsNullOrWhiteSpace(userName))
+            {
+                dir.GetAttribute("userName").Delete();
+                dir.GetAttribute("password").Delete();
+                return;
+            }
+
+            bool sameUser = string.Equals(dir.UserName, userName, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(password) && !sameUser)
+                throw new ArgumentException("A password is required when connecting as a specific user");
+
+            dir.UserName = userName;
+            if (!string.IsNullOrEmpty(password))
+                dir.Password = password;
+        }
+
         public Dictionary<string, string> GetIPRules()
         {
             var ips = new Dictionary<string, string>();
