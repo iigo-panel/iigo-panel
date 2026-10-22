@@ -488,7 +488,8 @@ namespace IISManager.Services
             ConfigurationElementCollection ipSecurityCollection = ipSecuritySection.GetCollection();
             foreach (ConfigurationElement element in ipSecurityCollection)
             {
-                ips.Add(element["ipAddress"].ToString()!, element["allowed"].ToString()!);
+                // Indexer, not Add: two rules can share an address with different subnet masks
+                ips[element["ipAddress"].ToString()!] = element["allowed"].ToString()!;
             }
 
             return ips;

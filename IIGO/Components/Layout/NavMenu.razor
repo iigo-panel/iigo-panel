@@ -108,6 +108,15 @@
                         </div>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewApiKeys">
+                    <Authorized Context="auth">
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="/apikeys">
+                                <span class="oi oi-list-rich" aria-hidden="true"></span>API Keys
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
