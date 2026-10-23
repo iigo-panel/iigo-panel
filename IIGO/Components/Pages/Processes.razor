@@ -63,125 +63,66 @@ else
 
 @code {
     Process[]? processes;
-    //private PeriodicTimer timer;// = new(5000);
-
-    // previous sample info per PID
-    readonly Dictionary<int, TimeSpan> prevTotalProcTimes = new();
-    readonly Dictionary<int, DateTime> prevSampleTimes = new();
 
     // computed CPU usage per PID
     readonly Dictionary<int, double> cpuUsages = new();
 
-    CancellationTokenSource? cts;
+    // how long to measure CPU time before showing the snapshot
+    static readonly TimeSpan sampleInterval = TimeSpan.FromSeconds(1);
 
-    protected override async Task OnInitializedAsync()
+    // sample only after the interactive render so prerendering isn't delayed
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // initial population
-        processes = Process.GetProcesses().Where(x => x.ProcessName != "Memory Compression").OrderByDescending(x => x.WorkingSet64).ToArray();
-        // timer.Elapsed += (sender, ev) => UpdateValues();
-        // timer.Start();
-        var now = DateTime.UtcNow;
-        foreach (var p in processes)
+        if (!firstRender)
+            return;
+
+        var firstSample = SampleProcessorTimes(GetProcesses());
+        var startTime = DateTime.UtcNow;
+
+        await Task.Delay(sampleInterval);
+
+        var currentProcs = GetProcesses();
+        var secondSample = SampleProcessorTimes(currentProcs);
+        var intervalMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+        foreach (var (pid, currentTotal) in secondSample)
+        {
+            if (firstSample.TryGetValue(pid, out var prevTotal))
+            {
+                // CPU% = (deltaTotalTime / interval) / logicalProcessorCount * 100
+                var deltaMs = (currentTotal - prevTotal).TotalMilliseconds;
+                cpuUsages[pid] = Math.Max(0.0, deltaMs / (intervalMs * Environment.ProcessorCount) * 100.0);
+            }
+        }
+
+        // highest CPU first; processes without a reading go last, then by memory
+        processes = currentProcs
+            .OrderByDescending(x => cpuUsages.TryGetValue(x.Id, out var cpu) ? cpu : -1.0)
+            .ThenByDescending(x => x.WorkingSet64)
+            .ToArray();
+        StateHasChanged();
+    }
+
+    private static Process[] GetProcesses()
+    {
+        return Process.GetProcesses().Where(x => x.ProcessName != "Memory Compression").OrderByDescending(x => x.WorkingSet64).ToArray();
+    }
+
+    private static Dictionary<int, TimeSpan> SampleProcessorTimes(Process[] procs)
+    {
+        var times = new Dictionary<int, TimeSpan>();
+        foreach (var p in procs)
         {
             try
             {
-                prevTotalProcTimes[p.Id] = p.TotalProcessorTime;
-                prevSampleTimes[p.Id] = now;
+                times[p.Id] = p.TotalProcessorTime;
             }
             catch
             {
                 // ignore processes we can't access
             }
         }
-
-        // start periodic sampling (1s interval)
-        cts = new CancellationTokenSource();
-        // timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
-        // try
-        // {
-        //     while (await timer.WaitForNextTickAsync(cts.Token))
-        //     {
-        //         var sampleTime = DateTime.UtcNow;
-        //         Process[] currentProcs;
-        //         try
-        //         {
-        //             currentProcs = Process.GetProcesses();
-        //         }
-        //         catch
-        //         {
-        //             // if we can't enumerate, skip this tick
-        //             await InvokeAsync(StateHasChanged);
-        //             continue;
-        //         }
-
-        //         // refresh visible process list
-        //         processes = currentProcs.OrderByDescending(x => x.WorkingSet64).ToArray();
-
-        //         foreach (var p in currentProcs)
-        //         {
-        //             try
-        //             {
-        //                 var currentTotal = p.TotalProcessorTime;
-
-        //                 if (prevTotalProcTimes.TryGetValue(p.Id, out var prevTotal) &&
-        //                     prevSampleTimes.TryGetValue(p.Id, out var prevTime))
-        //                 {
-        //                     var deltaMs = (currentTotal - prevTotal).TotalMilliseconds;
-        //                     var intervalMs = (sampleTime - prevTime).TotalMilliseconds;
-
-        //                     if (intervalMs > 0)
-        //                     {
-        //                         // CPU% = (deltaTotalTime / interval) / logicalProcessorCount * 100
-        //                         var cpu = (deltaMs / (intervalMs * Environment.ProcessorCount)) * 100.0;
-        //                         cpuUsages[p.Id] = Math.Max(0.0, cpu);
-        //                     }
-        //                     else
-        //                     {
-        //                         cpuUsages[p.Id] = 0.0;
-        //                     }
-        //                 }
-        //                 else
-        //                 {
-        //                     // no prior sample for this PID
-        //                     cpuUsages[p.Id] = 0.0;
-        //                 }
-
-        //                 prevTotalProcTimes[p.Id] = currentTotal;
-        //                 prevSampleTimes[p.Id] = sampleTime;
-        //             }
-        //             catch
-        //             {
-        //                 // process may have exited or be inaccessible
-        //                 cpuUsages[p.Id] = 0.0;
-        //             }
-        //         }
-
-        //         await InvokeAsync(StateHasChanged);
-        //     }
-        // }
-        // catch (OperationCanceledException)
-        // {
-        //     // normal shutdown
-        // }
-    }
-
-    private void UpdateValues()
-    {
-        _ = InvokeAsync(() =>
-        {
-            processes = Process.GetProcesses().Where(x => x.ProcessName != "Memory Compression").OrderByDescending(x => x.WorkingSet64).ToArray();
-            StateHasChanged(); 
-        });
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            cts?.Cancel();
-            //timer?.Dispose();
-        }
-        catch { }
+        return times;
     }
 
     private static string? GetProcessUser(Process process)
