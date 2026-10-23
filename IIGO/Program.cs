@@ -126,6 +126,7 @@ namespace IIGO
             builder.Services.AddScoped<IMessengerService, SMTPService>();
             builder.Services.AddScoped<IMessengerService, SNSService>();
             builder.Services.AddScoped<IISService>();
+            builder.Services.AddScoped<FirewallService>();
 
             builder.Services.AddTransient<ServiceResolver>(serviceProvider => serviceTypeName =>
             {

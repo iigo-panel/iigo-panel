@@ -1,11 +1,20 @@
 ﻿@page "/firewall"
 @using WindowsFirewallHelper
 @using IIGO.Services
-@inject IHttpContextAccessor httpContextAccessor
+@inject FirewallService FirewallService
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Firewall> logger
 @attribute [Authorize(Policy = Feature.ViewFirewallRules)]
 @attribute [StreamRendering]
+@rendermode InteractiveServer
+
+<PageTitle>Firewall</PageTitle>
 
 <h3>Firewall</h3>
+
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
+<ConfirmDialog @ref="dialog" />
 
 @if (rules == null)
 {
@@ -13,42 +22,288 @@
 }
 else
 {
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <input type="search" class="form-control w-auto flex-grow-1" style="max-width:400px" placeholder="Filter rules" aria-label="Filter rules"
+               @bind="filter" @bind:event="oninput" />
+        <span class="text-muted">@FilteredRules.Count() of @rules.Count rules</span>
+        @if (canEdit)
+        {
+            <button @onclick="AddRule" class="btn btn-primary ms-auto">Add Rule</button>
+        }
+    </div>
+
     <table class="table">
         <thead>
             <tr>
-				<th>Name</th>
-				<th>Action</th>
-				<th>Scope</th>
-				<th>Direction</th>
+                <th>Name</th>
+                <th>Action</th>
+                <th>Scope</th>
+                <th>Direction</th>
                 <th>Profiles</th>
                 <th>Status</th>
                 <th>Protocol</th>
                 <th>Local Ports</th>
+                @if (canEdit)
+                {
+                    <th>Actions</th>
+                }
             </tr>
         </thead>
         <tbody>
-            @foreach (var rule in rules)
+            @foreach (var rule in FilteredRules)
             {
                 <tr>
-					<td>@rule.FriendlyName</td>
-					<td>@rule.Action</td>
-					<td>@rule.Scope</td>
-					<td>@rule.Direction</td>
+                    @* Unresolved app rule names are long strings with no spaces; let them break so Actions stays on screen *@
+                    <td style="overflow-wrap:anywhere">@rule.Name</td>
+                    <td>@rule.Action</td>
+                    <td>@rule.Scope</td>
+                    <td>@rule.Direction</td>
                     <td>@rule.Profiles.ToString()</td>
-                    <td>@(rule.IsEnable ? "Enabled" : "Disabled")</td>
+                    <td>@(rule.Enabled ? "Enabled" : "Disabled")</td>
                     <td>@rule.Protocol</td>
-                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@rule.AsRangeString()</td>
+                    @* max-width doesn't hold on a table cell, so long port lists widened the table and pushed Actions off screen *@
+                    <td><div style="max-width:200px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden" title="@rule.LocalPorts.Replace(",", ", ")">@rule.LocalPorts.Replace(",", ", ")</div></td>
+                    @if (canEdit)
+                    {
+                        <td class="text-nowrap">
+                            @if (rule.EditableRule != null)
+                            {
+                                <button @onclick="@(e => EditRule(rule))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
+                                <button @onclick="@(e => DeleteRule(rule))" class="btn btn-sm btn-danger">Delete</button>
+                            }
+                        </td>
+                    }
                 </tr>
             }
         </tbody>
     </table>
+
+    <Modal @ref="ruleModal" Title="@(editingRule == null ? "Add Rule" : "Edit Rule")" Size="ModalSize.Large">
+        <BodyTemplate>
+            <EditForm Model="ruleForm" OnValidSubmit="SaveRule">
+                <DataAnnotationsValidator />
+                @if (ModalError != null)
+                {
+                    <div class="alert alert-danger">@ModalError</div>
+                }
+                <div class="form-floating mb-3">
+                    <InputText class="form-control" @bind-Value="ruleForm.Name" id="ruleName" placeholder="Name" />
+                    <label for="ruleName">Name</label>
+                    <ValidationMessage For="() => ruleForm.Name" class="text-danger" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText class="form-control" @bind-Value="ruleForm.Description" id="ruleDescription" placeholder="Description" />
+                    <label for="ruleDescription">Description (optional)</label>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <InputSelect class="form-select" @bind-Value="ruleForm.Direction" id="ruleDirection">
+                                <option value="@FirewallDirection.Inbound">Inbound</option>
+                                <option value="@FirewallDirection.Outbound">Outbound</option>
+                            </InputSelect>
+                            <label for="ruleDirection">Direction</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <InputSelect class="form-select" @bind-Value="ruleForm.Action" id="ruleAction">
+                                <option value="@FirewallAction.Allow">Allow</option>
+                                <option value="@FirewallAction.Block">Block</option>
+                            </InputSelect>
+                            <label for="ruleAction">Action</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <InputSelect class="form-select" @bind-Value="ruleForm.Protocol" id="ruleProtocol">
+                                @foreach (var protocol in ProtocolOptions)
+                                {
+                                    <option value="@protocol.ProtocolNumber">@protocol</option>
+                                }
+                            </InputSelect>
+                            <label for="ruleProtocol">Protocol</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <span class="me-3">Profiles</span>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Domain" id="ruleDomain" />
+                        <label class="form-check-label" for="ruleDomain">Domain</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Private" id="rulePrivate" />
+                        <label class="form-check-label" for="rulePrivate">Private</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Public" id="rulePublic" />
+                        <label class="form-check-label" for="rulePublic">Public</label>
+                    </div>
+                    <ValidationMessage For="() => ruleForm.Domain" class="text-danger" />
+                </div>
+                @if (ruleForm.HasPorts)
+                {
+                    <div class="row g-2 mb-1">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText class="form-control" @bind-Value="ruleForm.LocalPorts" id="ruleLocalPorts" placeholder="Local ports" />
+                                <label for="ruleLocalPorts">Local ports</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText class="form-control" @bind-Value="ruleForm.RemotePorts" id="ruleRemotePorts" placeholder="Remote ports" />
+                                <label for="ruleRemotePorts">Remote ports</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">Example: 80, 443, 8000-8100. Leave blank for any port.</div>
+                }
+                <div class="row g-2 mb-1">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="ruleForm.LocalAddresses" id="ruleLocalAddresses" placeholder="Local addresses" />
+                            <label for="ruleLocalAddresses">Local addresses</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="ruleForm.RemoteAddresses" id="ruleRemoteAddresses" placeholder="Remote addresses" />
+                            <label for="ruleRemoteAddresses">Remote addresses</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-text mb-3">Example: 10.0.0.5, 192.168.1.0/24, 10.1.1.1-10.1.1.50, LocalSubnet. Leave blank for any address.</div>
+                <div class="form-floating mb-1">
+                    <InputText class="form-control" @bind-Value="ruleForm.Program" id="ruleProgram" placeholder="Program" />
+                    <label for="ruleProgram">Program (optional)</label>
+                </div>
+                <div class="form-text mb-3">Example: %SystemRoot%\System32\svchost.exe. Leave blank for all programs.</div>
+                <div class="form-check mb-3">
+                    <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Enabled" id="ruleEnabled" />
+                    <label class="form-check-label" for="ruleEnabled">Enabled</label>
+                </div>
+                <div class="text-end">
+                    <button type="button" @onclick="@(() => ruleModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </EditForm>
+        </BodyTemplate>
+    </Modal>
 }
 
 @code {
-    List<IFirewallRule>? rules;
+    private ConfirmDialog dialog = default!;
+    private Modal ruleModal = default!;
 
-    protected override void OnInitialized()
+    List<FirewallRuleInfo>? rules;
+    string filter = "";
+    bool canEdit;
+    private string? ModalError = null;
+
+    private FirewallRuleModel ruleForm = new();
+    private FirewallRuleInfo? editingRule;
+
+    private static readonly FirewallProtocol[] CommonProtocols =
+        [FirewallProtocol.Any, FirewallProtocol.TCP, FirewallProtocol.UDP, FirewallProtocol.ICMPv4, FirewallProtocol.ICMPv6];
+
+    // Keep a rule's less common protocol in the list so editing doesn't change it
+    private IEnumerable<FirewallProtocol> ProtocolOptions =>
+        CommonProtocols.Any(x => x.ProtocolNumber == ruleForm.Protocol) ? CommonProtocols : CommonProtocols.Append(editingRule!.Protocol);
+
+    // Every word typed has to match somewhere in the rule
+    private IEnumerable<FirewallRuleInfo> FilteredRules
     {
-        rules = FirewallManager.Instance.Rules.OrderBy(x => x.FriendlyName).ToList();
+        get
+        {
+            var terms = filter.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return rules!.Where(rule => terms.All(rule.SearchText.Contains));
+        }
     }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditFirewallRules)).Succeeded;
+        rules = FirewallService.GetRules();
+    }
+
+    protected async Task AddRule()
+    {
+        editingRule = null;
+        ruleForm = new FirewallRuleModel();
+        ModalError = null;
+        await ruleModal.ShowAsync();
+    }
+
+    protected async Task EditRule(FirewallRuleInfo rule)
+    {
+        editingRule = rule;
+        ruleForm = FirewallRuleModel.From(rule);
+        ModalError = null;
+        await ruleModal.ShowAsync();
+    }
+
+    protected async Task SaveRule()
+    {
+        if (!canEdit)
+            return;
+
+        try
+        {
+            if (editingRule == null)
+                FirewallService.AddRule(ruleForm);
+            else
+                FirewallService.UpdateRule(editingRule.EditableRule!, ruleForm);
+
+            await ruleModal.HideAsync();
+            ShowMessage($"{ruleForm.Name.Trim()} saved.", "Success", ToastType.Success);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error saving firewall rule {Name}", ruleForm.Name);
+            ModalError = ex.Message;
+        }
+        rules = FirewallService.GetRules();
+    }
+
+    protected async Task DeleteRule(FirewallRuleInfo rule)
+    {
+        if (!canEdit)
+            return;
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this rule?",
+            message1: $"{rule.Name} ({rule.Direction}, {rule.Action}) will be removed from the firewall. This can't be undone.",
+            message2: "Do you want to proceed?");
+
+        if (!confirmation)
+            return;
+
+        try
+        {
+            FirewallService.DeleteRule(rule.EditableRule!);
+            ShowMessage($"{rule.Name} deleted.", "Success", ToastType.Success);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting firewall rule {Name}", rule.Name);
+            ShowMessage($"Delete rule failure: {ex.Message}", "Error", ToastType.Danger);
+        }
+        rules = FirewallService.GetRules();
+    }
+
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(string message, string title, ToastType toastType) => messages.Add(CreateToastMessage(message, title, toastType));
+
+    private ToastMessage CreateToastMessage(string message, string title, ToastType toastType)
+    => new ToastMessage
+    {
+        Title = title,
+        Type = toastType,
+        HelpText = $"{DateTime.Now}",
+        Message = message,
+    };
 }

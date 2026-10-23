@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using WindowsFirewallHelper;
 
 namespace IIGO.Services
 {
@@ -50,8 +49,6 @@ namespace IIGO.Services
 
             return string.Join(", ", parts);
         }
-
-        public static string AsRangeString(this IFirewallRule rule) => RangeStr(Ranges(rule.LocalPorts.Select(x => Convert.ToInt32(x)).ToList()));
 
         public static string MapPath(this AppDomain domain, string path)
         {
