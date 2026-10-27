@@ -117,6 +117,7 @@ namespace IIGO
             builder.Services.AddHostedService(sp => sp.GetRequiredService<CertificateMonitorService>());
             //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<WindowsUpdateService>());
             builder.Services.AddScoped<IMessengerService, DiscordService>();
             builder.Services.AddScoped<IMessengerService, GoogleChatService>();
             builder.Services.AddScoped<IMessengerService, PostmarkService>();

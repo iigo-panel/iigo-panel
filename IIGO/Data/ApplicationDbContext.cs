@@ -14,6 +14,8 @@ namespace IIGO.Data
         public DbSet<DomainStatus> DomainStatus { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
         public DbSet<ApiKey> ApiKey { get; set; }
+        public DbSet<WindowsUpdateCheck> WindowsUpdateCheck { get; set; }
+        public DbSet<WindowsUpdate> WindowsUpdate { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -75,6 +77,12 @@ namespace IIGO.Data
             builder.Entity<DomainStatus>()
                 .Property(x => x.LastChecked)
                 .HasDefaultValueSql("current_timestamp");
+
+            builder.Entity<WindowsUpdateCheck>()
+                .HasMany(e => e.Updates)
+                .WithOne()
+                .HasForeignKey(e => e.WindowsUpdateCheckId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
