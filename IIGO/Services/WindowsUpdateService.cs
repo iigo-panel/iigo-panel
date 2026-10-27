@@ -1,4 +1,6 @@
-﻿using WUApiLib;
+﻿using IIGO.Data;
+using Microsoft.EntityFrameworkCore;
+using WUApiLib;
 
 namespace IIGO.Services
 {
@@ -18,32 +20,165 @@ namespace IIGO.Services
 
     public enum UpdateItemStatus { Pending, Downloading, Installing, Succeeded, Failed }
 
-    internal class WindowsUpdateService
+    /// <summary>
+    /// Searches for Windows updates in the background once a week, so pages can show the last
+    /// result without waiting on the search. A search can also be started on demand.
+    /// The last result is saved to the database so it survives a restart.
+    /// </summary>
+    internal class WindowsUpdateService(IServiceScopeFactory scopeFactory, ILogger<WindowsUpdateService> logger) : BackgroundService
     {
-        private List<WindowsUpdateInfo>? _cachedUpdates;
-        private DateTime? _lastChecked;
+        static readonly TimeSpan CheckInterval = TimeSpan.FromDays(7);
+
+        // Short first delay so the app finishes starting, then a periodic look at whether a check is due.
+        // Polling (rather than one long delay) means a manual check pushes the next scheduled one back.
+        static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
+        static readonly TimeSpan PollInterval = TimeSpan.FromHours(1);
+
         private readonly SemaphoreSlim _lock = new(1, 1);
+        private readonly Lock _checkLock = new();
+        private Task? _currentCheck;
 
         public bool IsInstalling { get; private set; }
-        public DateTime? LastChecked => _lastChecked;
 
-        public async Task<List<WindowsUpdateInfo>> GetUpdates()
+        /// <summary>True while a search is running.</summary>
+        public bool IsChecking { get; private set; }
+
+        /// <summary>Updates found by the last successful search, or null if no search has finished yet.</summary>
+        public IReadOnlyList<WindowsUpdateInfo>? Updates { get; private set; }
+
+        /// <summary>When the last successful search finished (UTC).</summary>
+        public DateTime? LastChecked { get; private set; }
+
+        /// <summary>Why the last search failed, or null if it succeeded.</summary>
+        public string? LastError { get; private set; }
+
+        /// <summary>Raised when a search starts or finishes.</summary>
+        public event Action? Changed;
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            if (_cachedUpdates != null)
-                return _cachedUpdates;
+            await LoadLastCheckAsync(stoppingToken);
 
-            return await FetchUpdates();
+            var delay = StartupDelay;
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(delay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                delay = PollInterval;
+                if (IsInstalling || (LastChecked.HasValue && DateTime.UtcNow - LastChecked.Value < CheckInterval))
+                    continue;
+
+                await CheckNowAsync();
+            }
         }
 
-        public async Task<List<WindowsUpdateInfo>> RefreshUpdates()
+        /// <summary>
+        /// Starts a search, or returns the one already running. Never throws; failures are reported through <see cref="LastError"/>.
+        /// </summary>
+        public Task CheckNowAsync()
         {
-            _cachedUpdates = null;
-            return await FetchUpdates();
+            lock (_checkLock)
+            {
+                if (_currentCheck == null || _currentCheck.IsCompleted)
+                    _currentCheck = RunCheckAsync();
+                return _currentCheck;
+            }
         }
 
-        private async Task<List<WindowsUpdateInfo>> FetchUpdates()
+        private async Task RunCheckAsync()
         {
-            var result = await Task.Run(() =>
+            IsChecking = true;
+            Changed?.Invoke();
+            try
+            {
+                var updates = await FetchUpdates();
+                var checkedAt = DateTime.UtcNow;
+                Updates = updates;
+                LastChecked = checkedAt;
+                LastError = null;
+
+                // Inside the check so only one save runs at a time
+                await SaveLastCheckAsync(updates, checkedAt);
+            }
+            catch (Exception ex)
+            {
+                LastError = ex.Message;
+                logger.LogError(ex, "Windows Update search failed");
+            }
+            finally
+            {
+                IsChecking = false;
+            }
+            Changed?.Invoke();
+        }
+
+        private async Task LoadLastCheckAsync(CancellationToken ct)
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var check = await context.WindowsUpdateCheck
+                    .Include(x => x.Updates)
+                    .OrderByDescending(x => x.CheckedAt)
+                    .FirstOrDefaultAsync(ct);
+                if (check == null)
+                    return;
+
+                // A manual check may already have finished; don't replace it with the older saved one
+                if (LastChecked.HasValue)
+                    return;
+
+                Updates = [.. check.Updates.OrderBy(x => x.Id).Select(x => new WindowsUpdateInfo(x.UpdateId, x.RevisionNumber, x.Title, x.SizeMB))];
+                LastChecked = DateTime.SpecifyKind(check.CheckedAt, DateTimeKind.Utc);
+                Changed?.Invoke();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Not fatal: the scheduled check runs as if no check had been saved
+                logger.LogError(ex, "Could not load the last Windows Update check");
+            }
+        }
+
+        private async Task SaveLastCheckAsync(IReadOnlyList<WindowsUpdateInfo> updates, DateTime checkedAt)
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                // Only the latest check is kept; its updates are removed with it
+                context.WindowsUpdateCheck.RemoveRange(await context.WindowsUpdateCheck.ToListAsync());
+                context.WindowsUpdateCheck.Add(new WindowsUpdateCheck
+                {
+                    CheckedAt = checkedAt,
+                    Updates = [.. updates.Select(x => new WindowsUpdate
+                    {
+                        UpdateId = x.UpdateId,
+                        RevisionNumber = x.RevisionNumber,
+                        Title = x.Title.Length <= 500 ? x.Title : x.Title[..500],
+                        SizeMB = x.SizeMB
+                    })]
+                });
+                await context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // The result is still shown; it just won't survive a restart
+                logger.LogError(ex, "Could not save the Windows Update check");
+            }
+        }
+
+        private static async Task<List<WindowsUpdateInfo>> FetchUpdates()
+        {
+            return await Task.Run(() =>
             {
                 UpdateSession uSession = new UpdateSession();
                 IUpdateSearcher uSearcher = uSession.CreateUpdateSearcher();
@@ -60,10 +195,6 @@ namespace IIGO.Services
                 }
                 return list;
             });
-
-            _cachedUpdates = result;
-            _lastChecked = DateTime.Now;
-            return result;
         }
 
         public async Task InstallWithProgressAsync(
@@ -148,9 +279,11 @@ namespace IIGO.Services
             }
             finally
             {
-                _cachedUpdates = null;
                 IsInstalling = false;
                 _lock.Release();
+
+                // Installed updates drop off the list once Windows Update is searched again
+                _ = CheckNowAsync();
             }
 
             progress.Report(new UpdateInstallProgress("Done", total, total, "", 100, anyRebootRequired));

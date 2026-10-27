@@ -3,6 +3,7 @@
 @inject WindowsUpdateService WindowsUpdateService
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Check Updates</PageTitle>
 
@@ -15,23 +16,43 @@
     </div>
 }
 
-@if (_updates == null)
+@if (WindowsUpdateService.LastError != null)
 {
-    <p><em>Loading...</em></p>
+    <div class="alert alert-danger mt-2">
+        <strong>Update check failed</strong> — @WindowsUpdateService.LastError
+    </div>
 }
-else
-{
-    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
-        @if (WindowsUpdateService.LastChecked.HasValue)
-        {
-            <span class="text-muted small">Last checked: @WindowsUpdateService.LastChecked.Value.ToString("g")</span>
-        }
-        <button class="btn btn-outline-secondary btn-sm" @onclick="Recheck" disabled="@_installing">Recheck</button>
+
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+    @if (WindowsUpdateService.LastChecked.HasValue)
+    {
+        <span class="text-muted small">Last checked: @WindowsUpdateService.LastChecked.Value.ToLocalTime().ToString("g")</span>
+    }
+    <button class="btn btn-outline-secondary btn-sm" @onclick="Recheck" disabled="@(_installing || WindowsUpdateService.IsChecking)">
+        @(WindowsUpdateService.IsChecking ? "Checking…" : "Recheck")
+    </button>
+    @if (_updates != null)
+    {
         <button class="btn btn-primary btn-sm" @onclick="InstallSelected"
                 disabled="@(_installing || _selected.Count == 0)">
             Install Selected (@_selected.Count)
         </button>
-    </div>
+    }
+</div>
+
+@if (_updates == null)
+{
+    @if (WindowsUpdateService.IsChecking)
+    {
+        <p><em>Checking for updates in the background. This page will update when the check finishes.</em></p>
+    }
+    else
+    {
+        <p><em>Updates are checked automatically once a week. No check has finished yet.</em></p>
+    }
+}
+else
+{
 
     @if (_installing && _progress != null)
     {
@@ -84,7 +105,7 @@ else
 }
 
 @code {
-    List<WindowsUpdateInfo>? _updates;
+    IReadOnlyList<WindowsUpdateInfo>? _updates;
     HashSet<string> _selected = [];
     Dictionary<string, UpdateItemStatus> _statusMap = [];
     bool _installing;
@@ -92,19 +113,38 @@ else
     UpdateInstallProgress? _progress;
     bool _selectAll;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _updates = await WindowsUpdateService.GetUpdates();
+        // Show the last background result; never wait on a search here
+        _updates = WindowsUpdateService.Updates;
+        WindowsUpdateService.Changed += OnUpdatesChanged;
     }
 
-    private async Task Recheck()
+    private void OnUpdatesChanged()
     {
-        _updates = null;
-        _selected.Clear();
+        _ = InvokeAsync(() =>
+        {
+            // Leave the list alone mid-install; a fresh check runs when the install finishes
+            if (!_installing && WindowsUpdateService.Updates != null && !ReferenceEquals(_updates, WindowsUpdateService.Updates))
+            {
+                _updates = WindowsUpdateService.Updates;
+                _selected.IntersectWith(_updates.Select(u => u.UpdateId));
+                _selectAll = _selectAll && _selected.Count == _updates.Count;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private void Recheck()
+    {
         _statusMap.Clear();
         _rebootRequired = false;
-        _selectAll = false;
-        _updates = await WindowsUpdateService.RefreshUpdates();
+        _ = WindowsUpdateService.CheckNowAsync();
+    }
+
+    public void Dispose()
+    {
+        WindowsUpdateService.Changed -= OnUpdatesChanged;
     }
 
     private void OnSelectAllChanged()
@@ -146,11 +186,13 @@ else
             _progress = report;
             if (report.Phase == "Done")
             {
+                // The service starts a fresh check, and OnUpdatesChanged picks up the new list
                 _installing = false;
                 _rebootRequired = report.RebootRequired;
                 _selected.Clear();
                 _selectAll = false;
-                _updates = await WindowsUpdateService.GetUpdates();
+                if (WindowsUpdateService.Updates != null)
+                    _updates = WindowsUpdateService.Updates;
             }
             await InvokeAsync(StateHasChanged);
         });
