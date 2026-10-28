@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>False</PublishAot>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <Version>1.0.0-beta5</Version>
+    <Version>1.0.0-beta6</Version>
   </PropertyGroup>
 
   <ItemGroup>
