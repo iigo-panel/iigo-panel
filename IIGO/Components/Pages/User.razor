@@ -7,6 +7,7 @@
 @inject RoleManager<IdentityRole> _roleManager
 @inject UserManagementService _userService
 @inject IJSRuntime JsRuntime
+@inject ILogger<User> logger
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
@@ -144,9 +145,14 @@ else
     HashSet<string> selectedRoles = new();
     string? lastMessage;
     bool success = true;
+    string actor = "";
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        actor = (await AuthState).User.Identity?.Name ?? "";
         user = await _userManager.FindByIdAsync(Id);
         if (user != null)
         {
@@ -176,10 +182,13 @@ else
         if (user == null)
             return;
 
+        var previousRoles = await _userManager.GetRolesAsync(user);
         var result = await _userService.UpdateDetailsAsync(user, Details.UserName.Trim(), NullIfEmpty(Details.Email), Details.EmailConfirmed, NullIfEmpty(Details.PhoneNumber));
         if (result.Succeeded)
         {
             result = await _userService.SetRolesAsync(user, selectedRoles);
+            if (result.Succeeded && !previousRoles.ToHashSet().SetEquals(selectedRoles))
+                logger.LogWarning("{Actor} changed roles of {UserName} from [{OldRoles}] to [{NewRoles}]", actor, user.UserName, string.Join(", ", previousRoles), string.Join(", ", selectedRoles));
         }
 
         // Reload so the form reflects what was actually saved
@@ -195,7 +204,10 @@ else
         bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"Disable MFA for {user.UserName}?");
         if (confirmed)
         {
-            ShowResult(await _userService.DisableMfaAsync(user), "MFA disabled.");
+            var result = await _userService.DisableMfaAsync(user);
+            if (result.Succeeded)
+                logger.LogWarning("{Actor} disabled MFA for {UserName}", actor, user.UserName);
+            ShowResult(result, "MFA disabled.");
         }
     }
 
@@ -207,6 +219,7 @@ else
         var result = await _userService.ResetPasswordAsync(user, Password.NewPassword);
         if (result.Succeeded)
         {
+            logger.LogWarning("{Actor} reset the password of {UserName}", actor, user.UserName);
             Password = new ResetPasswordModel();
         }
         ShowResult(result, "Password reset.");
@@ -237,7 +250,7 @@ else
     public class ResetPasswordModel
     {
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 12)]
         [DataType(DataType.Password)]
         [Display(Name = "New password")]
         public string NewPassword { get; set; } = "";

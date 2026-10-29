@@ -73,7 +73,7 @@ namespace Microsoft.Web.Administration
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = appcmd,
-                        Arguments = $"start site \"{site.Name}\"",
+                        ArgumentList = { "start", "site", site.Name },
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         Verb = "runas",
@@ -96,7 +96,7 @@ namespace Microsoft.Web.Administration
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = appcmd,
-                        Arguments = $"stop site \"{site.Name}\"",
+                        ArgumentList = { "stop", "site", site.Name },
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         Verb = "runas",
@@ -119,7 +119,7 @@ namespace Microsoft.Web.Administration
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = appcmd,
-                        Arguments = $"start apppool \"{pool.Name}\"",
+                        ArgumentList = { "start", "apppool", pool.Name },
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         Verb = "runas",
@@ -142,7 +142,7 @@ namespace Microsoft.Web.Administration
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = appcmd,
-                        Arguments = $"stop apppool \"{pool.Name}\"",
+                        ArgumentList = { "stop", "apppool", pool.Name },
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         Verb = "runas",
@@ -165,7 +165,7 @@ namespace Microsoft.Web.Administration
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = appcmd,
-                        Arguments = $"recycle apppool \"{pool.Name}\"",
+                        ArgumentList = { "recycle", "apppool", pool.Name },
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         Verb = "runas",

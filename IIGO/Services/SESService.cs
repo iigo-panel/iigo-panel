@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SESService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class SESService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         readonly ApplicationDbContext _context = context;
 
@@ -28,7 +28,7 @@ namespace IIGO.Services
             SendEmailRequest req = new SendEmailRequest("", new Destination(new List<string> { "" }), msg) { ReturnPath = "" };
             //if (!String.IsNullOrWhiteSpace(replyTo))
             //    req.ReplyToAddresses.Add(replyTo);
-            using (AmazonSimpleEmailServiceClient client = new AmazonSimpleEmailServiceClient(new BasicAWSCredentials(GetSetting("SES_AccessKey", "AccessKey"), GetSetting("SES_SecretKey", "SecretKey")), RegionEndpoint.USWest2))
+            using (AmazonSimpleEmailServiceClient client = new AmazonSimpleEmailServiceClient(new BasicAWSCredentials(GetSetting("SES_AccessKey", "AccessKey"), GetSecret("SES_SecretKey", "SecretKey")), RegionEndpoint.USWest2))
             {
                 try
                 {

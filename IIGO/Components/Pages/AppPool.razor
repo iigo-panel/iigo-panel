@@ -1,7 +1,6 @@
 ﻿@page "/apppools/{name}"
 @using Microsoft.Web.Administration
 @using IIGO.Services
-@inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
 @attribute [Authorize(Policy = Feature.ViewAppPools)]
 @attribute [StreamRendering]

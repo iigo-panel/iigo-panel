@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @inject ApiKeyService apiKeyService
 @inject IJSRuntime JsRuntime
+@inject ILogger<ApiKeys> logger
 @attribute [Authorize(Policy = Feature.ViewApiKeys)]
 @rendermode InteractiveServer
 
@@ -142,6 +143,7 @@ else
         // The date picker gives a local date; the key works through the last moment of that day
         DateTime? expiresAt = NewKey.ExpiresOn?.Date.AddDays(1).AddTicks(-1).ToUniversalTime();
         newKey = await apiKeyService.CreateKeyAsync(NewKey.Name.Trim(), expiresAt, userName);
+        logger.LogWarning("{Actor} created API key {KeyName} (expires {ExpiresAt})", userName, NewKey.Name.Trim(), expiresAt?.ToString("u") ?? "never");
         ShowMessage($"{NewKey.Name.Trim()} created!", "Success", ToastType.Success);
         NewKey = new();
         keys = await apiKeyService.GetKeysAsync();
@@ -166,6 +168,7 @@ else
             return;
 
         await apiKeyService.SetEnabledAsync(key.Id, enabled);
+        logger.LogWarning("{Actor} {Action} API key {KeyName}", userName, enabled ? "enabled" : "disabled", key.Name);
         ShowMessage($"{key.Name} {(enabled ? "enabled" : "disabled")}!", "Success", ToastType.Success);
         keys = await apiKeyService.GetKeysAsync();
     }
@@ -183,6 +186,7 @@ else
         if (confirmation)
         {
             await apiKeyService.DeleteKeyAsync(key.Id);
+            logger.LogWarning("{Actor} deleted API key {KeyName}", userName, key.Name);
             ShowMessage($"{key.Name} deleted!", "Success", ToastType.Success);
             keys = await apiKeyService.GetKeysAsync();
         }

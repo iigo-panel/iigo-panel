@@ -37,7 +37,7 @@ namespace Microsoft.AspNetCore.Routing
 
                 var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
                 return TypedResults.Challenge(properties, [provider]);
-            });
+            }).AllowAnonymous();
 
             accountGroup.MapPost("/Logout", async (
                 ClaimsPrincipal user,
@@ -46,7 +46,7 @@ namespace Microsoft.AspNetCore.Routing
             {
                 await signInManager.SignOutAsync();
                 return TypedResults.LocalRedirect($"~/{returnUrl}");
-            });
+            }).AllowAnonymous();
 
             var manageGroup = accountGroup.MapGroup("/Manage").RequireAuthorization();
 

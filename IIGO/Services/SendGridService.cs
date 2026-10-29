@@ -6,7 +6,7 @@ using SendGrid.Helpers.Mail;
 
 namespace IIGO.Services
 {
-    internal class SendGridService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class SendGridService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         private readonly ApplicationDbContext _context = context;
 
@@ -31,7 +31,7 @@ namespace IIGO.Services
             // TODO: Get settings from DB
             try
             {
-                var client = new SendGridClient(GetSetting("SG_ApiKey"));
+                var client = new SendGridClient(GetSecret("SG_ApiKey"));
                 var from = new EmailAddress(GetSetting("SG_FromAddress"), GetSetting("SG_FromName"));
                 var to = new EmailAddress("", "");
                 var msg = MailHelper.CreateSingleEmail(from, to, "", "", "");

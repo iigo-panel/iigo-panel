@@ -9,8 +9,7 @@
 @using System.Runtime.InteropServices
 @using Microsoft.Win32.SafeHandles
 @using System.Threading.Tasks
-@inject IHttpContextAccessor httpContextAccessor
-@attribute [Authorize]
+@attribute [Authorize(Policy = Feature.ViewSystemStatus)]
 @rendermode InteractiveServer
 
 <PageTitle>Processes</PageTitle>

@@ -3,8 +3,9 @@
 @using IIGO.Services
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.Web.Administration
-@inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Websites> logger
 @attribute [Authorize(Policy = Feature.ViewWebsites)]
 @rendermode InteractiveServer
 
@@ -20,7 +21,7 @@
 }
 else
 {
-    @if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
+    @if (isAdmin)
     {
            <a href="/websites/new" class="btn btn-primary">Add Website</a><text>&nbsp;</text>
     }
@@ -50,7 +51,7 @@ else
                     <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@String.Join(";", site.Bindings.Select(x => x.BindingInformation))</td>
                     <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@site.Applications[0].VirtualDirectories[0].PhysicalPath</td>
                     <td>
-                        @if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
+                        @if (isAdmin)
                         {
                             <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-primary">Restart</button><text>&nbsp;</text>
                             @if (site.State == ObjectState.Stopped)
@@ -75,6 +76,9 @@ else
     List<Site>? sites;
     private string? LastMessage = null;
     private bool Success = true;
+    // From the circuit's authentication state; HttpContext isn't reliable inside an interactive circuit
+    private bool isAdmin;
+    private string actor = "";
 
     protected async Task Reload()
     {
@@ -86,8 +90,11 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        isAdmin = user.IsInRole("Administrator");
+        actor = user.Identity?.Name ?? "";
         try
         {
             sites = IISService.GetSites();
@@ -95,41 +102,57 @@ else
         catch { }
     }
 
+    // Checked again in each handler so only administrators can change a site, whatever the UI shows
     protected void RestartSite(long siteId)
     {
+        if (!isAdmin)
+            return;
+
         try
         {
             var site = IISService.GetSite(siteId);
             ShowMessage($"{site?.Name} restarted!", "Success", ToastType.Success);
         }
         catch {}
+        logger.LogInformation("{Actor} restarted site {SiteId}", actor, siteId);
         IISService.RestartSite(siteId);
     }
 
     protected void StartSite(long siteId)
     {
+        if (!isAdmin)
+            return;
+
         try
         {
             var site = IISService.GetSite(siteId);
             ShowMessage($"{site?.Name} started!", "Success", ToastType.Success);
         }
         catch { }
+        logger.LogInformation("{Actor} started site {SiteId}", actor, siteId);
         IISService.StartSite(siteId);
     }
 
     protected void StopSite(long siteId)
     {
+        if (!isAdmin)
+            return;
+
         try
         {
             var site = IISService.GetSite(siteId);
             ShowMessage($"{site?.Name} stopped!", "Success", ToastType.Success);
         }
         catch { }
+        logger.LogInformation("{Actor} stopped site {SiteId}", actor, siteId);
         IISService.StopSite(siteId);
     }
 
     protected async Task DeleteSite(long siteId)
     {
+        if (!isAdmin)
+            return;
+
         var confirmation = await dialog.ShowAsync(
             title: "Are you sure you want to delete this website?",
             message1: "This will delete the website and cannot be reversed.",
@@ -148,9 +171,14 @@ else
             try
             {
                 IISService.DeleteWebsite(siteId);
+                logger.LogWarning("{Actor} deleted site {SiteName} ({SiteId})", actor, siteName, siteId);
                 ShowMessage($"{siteName} deleted!", "Success", ToastType.Success);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error deleting site {SiteName} ({SiteId})", siteName, siteId);
+                ShowMessage($"Delete failed: {ex.Message}", "Error", ToastType.Danger);
+            }
 
             try
             {

@@ -6,6 +6,7 @@
 @inject NavigationManager _nav
 @inject RoleManager<IdentityRole> _roleManager
 @inject UserManagementService _userService
+@inject ILogger<AddUser> logger
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
@@ -85,9 +86,14 @@
     List<string> roles = new();
     HashSet<string> selectedRoles = new();
     string? errorMessage;
+    string actor = "";
 
-    protected override void OnInitialized()
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
     {
+        actor = (await AuthState).User.Identity?.Name ?? "";
         roles = _roleManager.Roles.Select(x => x.Name!).OrderBy(x => x).ToList();
     }
 
@@ -112,6 +118,7 @@
         var result = await _userService.CreateUserAsync(user, NewUser.Password, selectedRoles);
         if (result.Succeeded)
         {
+            logger.LogWarning("{Actor} created user {UserName} with roles [{Roles}]", actor, user.UserName, string.Join(", ", selectedRoles));
             _nav.NavigateTo($"/users/{user.Id}");
         }
         else
@@ -130,7 +137,7 @@
         public string Email { get; set; } = "";
 
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 12)]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
 

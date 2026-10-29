@@ -4,6 +4,7 @@
 @inject NavigationManager _nav
 @inject RoleManager<IdentityRole> _roleManager
 @inject IJSRuntime JsRuntime
+@inject ILogger<Roles> logger
 @attribute [Authorize(Policy = Feature.ViewRoles)]
 @rendermode InteractiveServer
 
@@ -67,14 +68,26 @@ else
     List<IdentityRole>? roles;
     string newRoleName = "";
     string? errorMessage;
+    bool isAdmin;
+    string actor = "";
 
-    protected override void OnInitialized()
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        isAdmin = user.IsInRole("Administrator");
+        actor = user.Identity?.Name ?? "";
         roles = _roleManager.Roles.ToList();
     }
 
+    // Checked again in the handlers so only administrators can change roles, whatever the UI shows
     async Task CreateRole()
     {
+        if (!isAdmin)
+            return;
+
         errorMessage = null;
         if (string.IsNullOrWhiteSpace(newRoleName))
         {
@@ -85,6 +98,7 @@ else
         var result = await _roleManager.CreateAsync(new IdentityRole { Name = newRoleName.Trim() });
         if (result.Succeeded)
         {
+            logger.LogWarning("{Actor} created role {RoleName}", actor, newRoleName.Trim());
             newRoleName = "";
             roles = _roleManager.Roles.ToList();
         }
@@ -96,13 +110,20 @@ else
 
     async Task DeleteRole(string id)
     {
+        if (!isAdmin)
+            return;
+
         bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this role?");
         if (confirmed)
         {
             var role = await _roleManager.FindByIdAsync(id);
-            if (role != null)
+            if (role != null && role.Name != "Administrator")
             {
-                await _roleManager.DeleteAsync(role);
+                var result = await _roleManager.DeleteAsync(role);
+                if (result.Succeeded)
+                    logger.LogWarning("{Actor} deleted role {RoleName}", actor, role.Name);
+                else
+                    errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
                 roles = _roleManager.Roles.ToList();
             }
         }

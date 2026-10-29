@@ -1,5 +1,6 @@
 ﻿using IIGO.Data;
 using IIGO.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,8 @@ using System.Linq;
 
 namespace IIGO.Api
 {
+    // The fallback policy requires a signed-in user; the API uses keys instead, checked by RequireApiKey
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     [RequireApiKey]

@@ -7,6 +7,7 @@ using IIGO.Services;
 using IIGO.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -149,6 +150,10 @@ namespace IIGO
 
             builder.Services.AddAuthorization(options =>
             {
+                // Anything without its own [Authorize] or [AllowAnonymous] needs a signed-in user, so a page
+                // or endpoint that forgets the attribute fails closed
+                options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+
                 foreach (var feature in Feature.All)
                 {
                     options.AddPolicy(feature, policy =>
@@ -159,6 +164,14 @@ namespace IIGO
                 }
             });
             builder.Services.AddSingleton<IAuthorizationHandler, FeatureAuthorizationHandler>();
+
+            // Keys for cookies, tokens and stored secrets live next to the database, encrypted for this machine,
+            // so they survive a change of service account and aren't lost with a user profile
+            builder.Services.AddDataProtection()
+                .SetApplicationName("IIGO Panel")
+                .PersistKeysToFileSystem(new DirectoryInfo(fullPath!))
+                .ProtectKeysWithDpapi(protectToLocalMachine: true);
+            builder.Services.AddSingleton<SecretProtector>();
             builder.Services.AddScoped<RolePermissionService>();
             builder.Services.AddScoped<ApiKeyService>();
             builder.Services.AddScoped<UserManagementService>();
@@ -200,8 +213,7 @@ namespace IIGO
             }
             if (app.Logger.IsEnabled(LogLevel.Information))
             {
-                app.Logger.LogInformation(new EventId(1001), "Attempting to connect to database using connection string: {connectionString}", connectionString);
-                app.Logger.LogInformation(new EventId(1001), "Transformed DataSource: {connDataSource}", conn.DataSource);
+                app.Logger.LogInformation(new EventId(1001), "Database: {connDataSource}", conn.DataSource);
             }
 
             bool validLicense = LicenseKeyService.ValidateLicense(out var licenseKey);
@@ -241,6 +253,23 @@ namespace IIGO
             InstallInitialSettings(app).SafeFireAndForget();
 
             app.UseHttpsRedirection();
+
+            // Browser protections for every response, including static files. The CSP lives here rather than in a
+            // meta tag so frame-ancestors is honoured. Scripts come only from this site and the pinned Bootstrap CDN file.
+            app.Use(async (context, next) =>
+            {
+                var headers = context.Response.Headers;
+                headers.ContentSecurityPolicy =
+                    "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; " +
+                    "img-src 'self' data: https:; " +
+                    "script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js; " +
+                    "upgrade-insecure-requests";
+                headers.XContentTypeOptions = "nosniff";
+                headers.XFrameOptions = "DENY";
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+                await next(context);
+            });
 
             app.UseStaticFiles();
             app.UseRateLimiter();

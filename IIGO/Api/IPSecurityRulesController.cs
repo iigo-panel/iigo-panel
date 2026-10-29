@@ -1,4 +1,5 @@
 using IIGO.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,8 @@ namespace IIGO.Api
     /// Server-wide IP address rules (system.webServer/security/ipSecurity in applicationHost.config).
     /// Ported from mws-utilities/IISManager, with the same routes and request bodies.
     /// </summary>
+    // The fallback policy requires a signed-in user; the API uses keys instead, checked by RequireApiKey
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     [RequireApiKey]

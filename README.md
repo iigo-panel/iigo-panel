@@ -41,4 +41,14 @@ The panel is designed to be reachable from the Internet, so the sign-in cookie i
 
 Alternatively, run the panel behind a reverse proxy that terminates TLS and forwards the client address.
 
-Sign-in is limited to 10 attempts per minute per address, and an account is locked for 15 minutes after 5 failed attempts.
+Sign-in is limited to 10 attempts per minute per address, and an account is locked for 15 minutes after 5 failed attempts. Passwords must be at least 12 characters.
+
+Set `AllowedHosts` in `appsettings.json` to the host name the panel is reached on (for example `"AllowedHosts": "panel.example.com"`) so requests with a forged `Host` header are rejected.
+
+## Secrets and keys
+
+Notification secrets (the SMTP password, SendGrid and Postmark keys, AWS secret keys, and Discord, Slack and Google Chat webhook URLs) are encrypted before they're stored in the database. A value typed straight into the `ConfigSetting` table as plain text is encrypted the first time it's used. The encryption keys, which also protect sign-in cookies and password reset tokens, are kept in the `Data` folder next to the database, protected with DPAPI for the machine. Back that folder up with the database: without the keys, stored secrets have to be entered again and everyone has to sign in again.
+
+## Permissions
+
+Pages are only available to users whose role has the matching feature, except the Administrator role, which has everything. The System Status and Processes pages need the `View System Status` feature, because the process list shows every process's command line. Roles and their permissions, users and API keys can only be changed by administrators.
