@@ -3,7 +3,7 @@
 @using IIGO.Services
 @inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
-@attribute [Authorize(Roles = "Administrator,Manager")]
+@attribute [Authorize(Policy = Feature.ViewAppPools)]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
