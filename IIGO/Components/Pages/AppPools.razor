@@ -2,8 +2,9 @@
 @using IIGO.Services
 @using System.Timers
 @using Microsoft.Web.Administration
-@inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @attribute [Authorize(Policy = Feature.ViewAppPools)]
 @rendermode InteractiveServer
 @implements IDisposable
@@ -29,7 +30,10 @@ else
                 <th>Status</th>
                 <th>Identity</th>
                 <th>Applications</th>
-                <th>Actions</th>
+                @if (canEdit)
+                {
+                    <th>Actions</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -40,17 +44,20 @@ else
                     <td>@pool.State</td>
                     <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
                     <td><a href="/apppools/@pool.Name/applications">@(appCounts.GetValueOrDefault(pool.Name, 0))</a></td>
-                    <td>
-                        <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
-                        @if (pool.State == ObjectState.Stopped)
-                        {
-                            <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-success">Start</button>
-                        }
-                        @if (pool.State == ObjectState.Started)
-                        {
-                            <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-danger">Stop</button>
-                        }
-                    </td>
+                    @if (canEdit)
+                    {
+                        <td>
+                            <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
+                            @if (pool.State == ObjectState.Stopped)
+                            {
+                                <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-success">Start</button>
+                            }
+                            @if (pool.State == ObjectState.Started)
+                            {
+                                <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-danger">Stop</button>
+                            }
+                        </td>
+                    }
                 </tr>
             }
         </tbody>
@@ -62,9 +69,12 @@ else
     Dictionary<string, int> appCounts = new();
     private Timer timer = new(5000);
     private bool Success = true;
+    private bool canEdit;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditAppPools)).Succeeded;
         pools = IISService.GetAppPools();
         appCounts = IISService.GetApplicationCountsByPool();
         timer.Elapsed += async (sender, eventArgs) => await UpdateValues();
@@ -78,8 +88,12 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
+    // Checked again in each handler so only users with EditAppPools can change a pool, whatever the UI shows
     protected void RecyclePool(string poolName)
     {
+        if (!canEdit)
+            return;
+
         try
         {
             ShowMessage($"{poolName} recycled!", "Success", ToastType.Success);
@@ -90,6 +104,9 @@ else
 
     protected void StartPool(string poolName)
     {
+        if (!canEdit)
+            return;
+
         try
         {
             ShowMessage($"{poolName} started!", "Success", ToastType.Success);
@@ -100,6 +117,9 @@ else
 
     protected void StopPool(string poolName)
     {
+        if (!canEdit)
+            return;
+
         try
         {
             ShowMessage($"{poolName} stopped", "Success", ToastType.Success);

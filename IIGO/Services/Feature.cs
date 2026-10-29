@@ -14,10 +14,13 @@ namespace IIGO.Services
         public const string EditScheduledTasks = "EditScheduledTasks";
         public const string ViewServices = "ViewServices";
         public const string ViewSettings = "ViewSettings";
+        // Viewing only; creating roles and changing their permissions is limited to the Administrator role,
+        // since anyone who can change permissions can grant themselves everything
         public const string ViewRoles = "ViewRoles";
-        public const string ManageRoles = "ManageRoles";
         // Viewing only; creating, disabling and deleting keys is limited to the Administrator role
         public const string ViewApiKeys = "ViewApiKeys";
+        // System status and the process list, which shows every process's command line
+        public const string ViewSystemStatus = "ViewSystemStatus";
 
         public static readonly IReadOnlyList<string> All =
         [
@@ -26,8 +29,9 @@ namespace IIGO.Services
             ViewFirewallRules, EditFirewallRules,
             ViewScheduledTasks, EditScheduledTasks,
             ViewServices, ViewSettings,
-            ViewRoles, ManageRoles,
-            ViewApiKeys
+            ViewRoles,
+            ViewApiKeys,
+            ViewSystemStatus
         ];
     }
 }

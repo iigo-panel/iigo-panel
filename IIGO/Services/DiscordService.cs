@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class DiscordService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class DiscordService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         readonly ApplicationDbContext _context = context;
 
@@ -32,7 +32,7 @@ namespace IIGO.Services
             // TODO: Get settings from DB
             try
             {
-                var c = new DiscordWebhookClient(GetSetting("Discord_WebhookUrl"));
+                var c = new DiscordWebhookClient(GetSecret("Discord_WebhookUrl"));
                 await c.SendMessageAsync("", username: GetSetting("Discord_UserName"), avatarUrl: "");
                 return true;
             }

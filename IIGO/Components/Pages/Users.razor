@@ -6,6 +6,7 @@
 @inject UserManager<ApplicationUser> _userManager
 @inject UserManagementService _userService
 @inject IJSRuntime JsRuntime
+@inject ILogger<Users> logger
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
 
@@ -66,12 +67,17 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
     List<ApplicationUser>? users;
     Dictionary<string, IList<string>> userRoles = new();
     string? errorMessage;
+    string actor = "";
 
     protected override async Task OnInitializedAsync()
     {
+        actor = (await AuthState).User.Identity?.Name ?? "";
         await LoadUsers();
     }
 
@@ -97,7 +103,11 @@ else
             if (u != null)
             {
                 var result = await _userService.DeleteUserAsync(u);
-                if (!result.Succeeded)
+                if (result.Succeeded)
+                {
+                    logger.LogWarning("{Actor} deleted user {UserName}", actor, u.UserName);
+                }
+                else
                 {
                     errorMessage = string.Join(", ", result.Errors.Select(e => e.Description));
                 }

@@ -14,7 +14,7 @@ namespace IIGO.Services
     {
         private readonly ApplicationDbContext _context;
 
-        public SMTPService(ApplicationDbContext context) : base(context)
+        public SMTPService(ApplicationDbContext context, SecretProtector secrets) : base(context, secrets)
         {
             _context = context;
         }
@@ -52,7 +52,7 @@ namespace IIGO.Services
                 using var smtp = new SmtpClient();
 
                 await smtp.ConnectAsync(GetSetting("SMTP_Host"), Convert.ToInt32(GetSetting("SMTP_Port", "587")), Convert.ToBoolean(GetSetting("SMTP_UseSSL", "true")), ct);
-                await smtp.AuthenticateAsync(GetSetting("SMTP_UserName", "user"), GetSetting("SMTP_Password", "password"), ct);
+                await smtp.AuthenticateAsync(GetSetting("SMTP_UserName", "user"), GetSecret("SMTP_Password", "password"), ct);
                 await smtp.SendAsync(email, ct);
                 await smtp.DisconnectAsync(true, ct);
 

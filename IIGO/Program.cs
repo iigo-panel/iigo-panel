@@ -7,10 +7,12 @@ using IIGO.Services;
 using IIGO.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using System.Threading.RateLimiting;
 
 namespace IIGO
 {
@@ -83,15 +85,75 @@ namespace IIGO
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 #endif
 
-            builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+            builder.Services.AddIdentityCore<ApplicationUser>(options =>
+                {
+                    options.SignIn.RequireConfirmedAccount = true;
+
+                    // Lock accounts after repeated failed sign-ins (Login.razor passes lockoutOnFailure: true)
+                    options.Lockout.AllowedForNewUsers = true;
+                    options.Lockout.MaxFailedAccessAttempts = 5;
+                    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                })
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddSignInManager()
+                .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>()
                 .AddDefaultTokenProviders();
             builder.Services.Configure<DataProtectionTokenProviderOptions>(opt => opt.TokenLifespan = TimeSpan.FromHours(2));
 
+            // The panel is meant to be reachable from the Internet, so the sign-in cookie is only ever sent over HTTPS,
+            // never with cross-site requests, and a session ends after 8 hours without activity
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.HttpOnly = true;
+                options.ExpireTimeSpan = TimeSpan.FromHours(8);
+                options.SlidingExpiration = true;
+            });
+
+            // Per-address limits on sign-in attempts and API calls. Behind a reverse proxy, add the
+            // forwarded headers middleware so RemoteIpAddress is the client rather than the proxy.
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var address = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                    var path = context.Request.Path;
+
+                    if (HttpMethods.IsPost(context.Request.Method) && path.StartsWithSegments("/Account"))
+                        return RateLimitPartition.GetFixedWindowLimiter($"account:{address}", _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        });
+
+                    if (path.StartsWithSegments("/api"))
+                        return RateLimitPartition.GetFixedWindowLimiter($"api:{address}", _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 60,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        });
+
+                    return RateLimitPartition.GetNoLimiter("none");
+                });
+                options.OnRejected = (context, _) =>
+                {
+                    context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>()
+                        .LogWarning("Rate limit reached for {RemoteIp} on {Path}", context.HttpContext.Connection.RemoteIpAddress, context.HttpContext.Request.Path);
+                    return ValueTask.CompletedTask;
+                };
+            });
+
             builder.Services.AddAuthorization(options =>
             {
+                // Anything without its own [Authorize] or [AllowAnonymous] needs a signed-in user, so a page
+                // or endpoint that forgets the attribute fails closed
+                options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+
                 foreach (var feature in Feature.All)
                 {
                     options.AddPolicy(feature, policy =>
@@ -102,6 +164,14 @@ namespace IIGO
                 }
             });
             builder.Services.AddSingleton<IAuthorizationHandler, FeatureAuthorizationHandler>();
+
+            // Keys for cookies, tokens and stored secrets live next to the database, encrypted for this machine,
+            // so they survive a change of service account and aren't lost with a user profile
+            builder.Services.AddDataProtection()
+                .SetApplicationName("IIGO Panel")
+                .PersistKeysToFileSystem(new DirectoryInfo(fullPath!))
+                .ProtectKeysWithDpapi(protectToLocalMachine: true);
+            builder.Services.AddSingleton<SecretProtector>();
             builder.Services.AddScoped<RolePermissionService>();
             builder.Services.AddScoped<ApiKeyService>();
             builder.Services.AddScoped<UserManagementService>();
@@ -143,8 +213,7 @@ namespace IIGO
             }
             if (app.Logger.IsEnabled(LogLevel.Information))
             {
-                app.Logger.LogInformation(new EventId(1001), "Attempting to connect to database using connection string: {connectionString}", connectionString);
-                app.Logger.LogInformation(new EventId(1001), "Transformed DataSource: {connDataSource}", conn.DataSource);
+                app.Logger.LogInformation(new EventId(1001), "Database: {connDataSource}", conn.DataSource);
             }
 
             bool validLicense = LicenseKeyService.ValidateLicense(out var licenseKey);
@@ -185,8 +254,41 @@ namespace IIGO
 
             app.UseHttpsRedirection();
 
+            // Browser protections for every response, including static files. The CSP lives here rather than in a
+            // meta tag so frame-ancestors is honoured. Scripts come only from this site and the pinned Bootstrap CDN file.
+            app.Use(async (context, next) =>
+            {
+                var headers = context.Response.Headers;
+                headers.ContentSecurityPolicy =
+                    "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; " +
+                    "img-src 'self' data: https:; " +
+                    "script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js; " +
+                    "upgrade-insecure-requests";
+                headers.XContentTypeOptions = "nosniff";
+                headers.XFrameOptions = "DENY";
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+                await next(context);
+            });
+
             app.UseStaticFiles();
+            app.UseRateLimiter();
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseAntiforgery();
+            app.UseMiddleware<MustChangePasswordMiddleware>();
+
+            // The sign-in cookie is marked Secure, so browsers only send it over HTTPS
+            app.Lifetime.ApplicationStarted.Register(() =>
+            {
+                if (!app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    app.Logger.LogError(new EventId(2002),
+                        "No HTTPS endpoint is configured (listening on {Urls}). Sign-in will not work over plain HTTP. " +
+                        "Add a Kestrel HTTPS endpoint with a certificate in appsettings.json, or put the panel behind a reverse proxy that terminates TLS.",
+                        string.Join(", ", app.Urls));
+                }
+            });
 
             app.MapControllers();
 
@@ -197,6 +299,23 @@ namespace IIGO
             app.MapAdditionalIdentityEndpoints();
 
             app.Run();
+        }
+
+        const string DefaultAdminPassword = "IIGOAdmin#10";
+
+        /// <summary>
+        /// Flags a user whose password is still the one from the README, so they have to change it at the next sign-in
+        /// </summary>
+        private static async Task RequirePasswordChangeIfDefault(WebApplication app, UserManager<ApplicationUser> manager, string userName, string defaultPassword)
+        {
+            var user = await manager.FindByNameAsync(userName);
+            if (user == null || user.MustChangePassword || !await manager.CheckPasswordAsync(user, defaultPassword))
+                return;
+
+            user.MustChangePassword = true;
+            user.LockoutEnabled = true;
+            await manager.UpdateAsync(user);
+            app.Logger.LogWarning(new EventId(2005), "User '{UserName}' still has the default password and must change it at the next sign-in.", userName);
         }
 
         private static void UpdateDatabase(WebApplication app)
@@ -274,49 +393,26 @@ namespace IIGO
                     var result = await roleManager.CreateAsync(new IdentityRole { Name = "Manager" });
                 }
 
-                if (await manager.FindByNameAsync("admin") == null)
+                // The default administrator only exists on a brand new database. Deleting it later is final,
+                // and it has to pick its own password before the panel can be used.
+                if (!await manager.Users.AnyAsync())
                 {
-                    var user = new ApplicationUser { UserName = "admin", Email = "admin@example.com", LockoutEnabled = false, EmailConfirmed = true };
-                    var result = await manager.CreateAsync(user, "IIGOAdmin#10");
+                    var user = new ApplicationUser { UserName = "admin", Email = "admin@example.com", EmailConfirmed = true, MustChangePassword = true };
+                    var result = await manager.CreateAsync(user, DefaultAdminPassword);
                     if (result.Succeeded)
                     {
-                        user = await manager.FindByNameAsync("admin");
-                        await manager.AddToRoleAsync(user!, "Administrator");
+                        await manager.AddToRoleAsync(user, "Administrator");
+                        app.Logger.LogWarning(new EventId(2003), "Created the default 'admin' user. The password must be changed at first sign-in.");
+                    }
+                    else
+                    {
+                        app.Logger.LogError(new EventId(2004), "Could not create the default 'admin' user: {Errors}", string.Join("; ", result.Errors.Select(e => e.Description)));
                     }
                 }
 
-                if (await manager.FindByNameAsync("manager") == null)
-                {
-                    var user = new ApplicationUser { UserName = "manager", Email = "manager@example.com", LockoutEnabled = false, EmailConfirmed = true };
-                    var result = await manager.CreateAsync(user, "IIGOManager#10");
-                    if (result.Succeeded)
-                    {
-                        user = await manager.FindByNameAsync("manager");
-                        await manager.AddToRoleAsync(user!, "Manager");
-                    }
-                }
-
-                if (await manager.FindByNameAsync("admin") is ApplicationUser admin)
-                {
-                    if (admin != null)
-                    {
-                        if (!await manager.IsInRoleAsync(admin, "Administrator"))
-                        {
-                            await manager.AddToRoleAsync(admin, "Administrator");
-                        }
-                    }
-                }
-
-                if (await manager.FindByNameAsync("manager") is ApplicationUser managerUser)
-                {
-                    if (managerUser != null)
-                    {
-                        if (!await manager.IsInRoleAsync(managerUser, "Manager"))
-                        {
-                            await manager.AddToRoleAsync(managerUser, "Administrator");
-                        }
-                    }
-                }
+                // Databases from earlier versions may still hold the documented default passwords
+                await RequirePasswordChangeIfDefault(app, manager, "admin", DefaultAdminPassword);
+                await RequirePasswordChangeIfDefault(app, manager, "manager", "IIGOManager#10");
 
                 // Seed default Manager role permissions
                 var managerRole = await roleManager.FindByNameAsync("Manager");

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class PostmarkService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class PostmarkService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         readonly ApplicationDbContext _context = context;
 
@@ -34,7 +34,7 @@ namespace IIGO.Services
             try
             {
                 var msg = new PostmarkMessage(GetSetting("PM_FromAddress"), "", "", "", "", messageStream: GetSetting("PM_MessageStream"));
-                var client = new PostmarkClient(GetSetting("PM_ServerToken"));
+                var client = new PostmarkClient(GetSecret("PM_ServerToken"));
                 var resp = await client.SendMessageAsync(msg);
                 return resp.Status == PostmarkStatus.Success;
             }

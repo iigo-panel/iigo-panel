@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class GoogleChatService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class GoogleChatService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         readonly ApplicationDbContext _context = context;
 
@@ -35,7 +35,7 @@ namespace IIGO.Services
                 using HttpClient c = new HttpClient();
 
                 using var sc = new StringContent(JsonSerializer.Serialize(new { text = "" }));
-                using var response = await c.PostAsync(GetSetting("GChat_Url"), sc, ct);
+                using var response = await c.PostAsync(GetSecret("GChat_Url"), sc, ct);
                 if (!response.IsSuccessStatusCode)
                 {
                     var data = await response.Content.ReadAsStringAsync();

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SlackService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class SlackService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         readonly ApplicationDbContext _context = context;
 
@@ -29,7 +29,7 @@ namespace IIGO.Services
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
             // TODO: Get settings from DB
-            var slackClient = new SlackClient(GetSetting("Slack_URL"));
+            var slackClient = new SlackClient(GetSecret("Slack_URL"));
             var slackMessage = new SlackMessage
             {
                 Channel = "",

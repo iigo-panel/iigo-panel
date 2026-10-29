@@ -4,6 +4,7 @@
 @inject RoleManager<IdentityRole> _roleManager
 @inject RolePermissionService _permissionService
 @inject NavigationManager _nav
+@inject ILogger<RolePermissions> logger
 @attribute [Authorize(Policy = Feature.ViewRoles)]
 @rendermode InteractiveServer
 
@@ -69,9 +70,17 @@ else
     IdentityRole? role;
     HashSet<string> selectedFeatures = new();
     string? saveMessage;
+    bool isAdmin;
+    string actor = "";
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        isAdmin = user.IsInRole("Administrator");
+        actor = user.Identity?.Name ?? "";
         role = await _roleManager.FindByIdAsync(Id);
         if (role != null)
         {
@@ -89,13 +98,15 @@ else
             selectedFeatures.Remove(feature);
     }
 
+    // Checked again here so only administrators can change permissions, whatever the UI shows
     async Task Save()
     {
-        if (role != null)
-        {
-            await _permissionService.SetRoleFeaturesAsync(role.Id, selectedFeatures);
-            saveMessage = "Saved!";
-        }
+        if (!isAdmin || role == null)
+            return;
+
+        await _permissionService.SetRoleFeaturesAsync(role.Id, selectedFeatures);
+        logger.LogWarning("{Actor} set permissions of role {RoleName} to [{Features}]", actor, role.Name, string.Join(", ", selectedFeatures.Order()));
+        saveMessage = "Saved!";
     }
 
     static string FormatFeatureName(string feature)

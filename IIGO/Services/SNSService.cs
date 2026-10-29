@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SNSService(ApplicationDbContext context) : ServiceBase(context), IMessengerService
+    internal class SNSService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
         private readonly ApplicationDbContext _context = context;
 
@@ -39,7 +39,7 @@ namespace IIGO.Services
             {
                 string messageText = "";
 
-                IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient(new BasicAWSCredentials(GetSetting("SNS_AccessKey"), GetSetting("SNS_SecretKey")), RegionEndpoint.USWest2);
+                IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient(new BasicAWSCredentials(GetSetting("SNS_AccessKey"), GetSecret("SNS_SecretKey")), RegionEndpoint.USWest2);
                 var request = new PublishRequest
                 {
                     TopicArn = GetSetting("SNS_TopicArn"),

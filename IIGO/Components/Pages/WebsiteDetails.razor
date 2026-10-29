@@ -6,7 +6,6 @@
 @using System.Net
 @using System.Net.NetworkInformation
 @using System.Net.Sockets
-@inject IHttpContextAccessor httpContextAccessor
 @inject IISService IISService
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -57,7 +56,7 @@ else
 			</div>
 			<div class="col-2">
 				<div class="row">
-					@if (httpContextAccessor.HttpContext!.User.IsInRole("Administrator"))
+					@if (isAdmin)
 					{
 						<div class="col-6">
 							<button @onclick="@(e => RestartSite())" class="btn btn-primary">Restart</button>
@@ -354,6 +353,8 @@ else
 
 	private long SiteId;
 	private bool canEdit;
+	private bool isAdmin;
+	private string actor = "";
 	private string? LastMessage = null;
 	private bool Success = true;
 	private string? ModalError = null;
@@ -374,6 +375,8 @@ else
 		SiteId = Convert.ToInt64(Id);
 		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
 		canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditWebsites)).Succeeded;
+		isAdmin = authState.User.IsInRole("Administrator");
+		actor = authState.User.Identity?.Name ?? "";
 
 		try
 		{
@@ -393,18 +396,28 @@ else
 		site = IISService.GetSite(SiteId);
 	}
 
+	// Checked again in each handler so only administrators can change the site's state, whatever the UI shows
 	protected void RestartSite()
 	{
+		if (!isAdmin)
+			return;
+		logger.LogInformation("{Actor} restarted site {SiteId}", actor, SiteId);
 		IISService.RestartSite(SiteId);
 	}
 
 	protected void StartSite()
 	{
+		if (!isAdmin)
+			return;
+		logger.LogInformation("{Actor} started site {SiteId}", actor, SiteId);
 		IISService.StartSite(SiteId);
 	}
 
 	protected void StopSite()
 	{
+		if (!isAdmin)
+			return;
+		logger.LogInformation("{Actor} stopped site {SiteId}", actor, SiteId);
 		IISService.StopSite(SiteId);
 	}
 
