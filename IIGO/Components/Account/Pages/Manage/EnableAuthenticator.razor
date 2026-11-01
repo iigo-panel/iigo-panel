@@ -23,10 +23,10 @@
 else
 {
     <StatusMessage Message="@message" />
-    <h3>Configure authenticator app</h3>
+    <h2 class="h5 mb-3">Configure authenticator app</h2>
     <div>
         <p>To use an authenticator app go through the following steps:</p>
-        <ol class="list">
+        <ol class="ps-3">
             <li>
                 <p>
                     Download a two-factor authenticator app like Microsoft Authenticator for
@@ -39,7 +39,7 @@ else
             </li>
             <li>
                 <p>Scan the QR Code or enter this key <kbd>@sharedKey</kbd> into your two factor authenticator app. Spaces and casing do not matter.</p>
-                <div id="qrCode"></div>
+                <div class="qr-code-frame mb-3"><div id="qrCode"></div></div>
                 <div id="qrCodeData" data-url="@authenticatorUri"></div>
             </li>
             <li>
@@ -48,15 +48,15 @@ else
                     with a unique code. Enter the code in the confirmation box below.
                 </p>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-lg-8">
                         <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
                             <DataAnnotationsValidator />
                             <div class="form-floating mb-3">
-                                <InputText @bind-Value="Input!.Code" class="form-control" autocomplete="off" placeholder="Please enter the code." />
+                                <InputText @bind-Value="Input!.Code" id="code" class="form-control" autocomplete="off" placeholder="Please enter the code." />
                                 <label for="code" class="control-label form-label">Verification Code</label>
                                 <ValidationMessage For="() => Input.Code" class="text-danger" />
                             </div>
-                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verify</button>
+                            <button type="submit" class="btn btn-primary">Verify</button>
                             <ValidationSummary class="text-danger" role="alert" />
                         </EditForm>
                     </div>

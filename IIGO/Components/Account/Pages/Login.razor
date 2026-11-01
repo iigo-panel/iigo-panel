@@ -13,37 +13,34 @@
 
 <PageTitle>Log in</PageTitle>
 
-<h1>Log in</h1>
+<h1 class="h4 mb-1">Log in</h1>
+<p class="text-body-secondary mb-4">Use a local account to log in.</p>
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-12">
         <section>
             <StatusMessage Message="@errorMessage" />
             <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
                 <DataAnnotationsValidator />
-                <h2>Use a local account to log in.</h2>
-                <hr />
                 <ValidationSummary class="text-danger" role="alert" />
                 <div class="form-floating mb-3">
-                    <InputText @bind-Value="Input!.Username" class="form-control" autocomplete="username" aria-required="true" placeholder="username" />
+                    <InputText @bind-Value="Input!.Username" id="username" class="form-control" autocomplete="username" aria-required="true" placeholder="username" />
                     <label for="username" class="form-label">Username</label>
                     <ValidationMessage For="() => Input.Username" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                    <InputText type="password" @bind-Value="Input.Password" id="password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
                     <label for="password" class="form-label">Password</label>
                     <ValidationMessage For="() => Input.Password" class="text-danger" />
                 </div>
-                <div class="checkbox mb-3">
-                    <label class="form-label">
-                        <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
-                        Remember me
-                    </label>
+                <div class="form-check mb-3">
+                    <InputCheckbox @bind-Value="Input.RememberMe" id="remember-me" class="darker-border-checkbox form-check-input" />
+                    <label class="form-check-label" for="remember-me">Remember me</label>
                 </div>
                 <div>
-                    <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+                    <button type="submit" class="w-100 btn btn-primary">Log in</button>
                 </div>
                 <div>
-                    <p>
+                    <p class="mt-3 mb-0 text-center small">
                         <a href="Account/ForgotPassword">Forgot your password?</a>
                     </p>
                     @* <p>
@@ -54,13 +51,6 @@
                     </p> *@
                 </div>
             </EditForm>
-        </section>
-    </div>
-    <div class="col-md-6 col-md-offset-2">
-        <section>
-            @* <h3>Use another service to log in.</h3>
-            <hr />
-            <ExternalLoginPicker /> *@
         </section>
     </div>
 </div>
