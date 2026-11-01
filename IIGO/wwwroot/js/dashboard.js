@@ -60,28 +60,14 @@ function formatRate(bytes) {
     return (bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1) + ' KB/s';
 }
 
-function themeOptions(kind, c) {
-    return {
-        theme: { mode: c.mode },
-        colors: seriesColors(kind, c),
-        grid: { borderColor: c.border },
-        xaxis: {
-            labels: { style: { colors: c.muted } },
-            axisBorder: { color: c.border },
-            axisTicks: { color: c.border }
-        },
-        yaxis: { labels: { style: { colors: [c.muted] } } },
-        legend: { labels: { colors: c.text } },
-        tooltip: { theme: c.mode }
-    };
-}
-
+// Single source of truth for every chart option, including the axis and tooltip config.
+// Each call builds fresh objects, so nothing is shared between charts or between calls.
 function buildOptions(kind, seriesNames, c) {
     const percent = kind !== 'network';
     const yaxis = percent
-        ? { min: 0, max: 100, tickAmount: 4, labels: { formatter: v => Math.round(v) + '%' } }
-        : { min: 0, forceNiceScale: true, labels: { formatter: v => formatRate(v) } };
-    const base = {
+        ? { min: 0, max: 100, tickAmount: 4, labels: { formatter: v => Math.round(v) + '%', style: { colors: [c.muted] } } }
+        : { min: 0, forceNiceScale: true, labels: { formatter: v => formatRate(v), style: { colors: [c.muted] } } };
+    return {
         chart: {
             type: 'area',
             height: 200,
@@ -93,6 +79,9 @@ function buildOptions(kind, seriesNames, c) {
             redrawOnParentResize: true
         },
         series: seriesNames.map(name => ({ name, data: [] })),
+        theme: { mode: c.mode },
+        colors: seriesColors(kind, c),
+        grid: { borderColor: c.border },
         dataLabels: { enabled: false },
         stroke: { curve: 'smooth', width: 2 },
         fill: {
@@ -100,31 +89,27 @@ function buildOptions(kind, seriesNames, c) {
             gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.03, stops: [0, 100] }
         },
         markers: { size: 0 },
-        legend: { show: kind === 'network', position: 'top', horizontalAlign: 'right' },
+        legend: {
+            show: kind === 'network',
+            position: 'top',
+            horizontalAlign: 'right',
+            labels: { colors: c.text }
+        },
         xaxis: {
             type: 'datetime',
             tickAmount: 4,
-            labels: { datetimeUTC: false, format: 'HH:mm:ss' },
+            labels: { datetimeUTC: false, format: 'HH:mm:ss', style: { colors: c.muted } },
+            axisBorder: { color: c.border },
+            axisTicks: { color: c.border },
             tooltip: { enabled: false }
         },
         yaxis,
         tooltip: {
+            theme: c.mode,
             x: { format: 'HH:mm:ss' },
             y: { formatter: v => percent ? v.toFixed(1) + '%' : formatRate(v) }
         }
     };
-    const themed = themeOptions(kind, c);
-    // Merge the theme parts into the base options without losing the formatters above
-    base.theme = themed.theme;
-    base.colors = themed.colors;
-    base.grid = themed.grid;
-    base.xaxis.labels.style = themed.xaxis.labels.style;
-    base.xaxis.axisBorder = themed.xaxis.axisBorder;
-    base.xaxis.axisTicks = themed.xaxis.axisTicks;
-    base.yaxis.labels.style = themed.yaxis.labels.style;
-    base.legend.labels = themed.legend.labels;
-    base.tooltip.theme = themed.tooltip.theme;
-    return base;
 }
 
 function onVisibility() {
@@ -162,7 +147,12 @@ export async function init(dotnetRef, options) {
     observer = new MutationObserver(() => {
         const colors = themeColors();
         for (const kind of Object.keys(charts)) {
-            charts[kind].chart.updateOptions(themeOptions(kind, colors), false, false);
+            const entry = charts[kind];
+            const options = buildOptions(kind, entry.names, colors);
+            // Keep the live data and the current size; reapply only the theme and axis config
+            delete options.series;
+            delete options.chart;
+            entry.chart.updateOptions(options, false, false);
         }
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });

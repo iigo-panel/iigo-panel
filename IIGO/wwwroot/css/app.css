@@ -654,11 +654,19 @@ html[data-bs-theme=dark] .theme-icon-dark {
     .dashboard-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .dashboard-grid > :last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (min-width: 1600px) {
     .dashboard-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dashboard-grid > :last-child:nth-child(odd) {
+        grid-column: auto;
     }
 }
 
