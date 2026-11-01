@@ -1,51 +1,561 @@
 ﻿@page "/"
+@using System.Diagnostics
 @using IIGO.Data
 @using IIGO.Services
-@using Microsoft.AspNetCore.Identity;
-@inject IConfiguration configuration
-@inject SignInManager<ApplicationUser> _signinManager
-@inject UserManager<ApplicationUser> _userManager
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using Microsoft.Web.Administration
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@using System.Security.Claims
+@inject IAuthorizationService AuthorizationService
+@inject IISService IISService
+@inject IJSRuntime JS
 @attribute [Authorize]
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 
 <PageTitle>Home</PageTitle>
 
-<PageHeader Title="Dashboard" />
+<PageHeader Title="Dashboard" Subtitle="@(canViewStatus ? "Live server health, refreshed every 2 seconds." : "Server overview.")">
+    <Actions>
+        @if (canViewStatus)
+        {
+            <a href="/status" class="btn btn-outline-secondary"><i class="bi bi-activity me-1" aria-hidden="true"></i>View details</a>
+        }
+    </Actions>
+</PageHeader>
 
-@* <button @onclick="Reboot">Reboot</button> *@
+@if (!canViewWebsites && !canViewAppPools && !canViewStatus)
+{
+    <SectionCard>
+        <EmptyState Icon="bi-speedometer2" Title="Nothing to show" Message="Your account does not have access to any dashboard sections." />
+    </SectionCard>
+}
+else
+{
+    if (canViewWebsites || canViewAppPools)
+    {
+        <div class="row g-3 mb-3">
+            @if (canViewWebsites)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <a href="/websites" class="stat-link">
+                        <div class="card stat-card h-100">
+                            <div class="card-body">
+                                <div class="stat-label"><i class="bi bi-globe2" aria-hidden="true"></i> Websites</div>
+                                <div class="stat-value">@websiteCounts.Total</div>
+                                @if (websiteCounts.Total == 0)
+                                {
+                                    <div class="stat-meta">None found. IIS may not be installed or IIGO cannot read it.</div>
+                                }
+                                else
+                                {
+                                    <div class="stat-breakdown">
+                                        <StatusBadge Status="Started" Variant="@(websiteCounts.Started == 0 ? "secondary" : null)" Text="@($"{websiteCounts.Started} started")" />
+                                        <StatusBadge Status="Stopped" Variant="@(websiteCounts.Stopped == 0 ? "secondary" : null)" Text="@($"{websiteCounts.Stopped} stopped")" />
+                                        @if (websiteCounts.Other > 0)
+                                        {
+                                            <StatusBadge Status="Other" Text="@($"{websiteCounts.Other} other")" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+            @if (canViewAppPools)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <a href="/apppools" class="stat-link">
+                        <div class="card stat-card h-100">
+                            <div class="card-body">
+                                <div class="stat-label"><i class="bi bi-hdd-stack" aria-hidden="true"></i> Application pools</div>
+                                <div class="stat-value">@poolCounts.Total</div>
+                                @if (poolCounts.Total == 0)
+                                {
+                                    <div class="stat-meta">None found. IIS may not be installed or IIGO cannot read it.</div>
+                                }
+                                else
+                                {
+                                    <div class="stat-breakdown">
+                                        <StatusBadge Status="Started" Variant="@(poolCounts.Started == 0 ? "secondary" : null)" Text="@($"{poolCounts.Started} started")" />
+                                        <StatusBadge Status="Stopped" Variant="@(poolCounts.Stopped == 0 ? "secondary" : null)" Text="@($"{poolCounts.Stopped} stopped")" />
+                                        @if (poolCounts.Other > 0)
+                                        {
+                                            <StatusBadge Status="Other" Text="@($"{poolCounts.Other} other")" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
 
-
+    if (canViewStatus)
+    {
+        if (chartError != null)
+        {
+            <div class="alert alert-warning" role="alert">@chartError</div>
+        }
+        <div class="dashboard-grid">
+            <SectionCard Title="CPU" Subtitle="Processor usage" Class="h-100 chart-card">
+                <Actions><span class="chart-readout"><i class="bi bi-cpu" aria-hidden="true"></i> @cpuText</span></Actions>
+                <ChildContent>
+                    @if (cpuAvailable)
+                    {
+                        <div id="@cpuChartId" class="chart-host"></div>
+                    }
+                    else
+                    {
+                        <p class="chart-unavailable">Performance counters are not available to IIGO on this server.</p>
+                    }
+                </ChildContent>
+            </SectionCard>
+            <SectionCard Title="Memory" Subtitle="@memorySubtitle" Class="h-100 chart-card">
+                <Actions><span class="chart-readout"><i class="bi bi-memory" aria-hidden="true"></i> @memoryText</span></Actions>
+                <ChildContent>
+                    @if (memoryAvailable)
+                    {
+                        <div id="@memoryChartId" class="chart-host"></div>
+                    }
+                    else
+                    {
+                        <p class="chart-unavailable">Memory information is not available to IIGO on this server.</p>
+                    }
+                </ChildContent>
+            </SectionCard>
+            <SectionCard Title="Network" Subtitle="All interfaces combined" Class="h-100 chart-card">
+                <Actions><span class="chart-readout"><i class="bi bi-ethernet" aria-hidden="true"></i> @networkText</span></Actions>
+                <ChildContent>
+                    @if (networkAvailable)
+                    {
+                        <div id="@networkChartId" class="chart-host"></div>
+                    }
+                    else
+                    {
+                        <p class="chart-unavailable">Performance counters are not available to IIGO on this server.</p>
+                    }
+                </ChildContent>
+            </SectionCard>
+        </div>
+    }
+}
 
 @code {
-    //[Inject] protected ToastService ToastService { get; set; } = default!;
+    private const int WindowPoints = 60;
+    private const string cpuChartId = "dash-chart-cpu";
+    private const string memoryChartId = "dash-chart-memory";
+    private const string networkChartId = "dash-chart-network";
 
-    private string? authMessage;
-    private string? surname;
-    private IEnumerable<Claim> claims = Enumerable.Empty<Claim>();
+    private readonly record struct Counts(int Total, int Started, int Stopped)
+    {
+        public int Other => Total - Started - Stopped;
+    }
 
-    private async Task GetClaimsPrincipalData()
+    private bool canViewWebsites;
+    private bool canViewAppPools;
+    private bool canViewStatus;
+    private Counts websiteCounts;
+    private Counts poolCounts;
+
+    private bool cpuAvailable = true;
+    private bool memoryAvailable = true;
+    private bool networkAvailable = true;
+    private string cpuText = "-";
+    private string memoryText = "-";
+    private string memorySubtitle = "Physical memory in use";
+    private string networkText = "-";
+    private string? chartError;
+
+    private readonly SystemStatusService service = new();
+    private PerformanceCounter? cpuCounter;
+    private readonly List<(PerformanceCounter Received, PerformanceCounter Sent)> networkCounters = [];
+
+    private IJSObjectReference? module;
+    private DotNetObjectReference<Home>? dotnetRef;
+    private readonly CancellationTokenSource cts = new();
+    private readonly SemaphoreSlim sampleGate = new(1, 1);
+    private readonly SemaphoreSlim countsGate = new(1, 1);
+    private PeriodicTimer? sampleTimer;
+    private PeriodicTimer? countsTimer;
+    private bool chartsReady;
+    private bool paused;
+    private bool disposed;
+
+    protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
+        canViewWebsites = (await AuthorizationService.AuthorizeAsync(user, Feature.ViewWebsites)).Succeeded;
+        canViewAppPools = (await AuthorizationService.AuthorizeAsync(user, Feature.ViewAppPools)).Succeeded;
+        canViewStatus = (await AuthorizationService.AuthorizeAsync(user, Feature.ViewSystemStatus)).Succeeded;
 
-        if (user.Identity is not null && user.Identity.IsAuthenticated)
+        await LoadCountsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
         {
-            authMessage = $"{user.Identity.Name} is authenticated.";
-            claims = user.Claims;
-            surname = user.FindFirst(c => c.Type == ClaimTypes.Surname)?.Value;
+            return;
         }
-        else
+
+        if (canViewWebsites || canViewAppPools)
         {
-            authMessage = "The user is NOT authenticated.";
+            countsTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            _ = RunCountsLoop(countsTimer, cts.Token);
+        }
+
+        if (!canViewStatus)
+        {
+            return;
+        }
+
+        SetUpCounters();
+        if (!cpuAvailable && !memoryAvailable && !networkAvailable)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
+            dotnetRef = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("init", dotnetRef, new
+            {
+                cpu = cpuAvailable ? cpuChartId : null,
+                memory = memoryAvailable ? memoryChartId : null,
+                network = networkAvailable ? networkChartId : null,
+                maxPoints = WindowPoints
+            });
+            chartsReady = true;
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+        catch (JSException)
+        {
+            chartError = "The charts could not be loaded. Check that this browser can reach cdnjs.cloudflare.com.";
+        }
+
+        // Repaint to drop the chart containers of any unavailable counter and show the notice
+        StateHasChanged();
+
+        if (!disposed)
+        {
+            sampleTimer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+            _ = RunSampleLoop(sampleTimer, cts.Token);
         }
     }
 
-    private async Task Reboot()
+    // Called by dashboard.js when the browser tab is hidden or shown
+    [JSInvokable]
+    public async Task OnVisibilityChanged(bool hidden)
     {
-        //await ToastService.NotifyAsync(new ToastMessage(ToastType.Success) { Message = "The system is rebooting...", Type = ToastType.Info });
-        //messages.Add(new ToastMessage(ToastType.Success) { Message = "The system is rebooting...", Type = ToastType.Info });
-        //ComputerControlService.Reboot();
+        paused = hidden;
+        if (hidden)
+        {
+            return;
+        }
+
+        await SampleAsync();
+        await LoadCountsAsync();
+    }
+
+    private void SetUpCounters()
+    {
+        try
+        {
+            cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
+            cpuCounter.NextValue(); // the first read is always 0
+        }
+        catch (Exception)
+        {
+            cpuCounter?.Dispose();
+            cpuCounter = null;
+            cpuAvailable = false;
+        }
+
+        try
+        {
+            var instances = new PerformanceCounterCategory("Network Interface").GetInstanceNames();
+            foreach (var instance in instances)
+            {
+                var received = new PerformanceCounter("Network Interface", "Bytes Received/sec", instance);
+                var sent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", instance);
+                received.NextValue();
+                sent.NextValue();
+                networkCounters.Add((received, sent));
+            }
+            networkAvailable = networkCounters.Count > 0;
+        }
+        catch (Exception)
+        {
+            DisposeNetworkCounters();
+            networkAvailable = false;
+        }
+
+        try
+        {
+            memoryAvailable = service.GetTotalMemoryInMiB(true) > 0;
+        }
+        catch (Exception)
+        {
+            memoryAvailable = false;
+        }
+    }
+
+    private async Task RunSampleLoop(PeriodicTimer timer, CancellationToken token)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                if (!paused)
+                {
+                    try
+                    {
+                        await SampleAsync();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task RunCountsLoop(PeriodicTimer timer, CancellationToken token)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                if (!paused)
+                {
+                    try
+                    {
+                        await LoadCountsAsync();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    // Reads every counter once and pushes one point per chart. Skips if a sample is already running.
+    private async Task SampleAsync()
+    {
+        if (disposed || !chartsReady || !await sampleGate.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            if (disposed || module == null)
+            {
+                return;
+            }
+
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+            if (cpuAvailable && cpuCounter != null)
+            {
+                try
+                {
+                    var cpu = Math.Clamp(cpuCounter.NextValue(), 0f, 100f);
+                    cpuText = cpu.ToString("N1") + "%";
+                    await module.InvokeVoidAsync("push", "cpu", now, new double[] { cpu });
+                }
+                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
+                {
+                    cpuAvailable = false;
+                }
+            }
+
+            if (memoryAvailable)
+            {
+                try
+                {
+                    var total = service.GetTotalMemoryInMiB(true);
+                    var available = service.GetPhysicalAvailableMemoryInMiB();
+                    if (total > 0 && available >= 0)
+                    {
+                        var percent = (1d - (double)available / total) * 100d;
+                        memoryText = percent.ToString("N1") + "%";
+                        memorySubtitle = $"{FormatSize(total - available)} used of {FormatSize(total)}";
+                        await module.InvokeVoidAsync("push", "memory", now, new[] { percent });
+                    }
+                }
+                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
+                {
+                    memoryAvailable = false;
+                }
+            }
+
+            if (networkAvailable)
+            {
+                try
+                {
+                    double received = 0;
+                    double sent = 0;
+                    foreach (var (r, s) in networkCounters)
+                    {
+                        received += r.NextValue();
+                        sent += s.NextValue();
+                    }
+                    networkText = $"In {FormatRate(received)} / Out {FormatRate(sent)}";
+                    await module.InvokeVoidAsync("push", "network", now, new[] { received, sent });
+                }
+                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
+                {
+                    networkAvailable = false;
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException or OperationCanceledException)
+        {
+        }
+        finally
+        {
+            sampleGate.Release();
+        }
+    }
+
+    private async Task LoadCountsAsync()
+    {
+        if (disposed || (!canViewWebsites && !canViewAppPools) || !await countsGate.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            if (canViewWebsites)
+            {
+                websiteCounts = await Task.Run(() =>
+                {
+                    try
+                    {
+                        var sites = IISService.GetSites();
+                        return new Counts(
+                            sites.Count,
+                            sites.Count(s => s.State == ObjectState.Started),
+                            sites.Count(s => s.State == ObjectState.Stopped));
+                    }
+                    catch (Exception)
+                    {
+                        return default(Counts);
+                    }
+                });
+            }
+
+            if (canViewAppPools)
+            {
+                poolCounts = await Task.Run(() =>
+                {
+                    try
+                    {
+                        var pools = IISService.GetAppPools();
+                        return new Counts(
+                            pools.Count,
+                            pools.Count(p => p.State == ObjectState.Started),
+                            pools.Count(p => p.State == ObjectState.Stopped));
+                    }
+                    catch (Exception)
+                    {
+                        return default(Counts);
+                    }
+                });
+            }
+
+            if (!disposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        finally
+        {
+            countsGate.Release();
+        }
+    }
+
+    private static string FormatSize(long mib)
+    {
+        if (mib > 1024)
+        {
+            return ((decimal)mib / 1024m).ToString("N2") + " GB";
+        }
+
+        return mib.ToString("N0") + " MB";
+    }
+
+    private static string FormatRate(double bytesPerSecond)
+    {
+        if (bytesPerSecond >= 1048576)
+        {
+            return (bytesPerSecond / 1048576).ToString("N1") + " MB/s";
+        }
+
+        return (bytesPerSecond / 1024).ToString("N1") + " KB/s";
+    }
+
+    private void DisposeNetworkCounters()
+    {
+        foreach (var (received, sent) in networkCounters)
+        {
+            received.Dispose();
+            sent.Dispose();
+        }
+        networkCounters.Clear();
+    }
+
+    // Stop polling, release the counters and tear down the charts when the user leaves the page
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        cts.Cancel();
+        sampleTimer?.Dispose();
+        countsTimer?.Dispose();
+
+        // Wait for a sample that is already running, then block new ones
+        await sampleGate.WaitAsync();
+
+        cpuCounter?.Dispose();
+        DisposeNetworkCounters();
+
+        try
+        {
+            if (module != null)
+            {
+                await module.InvokeVoidAsync("dispose");
+                await module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception ex) when (ex is JSException or ObjectDisposedException or OperationCanceledException)
+        {
+        }
+
+        dotnetRef?.Dispose();
+        cts.Dispose();
     }
 }

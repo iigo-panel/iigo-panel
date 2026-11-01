@@ -619,6 +619,79 @@ html[data-bs-theme=dark] .theme-icon-dark {
     border-color: #929292;
 }
 
+/* ---------- Dashboard ---------- */
+.stat-link {
+    display: block;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+    .stat-link .card {
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .stat-link:hover .card,
+    .stat-link:focus-visible .card {
+        border-color: var(--bs-primary);
+        box-shadow: var(--iigo-shadow);
+    }
+
+.stat-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .375rem;
+    margin-top: .5rem;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-grid > :last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1600px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dashboard-grid > :last-child:nth-child(odd) {
+        grid-column: auto;
+    }
+}
+
+.chart-card .card-body {
+    min-height: 15rem;
+}
+
+.chart-host {
+    min-height: 200px;
+}
+
+.chart-readout {
+    font-size: .875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.chart-unavailable {
+    margin: 0;
+    padding: 4rem 1rem;
+    text-align: center;
+    color: var(--iigo-text-muted);
+}
+
 /* ---------- Account (Identity) pages ---------- */
 .auth-shell {
     display: flex;

@@ -255,14 +255,14 @@ namespace IIGO
             app.UseHttpsRedirection();
 
             // Browser protections for every response, including static files. The CSP lives here rather than in a
-            // meta tag so frame-ancestors is honoured. Scripts come only from this site and the pinned Bootstrap CDN file.
+            // meta tag so frame-ancestors is honoured. Scripts come only from this site and the pinned Bootstrap and ApexCharts CDN files.
             app.Use(async (context, next) =>
             {
                 var headers = context.Response.Headers;
                 headers.ContentSecurityPolicy =
                     "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; " +
                     "img-src 'self' data: https:; " +
-                    "script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js; " +
+                    "script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js https://cdnjs.cloudflare.com/ajax/libs/apexcharts/4.7.0/apexcharts.min.js; " +
                     "upgrade-insecure-requests";
                 headers.XContentTypeOptions = "nosniff";
                 headers.XFrameOptions = "DENY";
