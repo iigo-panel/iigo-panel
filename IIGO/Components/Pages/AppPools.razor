@@ -11,57 +11,66 @@
 
 <PageTitle>Application Pools</PageTitle>
 
-<h1>Application Pools</h1>
-
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 
 @if (pools == null)
 {
-    <p><em>Loading...</em></p>
+    <PageHeader Title="Application Pools" Subtitle="Refreshes every 5 seconds." />
+    <LoadingState />
 }
 else
 {
-    <a href="/apppoolmonitor" class="btn btn-primary">Monitor</a>
+    <PageHeader Title="Application Pools" Subtitle="Refreshes every 5 seconds.">
+        <Actions>
+            <a href="/apppoolmonitor" class="btn btn-outline-secondary"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Monitor</a>
+        </Actions>
+    </PageHeader>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Identity</th>
-                <th>Applications</th>
-                @if (canEdit)
-                {
-                    <th>Actions</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var pool in pools)
-            {
-                <tr>
-                    <td><a href="/apppools/@pool.Name">@pool.Name</a></td>
-                    <td>@pool.State</td>
-                    <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
-                    <td><a href="/apppools/@pool.Name/applications">@(appCounts.GetValueOrDefault(pool.Name, 0))</a></td>
-                    @if (canEdit)
+    <SectionCard Flush="true">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Identity</th>
+                        <th>Applications</th>
+                        @if (canEdit)
+                        {
+                            <th class="text-end">Actions</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pool in pools)
                     {
-                        <td>
-                            <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-primary">Recycle</button>&nbsp;
-                            @if (pool.State == ObjectState.Stopped)
+                        <tr>
+                            <td><a class="fw-semibold" href="/apppools/@pool.Name">@pool.Name</a></td>
+                            <td><StatusBadge Status="@pool.State.ToString()" /></td>
+                            <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
+                            <td><a class="badge rounded-pill text-primary-emphasis bg-primary-subtle text-decoration-none" href="/apppools/@pool.Name/applications">@(appCounts.GetValueOrDefault(pool.Name, 0))</a></td>
+                            @if (canEdit)
                             {
-                                <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-success">Start</button>
+                                <td class="text-end">
+                                    <div class="row-actions">
+                                        <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Recycle</button>
+                                        @if (pool.State == ObjectState.Stopped)
+                                        {
+                                            <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-sm btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+                                        }
+                                        @if (pool.State == ObjectState.Started)
+                                        {
+                                            <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-sm btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+                                        }
+                                    </div>
+                                </td>
                             }
-                            @if (pool.State == ObjectState.Started)
-                            {
-                                <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-danger">Stop</button>
-                            }
-                        </td>
+                        </tr>
                     }
-                </tr>
-            }
-        </tbody>
-    </table>
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {

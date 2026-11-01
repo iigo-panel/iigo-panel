@@ -11,64 +11,82 @@
 
 <PageTitle>Websites</PageTitle>
 
-<h1>Websites</h1>
-
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 
 @if (sites == null)
 {
-    <p><em>Loading...</em></p>
+    <PageHeader Title="Websites" Subtitle="Sites hosted in IIS on this server." />
+    <LoadingState />
 }
 else
 {
-    @if (isAdmin)
-    {
-           <a href="/websites/new" class="btn btn-primary">Add Website</a><text>&nbsp;</text>
-    }
-    <button @onclick="Reload" class="btn btn-success">Reload</button><text>&nbsp;</text>
-    <a href="/httpsmonitor" class="btn btn-info">HTTPS Monitor</a>
+    <PageHeader Title="Websites" Subtitle="Sites hosted in IIS on this server.">
+        <Actions>
+            @if (isAdmin)
+            {
+                <a href="/websites/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Website</a>
+            }
+            <button @onclick="Reload" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reload</button>
+            <a href="/httpsmonitor" class="btn btn-outline-secondary"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>HTTPS Monitor</a>
+        </Actions>
+    </PageHeader>
 
     <ConfirmDialog @ref="dialog" />
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Binding</th>
-                <th>Path</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var site in sites)
-            {
-                <tr>
-                    <td>@site.Id</td>
-                    <td><a href="/websites/@site.Id">@site.Name</a></td>
-                    <td>@site.State</td>
-                    <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@String.Join(";", site.Bindings.Select(x => x.BindingInformation))</td>
-                    <td style="max-width:200px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@site.Applications[0].VirtualDirectories[0].PhysicalPath</td>
-                    <td>
-                        @if (isAdmin)
+    <SectionCard Flush="true">
+        @if (sites.Count == 0)
+        {
+            <EmptyState Icon="bi-globe2" Title="No websites" Message="IIS has no sites on this server." />
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle iigo-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Binding</th>
+                            <th>Path</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var site in sites)
                         {
-                            <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-primary">Restart</button><text>&nbsp;</text>
-                            @if (site.State == ObjectState.Stopped)
-                            {
-                                <button @onclick="@(e => StartSite(site.Id))" class="btn btn-success">Start</button><text>&nbsp;</text>
-                            }
-                            else if (site.State == ObjectState.Started)
-                            {
-                                <button @onclick="@(e => StopSite(site.Id))" class="btn btn-danger">Stop</button><text>&nbsp;</text>
-                            }
-                            <button @onclick="@(e => DeleteSite(site.Id))" class="btn btn-danger">Delete</button>
+                            var path = site.Applications[0].VirtualDirectories[0].PhysicalPath;
+                            var bindings = String.Join(";", site.Bindings.Select(x => x.BindingInformation));
+                            <tr>
+                                <td class="text-body-secondary tabular-nums">@site.Id</td>
+                                <td><a class="fw-semibold" href="/websites/@site.Id">@site.Name</a></td>
+                                <td><StatusBadge Status="@site.State.ToString()" /></td>
+                                <td><div class="cell-truncate" title="@bindings">@bindings</div></td>
+                                <td><div class="cell-truncate" title="@path">@path</div></td>
+                                <td class="text-end">
+                                    <div class="row-actions">
+                                        @if (isAdmin)
+                                        {
+                                            <button @onclick="@(e => RestartSite(site.Id))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Restart</button>
+                                            @if (site.State == ObjectState.Stopped)
+                                            {
+                                                <button @onclick="@(e => StartSite(site.Id))" class="btn btn-sm btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+                                            }
+                                            else if (site.State == ObjectState.Started)
+                                            {
+                                                <button @onclick="@(e => StopSite(site.Id))" class="btn btn-sm btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+                                            }
+                                            <button @onclick="@(e => DeleteSite(site.Id))" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
                         }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                    </tbody>
+                </table>
+            </div>
+        }
+    </SectionCard>
 }
 
 @code{

@@ -13,181 +13,182 @@
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
-<a href="/websites">&laquo; Back to List</a>
-
 @if (site == null)
 {
-	<p><em>Loading...</em></p>
+	<LoadingState />
 }
 else
 {
 	<PageTitle>Website: @site.Name</PageTitle>
 
-	<h1>Website: @site.Name (Id: @site.Id)</h1>
+	<PageHeader Title="@site.Name" Subtitle="@($"Website ID {site.Id}")" ParentText="Websites" ParentHref="/websites">
+		<Meta><StatusBadge Status="@site.State.ToString()" /></Meta>
+		<Actions>
+			@if (isAdmin)
+			{
+				<button @onclick="@(e => RestartSite())" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Restart</button>
+				@if (site.State == ObjectState.Stopped)
+				{
+					<button @onclick="@(e => StartSite())" class="btn btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+				}
+				@if (site.State == ObjectState.Started)
+				{
+					<button @onclick="@(e => StopSite())" class="btn btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+				}
+			}
+		</Actions>
+	</PageHeader>
 
 	@if (LastMessage != null)
 	{
-		<div class="alert alert-@(Success ? "success" : "danger") mt-3">
-			@LastMessage
+		<div class="alert alert-@(Success ? "success" : "danger") d-flex align-items-start gap-2">
+			<i class="bi @(Success ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")" aria-hidden="true"></i>
+			<div>@LastMessage</div>
 		</div>
 	}
 
 	<ConfirmDialog @ref="dialog" />
 
-	<div class="container">
-		<div class="row">
-			<div class="col-10">
-				<h3>Details</h3>
-				<dl>
-					<dt>Status</dt>
-					<dd>@site.State</dd>
-					<dt>Physical path</dt>
-					<dd>
-						@RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/"))?.PhysicalPath
-						@if (canEdit)
-						{
-							<button @onclick="EditSitePath" class="btn btn-sm btn-outline-primary ms-2">Edit</button>
-						}
-					</dd>
-					<dt>Connect as</dt>
-					<dd>@ConnectAsText(RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/")))</dd>
-				</dl>
-			</div>
-			<div class="col-2">
-				<div class="row">
-					@if (isAdmin)
-					{
-						<div class="col-6">
-							<button @onclick="@(e => RestartSite())" class="btn btn-primary">Restart</button>
-						</div>
-						@if (site.State == ObjectState.Stopped)
-						{
-							<div class="col-6">
-								<button @onclick="@(e => StartSite())" class="btn btn-success">Start</button>
-							</div>
-						}
-						@if (site.State == ObjectState.Started)
-						{
-							<div class="col-6">
-								<button @onclick="@(e => StopSite())" class="btn btn-danger">Stop</button>
-							</div>
-						}
-					}
-				</div>
-			</div>
-		</div>
-
-		<div class="d-flex align-items-center mt-4">
-			<h3 class="me-3 mb-0">Bindings</h3>
-			@if (canEdit)
-			{
-				<button @onclick="AddBinding" class="btn btn-sm btn-primary">Add Binding</button>
-			}
-		</div>
-		<table class="table">
-			<thead>
-				<tr>
-					<th>Type</th>
-					<th>IP Address</th>
-					<th>Port</th>
-					<th>Host Name</th>
-					<th>Certificate</th>
-					@if (canEdit)
-					{
-						<th>Actions</th>
-					}
-				</tr>
-			</thead>
-			<tbody>
-				@foreach (Binding b in site.Bindings)
+	<SectionCard Title="Details" Class="mb-3">
+		<dl class="kv-list">
+			<dt>Physical path</dt>
+			<dd>
+				@RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/"))?.PhysicalPath
+				@if (canEdit)
 				{
-					<tr>
-						<td>@b.Protocol</td>
-						@if (IsWebBinding(b))
-						{
-							var parts = ParseBinding(b.BindingInformation);
-							<td>@(parts.IPAddress == "*" ? "All Unassigned" : parts.IPAddress)</td>
-							<td>@parts.Port</td>
-							<td>@parts.Host</td>
-						}
-						else
-						{
-							<td colspan="3">@b.BindingInformation</td>
-						}
-						<td>
-							@if (b.Protocol == "https")
-							{
-								@CertificateText(b)
-								@if (b.SslFlags.HasFlag(SslFlags.Sni))
-								{
-									<span class="badge bg-secondary ms-1">SNI</span>
-								}
-							}
-						</td>
-						@if (canEdit)
-						{
-							<td>
-								@if (IsWebBinding(b))
-								{
-									<button @onclick="@(e => EditBinding(b))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
-								}
-								<button @onclick="@(e => DeleteBinding(b.Protocol, b.BindingInformation))" class="btn btn-sm btn-danger">Delete</button>
-							</td>
-						}
-					</tr>
+					<button @onclick="EditSitePath" class="btn btn-sm btn-outline-secondary ms-2"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
 				}
-			</tbody>
-		</table>
+			</dd>
+			<dt>Connect as</dt>
+			<dd>@ConnectAsText(RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/")))</dd>
+		</dl>
+	</SectionCard>
 
-		<div class="d-flex align-items-center mt-4">
-			<h3 class="me-3 mb-0">Applications</h3>
+	<SectionCard Title="Bindings" Flush="true" Class="mb-3">
+		<Actions>
 			@if (canEdit)
 			{
-				<button @onclick="AddApplication" class="btn btn-sm btn-primary">Add Application</button>
+				<button @onclick="AddBinding" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Binding</button>
 			}
-		</div>
-		@if (!site.Applications.Any(x => x.Path != "/"))
-		{
-			<p class="mt-2"><em>This site has no applications.</em></p>
-		}
-		else
-		{
-			<table class="table">
-				<thead>
-					<tr>
-						<th>Virtual Path</th>
-						<th>Physical Path</th>
-						<th>Application Pool</th>
-						<th>Connect As</th>
-						<th>Preload</th>
-						@if (canEdit)
-						{
-							<th>Actions</th>
-						}
-					</tr>
-				</thead>
-				<tbody>
-					@foreach (Application app in site.Applications.Where(x => x.Path != "/").OrderBy(x => x.Path))
-					{
+		</Actions>
+		<ChildContent>
+			<div class="table-responsive">
+				<table class="table table-hover align-middle iigo-table">
+					<thead>
 						<tr>
-							<td>@app.Path</td>
-							<td style="max-width:300px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">@RootDirectory(app)?.PhysicalPath</td>
-							<td><a href="/apppools/@app.ApplicationPoolName">@app.ApplicationPoolName</a></td>
-							<td>@ConnectAsText(RootDirectory(app))</td>
-							<td>@(IsPreloadEnabled(app) ? "Yes" : "No")</td>
+							<th>Type</th>
+							<th>IP Address</th>
+							<th>Port</th>
+							<th>Host Name</th>
+							<th>Certificate</th>
 							@if (canEdit)
 							{
-								<td>
-									<button @onclick="@(e => EditApplication(app))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
-									<button @onclick="@(e => DeleteApplication(app.Path))" class="btn btn-sm btn-danger">Delete</button>
-								</td>
+								<th class="text-end">Actions</th>
 							}
 						</tr>
-					}
-				</tbody>
-			</table>
-		}
-	</div>
+					</thead>
+					<tbody>
+						@foreach (Binding b in site.Bindings)
+						{
+							<tr>
+								<td>@b.Protocol</td>
+								@if (IsWebBinding(b))
+								{
+									var parts = ParseBinding(b.BindingInformation);
+									<td>@(parts.IPAddress == "*" ? "All Unassigned" : parts.IPAddress)</td>
+									<td>@parts.Port</td>
+									<td>@parts.Host</td>
+								}
+								else
+								{
+									<td colspan="3">@b.BindingInformation</td>
+								}
+								<td>
+									@if (b.Protocol == "https")
+									{
+										@CertificateText(b)
+										@if (b.SslFlags.HasFlag(SslFlags.Sni))
+										{
+											<span class="badge text-secondary-emphasis bg-secondary-subtle border border-secondary-subtle ms-1">SNI</span>
+										}
+									}
+								</td>
+								@if (canEdit)
+								{
+									<td class="text-end">
+										<div class="row-actions">
+											@if (IsWebBinding(b))
+											{
+												<button @onclick="@(e => EditBinding(b))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+											}
+											<button @onclick="@(e => DeleteBinding(b.Protocol, b.BindingInformation))" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+										</div>
+									</td>
+								}
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</ChildContent>
+	</SectionCard>
+
+	<SectionCard Title="Applications" Flush="true" Class="mb-3">
+		<Actions>
+			@if (canEdit)
+			{
+				<button @onclick="AddApplication" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Application</button>
+			}
+		</Actions>
+		<ChildContent>
+			@if (!site.Applications.Any(x => x.Path != "/"))
+			{
+				<EmptyState Icon="bi-diagram-3" Title="This site has no applications." />
+			}
+			else
+			{
+				<div class="table-responsive">
+					<table class="table table-hover align-middle iigo-table">
+						<thead>
+							<tr>
+								<th>Virtual Path</th>
+								<th>Physical Path</th>
+								<th>Application Pool</th>
+								<th>Connect As</th>
+								<th>Preload</th>
+								@if (canEdit)
+								{
+									<th class="text-end">Actions</th>
+								}
+							</tr>
+						</thead>
+						<tbody>
+							@foreach (Application app in site.Applications.Where(x => x.Path != "/").OrderBy(x => x.Path))
+							{
+								var appPath = RootDirectory(app)?.PhysicalPath;
+								<tr>
+									<td>@app.Path</td>
+									<td><div class="cell-truncate cell-truncate-lg" title="@appPath">@appPath</div></td>
+									<td><a href="/apppools/@app.ApplicationPoolName">@app.ApplicationPoolName</a></td>
+									<td>@ConnectAsText(RootDirectory(app))</td>
+									<td>@(IsPreloadEnabled(app) ? "Yes" : "No")</td>
+									@if (canEdit)
+									{
+										<td class="text-end">
+											<div class="row-actions">
+												<button @onclick="@(e => EditApplication(app))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+												<button @onclick="@(e => DeleteApplication(app.Path))" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+											</div>
+										</td>
+									}
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</ChildContent>
+	</SectionCard>
 
 	<Modal @ref="sitePathModal" Title="Edit Physical Path" Size="ModalSize.Large">
 		<BodyTemplate>
@@ -203,8 +204,8 @@ else
 					<ValidationMessage For="() => sitePathForm.PhysicalPath" class="text-danger" />
 				</div>
 				<ConnectAsFields Model="sitePathForm.Credentials" Id="siteConnectAs" />
-				<div class="text-end">
-					<button type="button" @onclick="@(() => sitePathModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => sitePathModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
 					<button type="submit" class="btn btn-primary">Save</button>
 				</div>
 			</EditForm>
@@ -279,8 +280,8 @@ else
 						</div>
 					}
 				}
-				<div class="text-end">
-					<button type="button" @onclick="@(() => bindingModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => bindingModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
 					<button type="submit" class="btn btn-primary">Save</button>
 				</div>
 			</EditForm>
@@ -331,8 +332,8 @@ else
 					<InputCheckbox class="form-check-input" @bind-Value="applicationForm.PreloadEnabled" id="applicationPreload" />
 					<label class="form-check-label" for="applicationPreload">Enable Preload</label>
 				</div>
-				<div class="text-end">
-					<button type="button" @onclick="@(() => applicationModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => applicationModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
 					<button type="submit" class="btn btn-primary">Save</button>
 				</div>
 			</EditForm>

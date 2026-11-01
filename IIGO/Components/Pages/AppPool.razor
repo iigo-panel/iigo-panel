@@ -7,27 +7,28 @@
 @rendermode InteractiveServer
 
 
-<a href="/apppools">&laquo; Back to List</a>
-
 @if (appPool == null)
 {
-	<p><em>Loading...</em></p>
+	<LoadingState />
 }
 else
 {
-	<h1>Application Pool: @appPool.Name</h1>
+	<PageTitle>Application Pool: @appPool.Name</PageTitle>
 
-	<div class="container">
-		<div class="row">
+	<PageHeader Title="@appPool.Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools" />
 
-		</div>
-	</div>
-	<p>
-		<strong>Enable 32-bit:</strong> @appPool.Enable32BitAppOnWin64<br />
-		<strong>Maximum Memory:</strong> @appPool.Recycling.PeriodicRestart.Memory<br />
-		<strong>CPU Limit:</strong> @appPool.Cpu.Limit<br />
-		<strong>CPU Limit Action:</strong> @appPool.Cpu.Action.ToString()
-	</p>
+	<SectionCard Title="Settings">
+		<dl class="kv-list">
+			<dt>Enable 32-bit</dt>
+			<dd>@appPool.Enable32BitAppOnWin64</dd>
+			<dt>Maximum Memory</dt>
+			<dd>@appPool.Recycling.PeriodicRestart.Memory</dd>
+			<dt>CPU Limit</dt>
+			<dd>@appPool.Cpu.Limit</dd>
+			<dt>CPU Limit Action</dt>
+			<dd>@appPool.Cpu.Action.ToString()</dd>
+		</dl>
+	</SectionCard>
 }
 
 @code {
