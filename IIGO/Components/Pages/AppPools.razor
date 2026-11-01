@@ -1,10 +1,12 @@
 ﻿@page "/apppools"
 @using IIGO.Services
 @using System.Timers
+@using System.ComponentModel.DataAnnotations
 @using Microsoft.Web.Administration
 @inject IISService IISService
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<AppPools> logger
 @attribute [Authorize(Policy = Feature.ViewAppPools)]
 @rendermode InteractiveServer
 @implements IDisposable
@@ -12,6 +14,7 @@
 <PageTitle>Application Pools</PageTitle>
 
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
+<ConfirmDialog @ref="dialog" />
 
 @if (pools == null)
 {
@@ -22,6 +25,10 @@ else
 {
     <PageHeader Title="Application Pools" Subtitle="Refreshes every 5 seconds.">
         <Actions>
+            @if (canCreate)
+            {
+                <button type="button" @onclick="ShowAddModal" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Application Pool</button>
+            }
             <a href="/apppoolmonitor" class="btn btn-outline-secondary"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Monitor</a>
         </Actions>
     </PageHeader>
@@ -35,7 +42,7 @@ else
                         <th>Status</th>
                         <th>Identity</th>
                         <th>Applications</th>
-                        @if (canEdit)
+                        @if (canEdit || canCreate)
                         {
                             <th class="text-end">Actions</th>
                         }
@@ -49,18 +56,26 @@ else
                             <td><StatusBadge Status="@pool.State.ToString()" /></td>
                             <td>@(pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName : pool.ProcessModel.IdentityType)</td>
                             <td><a class="badge rounded-pill text-primary-emphasis bg-primary-subtle text-decoration-none" href="/apppools/@pool.Name/applications">@(appCounts.GetValueOrDefault(pool.Name, 0))</a></td>
-                            @if (canEdit)
+                            @if (canEdit || canCreate)
                             {
                                 <td class="text-end">
                                     <div class="row-actions">
-                                        <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Recycle</button>
-                                        @if (pool.State == ObjectState.Stopped)
+                                        @if (canEdit)
                                         {
-                                            <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-sm btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+                                            <button @onclick="@(e => RecyclePool(pool.Name))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Recycle</button>
+                                            @if (pool.State == ObjectState.Stopped)
+                                            {
+                                                <button @onclick="@(e => StartPool(pool.Name))" class="btn btn-sm btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+                                            }
+                                            @if (pool.State == ObjectState.Started)
+                                            {
+                                                <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-sm btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+                                            }
                                         }
-                                        @if (pool.State == ObjectState.Started)
+                                        @if (canCreate)
                                         {
-                                            <button @onclick="@(e => StopPool(pool.Name))" class="btn btn-sm btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+                                            int used = appCounts.GetValueOrDefault(pool.Name, 0);
+                                            <button @onclick="@(e => DeletePool(pool.Name))" class="btn btn-sm btn-outline-danger" disabled="@(used > 0)" title="@(used > 0 ? $"Used by {used} {(used == 1 ? "application" : "applications")}" : null)"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
                                         }
                                     </div>
                                 </td>
@@ -71,6 +86,45 @@ else
             </table>
         </div>
     </SectionCard>
+
+    <Modal @ref="addModal" Title="Add Application Pool" Size="ModalSize.Large">
+        <BodyTemplate>
+            <EditForm Model="addForm" OnValidSubmit="SaveAppPool">
+                <DataAnnotationsValidator />
+                @if (ModalError != null)
+                {
+                    <div class="alert alert-danger">@ModalError</div>
+                }
+                <div class="form-floating mb-3">
+                    <InputText class="form-control" @bind-Value="addForm.Name" id="appPoolName" placeholder="Name" />
+                    <label for="appPoolName">Name</label>
+                    <ValidationMessage For="() => addForm.Name" class="text-danger" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputSelect class="form-select" @bind-Value="addForm.ManagedRuntimeVersion" id="appPoolRuntime">
+                        <option value="v4.0">.NET CLR Version v4.0.30319</option>
+                        <option value="">No Managed Code</option>
+                    </InputSelect>
+                    <label for="appPoolRuntime">.NET CLR version</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <InputSelect class="form-select" @bind-Value="addForm.PipelineMode" id="appPoolPipeline">
+                        <option value="@ManagedPipelineMode.Integrated">Integrated</option>
+                        <option value="@ManagedPipelineMode.Classic">Classic</option>
+                    </InputSelect>
+                    <label for="appPoolPipeline">Managed pipeline mode</label>
+                </div>
+                <div class="form-check mb-3">
+                    <InputCheckbox class="form-check-input" @bind-Value="addForm.StartImmediately" id="appPoolStart" />
+                    <label class="form-check-label" for="appPoolStart">Start application pool immediately</label>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" @onclick="@(() => addModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </EditForm>
+        </BodyTemplate>
+    </Modal>
 }
 
 @code {
@@ -79,11 +133,19 @@ else
     private Timer timer = new(5000);
     private bool Success = true;
     private bool canEdit;
+    private bool canCreate;
+    private string actor = "";
+    private ConfirmDialog dialog = default!;
+    private Modal addModal = default!;
+    private AppPoolModel addForm = new();
+    private string? ModalError = null;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditAppPools)).Succeeded;
+        canCreate = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.CreateAppPools)).Succeeded;
+        actor = authState.User.Identity?.Name ?? "";
         pools = IISService.GetAppPools();
         appCounts = IISService.GetApplicationCountsByPool();
         timer.Elapsed += async (sender, eventArgs) => await UpdateValues();
@@ -137,6 +199,82 @@ else
         IISService.StopPool(poolName);
     }
 
+    // Uses a fresh auth state so a user who lost CreateAppPools since the page loaded can't add or delete
+    private async Task<bool> CanCreateNow()
+    {
+        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        return (await AuthorizationService.AuthorizeAsync(user, Feature.CreateAppPools)).Succeeded;
+    }
+
+    private async Task ShowAddModal()
+    {
+        if (!canCreate)
+            return;
+
+        addForm = new AppPoolModel();
+        ModalError = null;
+        await addModal.ShowAsync();
+    }
+
+    protected async Task SaveAppPool()
+    {
+        if (!await CanCreateNow())
+        {
+            ModalError = "You don't have permission to add application pools.";
+            return;
+        }
+
+        var name = addForm.Name.Trim();
+        try
+        {
+            IISService.AddAppPool(name, addForm.ManagedRuntimeVersion, addForm.PipelineMode, addForm.StartImmediately);
+            logger.LogInformation("{Actor} added application pool {PoolName}", actor, name);
+
+            await addModal.HideAsync();
+            ShowMessage($"{name} added!", "Success", ToastType.Success);
+            await UpdateValues();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error adding application pool {PoolName}", name);
+            ModalError = ex.Message.Trim();
+        }
+    }
+
+    protected async Task DeletePool(string poolName)
+    {
+        if (!canCreate)
+            return;
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this application pool?",
+            message1: $"{poolName} will be removed from IIS.",
+            message2: "Do you want to proceed?");
+
+        if (!confirmation)
+            return;
+
+        if (!await CanCreateNow())
+        {
+            ShowMessage("You don't have permission to delete application pools.", "Error", ToastType.Danger);
+            return;
+        }
+
+        try
+        {
+            IISService.DeleteAppPool(poolName);
+            logger.LogWarning("{Actor} deleted application pool {PoolName}", actor, poolName);
+            ShowMessage($"{poolName} deleted!", "Success", ToastType.Success);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting application pool {PoolName}", poolName);
+            ShowMessage($"Delete failed: {ex.Message.Trim()}", "Error", ToastType.Danger);
+        }
+
+        await UpdateValues();
+    }
+
     // Stop refreshing when the user leaves the page
     public void Dispose() => timer.Dispose();
 
@@ -152,4 +290,22 @@ else
             HelpText = $"{DateTime.Now}",
             Message = message,
         };
+
+    public class AppPoolModel : IValidatableObject
+    {
+        [Required(ErrorMessage = "Enter a name.")]
+        public string Name { get; set; } = "";
+
+        public string ManagedRuntimeVersion { get; set; } = "v4.0";
+
+        public ManagedPipelineMode PipelineMode { get; set; } = ManagedPipelineMode.Integrated;
+
+        public bool StartImmediately { get; set; } = true;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (Name.IndexOfAny(ApplicationPoolCollection.InvalidApplicationPoolNameCharacters()) >= 0)
+                yield return new ValidationResult($"The name can't contain: {string.Join(" ", ApplicationPoolCollection.InvalidApplicationPoolNameCharacters())}", [nameof(Name)]);
+        }
+    }
 }

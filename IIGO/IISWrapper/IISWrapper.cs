@@ -144,11 +144,61 @@ namespace IISManager.Services
             _manager.CommitChanges();
         }
 
+        /// <summary>
+        /// Creates an application pool the way the IIS Manager "Add Application Pool" dialog does. The identity
+        /// is left at the IIS default (ApplicationPoolIdentity).
+        /// </summary>
+        /// <param name="managedRuntimeVersion">"v4.0", "v2.0" or "" for No Managed Code</param>
+        public void AddAppPool(string name, string managedRuntimeVersion, ManagedPipelineMode pipelineMode, bool autoStart)
+        {
+            Reload();
+            try
+            {
+                name = (name ?? "").Trim();
+                if (name.Length == 0)
+                    throw new ArgumentException("A name is required");
+                if (name.IndexOfAny(ApplicationPoolCollection.InvalidApplicationPoolNameCharacters()) >= 0)
+                    throw new ArgumentException($"The name contains invalid characters: {string.Join(" ", ApplicationPoolCollection.InvalidApplicationPoolNameCharacters())}");
+                if (managedRuntimeVersion != "v4.0" && managedRuntimeVersion != "v2.0" && managedRuntimeVersion != "")
+                    throw new ArgumentException($"Unsupported .NET CLR version: {managedRuntimeVersion}");
+                if (_manager.ApplicationPools.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"An application pool named {name} already exists");
+
+                ApplicationPool pool = _manager.ApplicationPools.Add(name);
+                pool.ManagedRuntimeVersion = managedRuntimeVersion;
+                pool.ManagedPipelineMode = pipelineMode;
+                pool.AutoStart = autoStart;
+
+                _manager.CommitChanges();
+            }
+            catch
+            {
+                Reload();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Deletes an application pool. Pools that still have applications on any site are refused.
+        /// </summary>
         public void DeleteAppPool(string name)
         {
-            var pool = _manager.ApplicationPools.Where(x => x.Name == name).SingleOrDefault();
-            _manager.ApplicationPools.Remove(pool);
-            _manager.CommitChanges();
+            Reload();
+            try
+            {
+                var pool = _manager.ApplicationPools.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) ?? throw new AppPoolNotFoundException(name);
+                int used = _manager.Sites.SelectMany(s => s.Applications).Count(a => string.Equals(a.ApplicationPoolName, pool.Name, StringComparison.OrdinalIgnoreCase));
+                if (used > 0)
+                    throw new InvalidOperationException($"{pool.Name} is used by {used} {(used == 1 ? "application" : "applications")}. Move them to another pool first.");
+
+                _manager.ApplicationPools.Remove(pool);
+                _manager.CommitChanges();
+            }
+            catch
+            {
+                Reload();
+                throw;
+            }
         }
 
         /// <summary>
