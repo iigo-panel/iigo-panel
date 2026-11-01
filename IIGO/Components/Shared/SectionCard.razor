@@ -1,0 +1,52 @@
+@* Card holding one block of page content. Flush drops the body padding so a table reaches the edges. *@
+
+<section class="card @Class">
+    @if (Title != null || Actions != null)
+    {
+        <div class="card-header iigo-card-header">
+            <div class="me-auto">
+                @if (Title != null)
+                {
+                    <h2 class="iigo-card-title">@Title</h2>
+                }
+                @if (Subtitle != null)
+                {
+                    <p class="iigo-card-subtitle">@Subtitle</p>
+                }
+            </div>
+            @if (Actions != null)
+            {
+                <div class="page-actions">@Actions</div>
+            }
+        </div>
+    }
+    @if (Flush)
+    {
+        @ChildContent
+    }
+    else
+    {
+        <div class="card-body">@ChildContent</div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public bool Flush { get; set; }
+
+    // Extra classes for the card, e.g. "h-100"
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

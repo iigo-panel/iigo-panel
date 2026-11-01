@@ -1,0 +1,30 @@
+@* Soft colored pill for a state such as Started, Stopped or Enabled. Shows the text as given. *@
+
+<span class="badge status-badge text-@(Tone)-emphasis bg-@(Tone)-subtle border border-@(Tone)-subtle">
+    <i class="bi bi-circle-fill" aria-hidden="true"></i>@(Text ?? Status)
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public string? Status { get; set; }
+
+    // Shown instead of Status when set
+    [Parameter]
+    public string? Text { get; set; }
+
+    // success, danger, warning, info or secondary; picked from Status when not set
+    [Parameter]
+    public string? Variant { get; set; }
+
+    string Tone => Variant ?? ToneFor(Status);
+
+    static string ToneFor(string? status) => status?.Trim().ToLowerInvariant() switch
+    {
+        "started" or "running" or "enabled" or "active" or "valid" or "succeeded" or "allow" or "ready" => "success",
+        "stopped" or "failed" or "invalid" or "block" or "error" => "danger",
+        "starting" or "stopping" or "startpending" or "stoppending" or "continuepending" or "pausepending"
+            or "paused" or "pending" or "expired" or "queued" => "warning",
+        "downloading" or "installing" or "checking" => "info",
+        _ => "secondary"
+    };
+}
