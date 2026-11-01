@@ -1,5 +1,4 @@
 @page "/httpsmonitor"
-@using IIGO.Components.Shared
 @using IIGO.Data
 @using IIGO.Services
 @inject CertificateMonitorService monitorService
@@ -9,89 +8,84 @@
 
 <PageTitle>HTTPS Monitor</PageTitle>
 
-<h1>HTTPS Monitor</h1>
+<PageHeader Title="HTTPS Monitor" Subtitle="Certificates on the HTTPS bindings of running sites are checked for expiration, missing certificates, and host name mismatches." ParentText="Websites" ParentHref="/websites" />
 
-<p class="text-muted">
-    Certificates on the HTTPS bindings of running sites are checked for expiration, missing certificates, and host name mismatches.
-</p>
 <MonitorStatus Monitor="monitorService" />
 
-<a href="/websites" class="btn btn-secondary">Back to Websites</a>
-
-<div class="row">
+<div class="row g-3">
     <div class="col-lg-7">
-        <div class="card mt-3">
-            <div class="card-body">
-                <h5 class="card-title">Current issues</h5>
+        <div class="d-flex flex-column gap-3">
+            <SectionCard Title="Current issues" Flush="true">
                 @if (monitorService.LastRun == null)
                 {
-                    <p class="mb-0">The first check hasn't run yet.</p>
+                    <EmptyState Icon="bi-hourglass-split" Title="The first check hasn't run yet." />
                 }
                 else if (monitorService.LastIssues.Count == 0)
                 {
-                    <p class="mb-0">No issues found in the last check.</p>
+                    <EmptyState Icon="bi-check-circle" Title="No issues found in the last check." />
                 }
                 else
                 {
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Site</th>
-                                <th>Binding</th>
-                                <th>Issue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var issue in monitorService.LastIssues)
-                            {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle iigo-table">
+                            <thead>
                                 <tr>
-                                    <td>@issue.SiteName</td>
-                                    <td>@issue.Binding</td>
-                                    <td><span class="badge @BadgeClass(issue.Type.ToString())">@issue.Type</span> @issue.Description</td>
+                                    <th>Site</th>
+                                    <th>Binding</th>
+                                    <th>Issue</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var issue in monitorService.LastIssues)
+                                {
+                                    <tr>
+                                        <td>@issue.SiteName</td>
+                                        <td>@issue.Binding</td>
+                                        <td><span class="badge @BadgeClass(issue.Type.ToString())">@issue.Type</span> @issue.Description</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 }
-            </div>
-        </div>
+            </SectionCard>
 
-        <div class="card mt-3">
-            <div class="card-body">
-                <h5 class="card-title">Logged events in the last @HistoryDays days</h5>
+            <SectionCard Title="@($"Logged events in the last {HistoryDays} days")" Flush="true">
                 @if (events == null)
                 {
-                    <p><em>Loading...</em></p>
+                    <LoadingState />
                 }
                 else if (events.Count == 0)
                 {
-                    <p class="mb-0">No certificate issues were logged.</p>
+                    <EmptyState Icon="bi-check-circle" Title="No certificate issues were logged." />
                 }
                 else
                 {
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Site</th>
-                                <th>Binding</th>
-                                <th>Issue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var e in events)
-                            {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle iigo-table">
+                            <thead>
                                 <tr>
-                                    <td>@e.LoggedTime.ToLocalTime().ToString("g")</td>
-                                    <td>@e.SiteName</td>
-                                    <td>@e.Binding</td>
-                                    <td><span class="badge @BadgeClass(e.IssueType)">@e.IssueType</span> @e.Description</td>
+                                    <th>Time</th>
+                                    <th>Site</th>
+                                    <th>Binding</th>
+                                    <th>Issue</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var e in events)
+                                {
+                                    <tr>
+                                        <td>@e.LoggedTime.ToLocalTime().ToString("g")</td>
+                                        <td>@e.SiteName</td>
+                                        <td>@e.Binding</td>
+                                        <td><span class="badge @BadgeClass(e.IssueType)">@e.IssueType</span> @e.Description</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 }
-            </div>
+            </SectionCard>
         </div>
     </div>
     <div class="col-lg-5">

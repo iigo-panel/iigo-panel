@@ -6,38 +6,44 @@
 @attribute [Authorize(Policy = Feature.ViewServices)]
 @attribute [StreamRendering]
 
-<h3>Services</h3>
+<PageTitle>Services</PageTitle>
+
+<PageHeader Title="Services" />
 
 @if (services == null)
 {
-    <p><em>Loading...</em></p>
+    <LoadingState />
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Startup Type</th>
-                <th>Log On As</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var service in services)
-            {
-                var info = GetServiceDescription(service.ServiceName);
-                <tr>
-                    <td style="max-width:300px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden" title="@service.DisplayName">@service.DisplayName</td>
-                    <td style="max-width:400px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden" title="@info.Description">@info.Description</td>
-                    <td>@service.Status</td>
-                    <td>@service.StartType @(GetDelayedStatus(service.ServiceName, "") ? "(Delayed Start)" : "")</td>
-                    <td>@info.Logon</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <SectionCard Flush="true">
+        <div class="table-scroll">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Startup Type</th>
+                        <th>Log On As</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var service in services)
+                    {
+                        var info = GetServiceDescription(service.ServiceName);
+                        <tr>
+                            <td><div class="cell-truncate" title="@service.DisplayName">@service.DisplayName</div></td>
+                            <td><div class="cell-truncate cell-truncate-lg" title="@info.Description">@info.Description</div></td>
+                            <td><StatusBadge Status="@service.Status.ToString()" Variant="@(service.Status == ServiceControllerStatus.Stopped ? "secondary" : null)" /></td>
+                            <td>@service.StartType @(GetDelayedStatus(service.ServiceName, "") ? "(Delayed Start)" : "")</td>
+                            <td>@info.Logon</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {

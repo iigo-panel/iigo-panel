@@ -10,109 +10,114 @@
 
 <PageTitle>API Keys</PageTitle>
 
-<h1>API Keys</h1>
+<PageHeader Title="API Keys" />
 
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 <ConfirmDialog @ref="dialog" />
 
-<p class="text-muted">Keys are sent in the <code>X-API-KEY</code> header. Only a hash of each key is stored, so a key can't be shown again after it's created.</p>
+<p class="text-body-secondary">Keys are sent in the <code>X-API-KEY</code> header. Only a hash of each key is stored, so a key can't be shown again after it's created.</p>
 
 @if (isAdmin)
 {
     @if (newKey != null)
     {
         <div class="alert alert-success">
-            <p class="mb-2"><strong>Copy this key now.</strong> It won't be shown again.</p>
+            <p class="mb-2"><i class="bi bi-key-fill me-1" aria-hidden="true"></i><strong>Copy this key now.</strong> It won't be shown again.</p>
             <div class="input-group">
                 <input class="form-control font-monospace" readonly value="@newKey" aria-label="New API key" />
-                <button class="btn btn-outline-secondary" @onclick="CopyKey">Copy</button>
+                <button class="btn btn-outline-secondary" @onclick="CopyKey"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy</button>
             </div>
             <button class="btn btn-link px-0 mt-2" @onclick="() => newKey = null">I've saved the key</button>
         </div>
     }
 
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Create a key</h5>
-            <EditForm Model="NewKey" OnValidSubmit="CreateKey" FormName="NewApiKey">
-                <DataAnnotationsValidator />
-                <div class="row g-3 align-items-start">
-                    <div class="col-md-5">
-                        <div class="form-floating">
-                            <InputText class="form-control" @bind-Value="NewKey.Name" id="keyName" autocomplete="off" placeholder="Name" />
-                            <label for="keyName">Name</label>
-                        </div>
-                        <ValidationMessage For="() => NewKey.Name" class="text-danger" />
+    <SectionCard Title="Create a key" Class="mb-3">
+        <EditForm Model="NewKey" OnValidSubmit="CreateKey" FormName="NewApiKey">
+            <DataAnnotationsValidator />
+            <div class="row g-3 align-items-start">
+                <div class="col-md-5">
+                    <div class="form-floating">
+                        <InputText class="form-control" @bind-Value="NewKey.Name" id="keyName" autocomplete="off" placeholder="Name" />
+                        <label for="keyName">Name</label>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-floating">
-                            <InputDate class="form-control" @bind-Value="NewKey.ExpiresOn" id="keyExpires" />
-                            <label for="keyExpires">Expires (optional)</label>
-                        </div>
-                        <ValidationMessage For="() => NewKey.ExpiresOn" class="text-danger" />
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary mt-2">Create Key</button>
-                    </div>
+                    <ValidationMessage For="() => NewKey.Name" class="text-danger" />
                 </div>
-            </EditForm>
-        </div>
-    </div>
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <InputDate class="form-control" @bind-Value="NewKey.ExpiresOn" id="keyExpires" />
+                        <label for="keyExpires">Expires (optional)</label>
+                    </div>
+                    <ValidationMessage For="() => NewKey.ExpiresOn" class="text-danger" />
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Key</button>
+                </div>
+            </div>
+        </EditForm>
+    </SectionCard>
 }
 
 @if (keys == null)
 {
-    <p><em>Loading...</em></p>
+    <LoadingState />
 }
 else if (keys.Count == 0)
 {
-    <p>No API keys have been created.</p>
+    <SectionCard>
+        <EmptyState Icon="bi-key" Title="No API keys have been created." />
+    </SectionCard>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Key</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Expires</th>
-                <th>Last Used</th>
-                @if (isAdmin)
-                {
-                    <th></th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var key in keys)
-            {
-                <tr>
-                    <td>@key.Name</td>
-                    <td class="font-monospace">@key.KeyPrefix…</td>
-                    <td><span class="badge @StatusClass(key)">@Status(key)</span></td>
-                    <td>@key.CreatedAt.ToLocalTime().ToString("g")<br /><small class="text-muted">@key.CreatedBy</small></td>
-                    <td>@(key.ExpiresAt?.ToLocalTime().ToString("d") ?? "Never")</td>
-                    <td>@(key.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</td>
-                    @if (isAdmin)
+    <SectionCard Flush="true">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Last Used</th>
+                        @if (isAdmin)
+                        {
+                            <th class="text-end"><span class="visually-hidden">Actions</span></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var key in keys)
                     {
-                        <td>
-                            @if (key.Enabled)
+                        <tr>
+                            <td class="fw-semibold">@key.Name</td>
+                            <td class="font-monospace">@key.KeyPrefix…</td>
+                            <td><StatusBadge Status="@Status(key)" /></td>
+                            <td>@key.CreatedAt.ToLocalTime().ToString("g")<br /><small class="text-body-secondary">@key.CreatedBy</small></td>
+                            <td>@(key.ExpiresAt?.ToLocalTime().ToString("d") ?? "Never")</td>
+                            <td>@(key.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                            @if (isAdmin)
                             {
-                                <button class="btn btn-warning" @onclick="() => SetEnabled(key, false)">Disable</button>
+                                <td class="text-end">
+                                    <div class="row-actions">
+                                        @if (key.Enabled)
+                                        {
+                                            <button class="btn btn-sm btn-outline-warning" @onclick="() => SetEnabled(key, false)"><i class="bi bi-toggle-off me-1" aria-hidden="true"></i>Disable</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-success" @onclick="() => SetEnabled(key, true)"><i class="bi bi-toggle-on me-1" aria-hidden="true"></i>Enable</button>
+                                        }
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteKey(key)"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+                                    </div>
+                                </td>
                             }
-                            else
-                            {
-                                <button class="btn btn-success" @onclick="() => SetEnabled(key, true)">Enable</button>
-                            }
-                            <button class="btn btn-danger ms-1" @onclick="() => DeleteKey(key)">Delete</button>
-                        </td>
+                        </tr>
                     }
-                </tr>
-            }
-        </tbody>
-    </table>
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {

@@ -1,0 +1,52 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<div class="auth-shell">
+    <div class="auth-topbar">
+        <button type="button" class="btn-icon" data-iigo-action="toggle-theme" aria-label="Switch between light and dark theme" title="Switch between light and dark theme">
+            <i class="bi bi-moon-stars theme-icon-dark" aria-hidden="true"></i>
+            <i class="bi bi-sun theme-icon-light" aria-hidden="true"></i>
+        </button>
+    </div>
+    <main class="auth-main">
+        <div class="card auth-card">
+            <div class="card-body p-4 p-sm-5">
+                <div class="auth-brand">
+                    <img src="favicon-32x32.png" alt="" width="32" height="32" />
+                    <span>IIGO</span>
+                </div>
+                @if (HttpContext is null)
+                {
+                    <p>Loading...</p>
+                }
+                else
+                {
+                    @Body
+                }
+            </div>
+        </div>
+    </main>
+    <footer class="auth-footer">
+        <a href="https://iigo.dev" target="_blank" rel="noopener">iigo.dev</a>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss" aria-label="Dismiss"><i class="bi bi-x-lg" aria-hidden="true"></i></a>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (HttpContext is null)
+        {
+            // Identity pages need an HttpContext to set cookies; leave interactive mode with a full reload
+            NavigationManager.Refresh(forceReload: true);
+        }
+    }
+}

@@ -11,100 +11,129 @@
 
 <PageTitle>System Status</PageTitle>
 
-<h1>System Status</h1>
+<PageHeader Title="System Status" Subtitle="Live view, refreshed every second." />
 
-<table class="table">
-    <tr>
-        <td>Total Memory:</td>
-        <td>@Total</td>
-    </tr>
-    <tr>
-        <td>Available Memory:</td>
-        <td>@Available</td>
-    </tr>
-    <tr>
-        <td>% Free:</td>
-        <td>@Percent</td>
-    </tr>
-    <tr>
-        <td>% In Use:</td>
-        <td>@PercentInUse</td>
-    </tr>
-    <tr>
-        <td>Paged Pool:</td>
-        <td>@PagedPool</td>
-    </tr>
-    <tr>
-        <td>Non-Paged Pool:</td>
-        <td>@NonPagedPool</td>
-    </tr>
-    <tr>
-        <td>Processes:</td>
-        <td><a href="/processes">@Processes</a></td>
-    </tr>
-    <tr>
-        <td>CPU Usage:</td>
-        <td>@CpuUsage</td>
-    </tr>
-    <tr>
-        <td>Up Time:</td>
-        <td>@UpTime</td>
-    </tr>
-    @foreach (var i in interfaces)
-    {
-        var sent = i.PCSent!.NextValue();
-        var received = i.PCReceived!.NextValue();
-        <tr style="border-top:2px solid #000;">
-            <td>Network Interface:</td>
-            <td>@i.InterfaceName</td>
-        </tr>
-        <tr>
-            <td style="vertical-align:top;"></td>
-            <td>
-                <ul class="list-group">
-                @foreach (var address in GetIPAddresses(i.InterfaceName!))
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="stat-label"><i class="bi bi-memory" aria-hidden="true"></i> Memory in use</div>
+                <div class="stat-value">@PercentInUse</div>
+                <div class="stat-meta">@Available available of @Total</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="stat-label"><i class="bi bi-cpu" aria-hidden="true"></i> CPU usage</div>
+                <div class="stat-value">@CpuUsage</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="stat-label"><i class="bi bi-list-task" aria-hidden="true"></i> Processes</div>
+                <div class="stat-value"><a href="/processes">@Processes</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="stat-label"><i class="bi bi-clock-history" aria-hidden="true"></i> Up time</div>
+                <div class="stat-value">@UpTime</div>
+                <div class="stat-meta">days:hours:minutes:seconds</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-4">
+        <SectionCard Title="Memory" Class="h-100">
+            <dl class="kv-list">
+                <dt>Total</dt>
+                <dd>@Total</dd>
+                <dt>Available</dt>
+                <dd>@Available</dd>
+                <dt>% Free</dt>
+                <dd>@Percent</dd>
+                <dt>% In Use</dt>
+                <dd>@PercentInUse</dd>
+                <dt>Paged Pool</dt>
+                <dd>@PagedPool</dd>
+                <dt>Non-Paged Pool</dt>
+                <dd>@NonPagedPool</dd>
+            </dl>
+        </SectionCard>
+    </div>
+    <div class="col-xl-8">
+        <SectionCard Title="Drives" Class="h-100">
+            @foreach (var d in allDrives)
+            {
+                var volume = "";
+                if (!String.IsNullOrWhiteSpace(d.VolumeLabel))
                 {
-                    <li class="list-group-item">@address</li>
+                    volume = $"({d.VolumeLabel})";
                 }
-                </ul>
-            </td>
-        </tr>
-        <tr>
-            <td>Sent:</td>
-            <td>@((sent / 1024).ToString("N2")) KBps / @((sent * 8 / 1024).ToString("N2")) kbps</td>
-        </tr>
-        <tr>
-            <td>Received:</td>
-            <td>@((received / 1024).ToString("N2")) KBps / @((received * 8 / 1024).ToString("N2")) kbps</td>
-        </tr>
-    }
-    <tr style="border-top:2px solid #000;">
-        <td colspan="2"><h3>Drive Info</h3></td>
-    </tr>
-    @foreach (var d in allDrives)
-    {
-        var volume = "";
-        if (!String.IsNullOrWhiteSpace(d.VolumeLabel))
-        {
-            volume = $"({d.VolumeLabel})";
-        }
-        <tr class="border-bottom">
-            <td style="vertical-align:top;">@d.Name @volume</td>
-            <td>
-                <dl>
-                    <dt>Total Disk Space</dt>
-                    <dd>@((d.TotalSize / 1073741824).ToString("#,###.##")) GB</dd>
-                    <dt>Total Free Space</dt>
-                    <dd>@((d.TotalFreeSpace / 1073741824).ToString("#,###.##")) GB</dd>
-                    <dt>Total Space Used</dt>
-                    <dd>@(((double)(d.TotalSize - d.TotalFreeSpace) / 1073741824).ToString("#,###.##")) GB</dd>
-                    <dt>% Free</dt>
-                    <dd>@(Convert.ToDecimal(((double)d.TotalFreeSpace / ((double)d.TotalSize)) * 100).ToString("###.##"))%</dd>
-                </dl>
-            </td>
-        </tr>
-    }
-</table>
+                var total = d.TotalSize;
+                var free = d.TotalFreeSpace;
+                var usedPercent = total > 0 ? (int)Math.Round((double)(total - free) / total * 100) : 0;
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
+                        <span class="fw-semibold"><i class="bi bi-hdd me-1" aria-hidden="true"></i>@d.Name @volume</span>
+                        <span class="small text-body-secondary tabular-nums">@(((double)(total - free) / 1073741824).ToString("#,###.##")) GB used of @((total / 1073741824).ToString("#,###.##")) GB</span>
+                    </div>
+                    <div class="progress" role="progressbar" aria-label="@d.Name used space" aria-valuenow="@usedPercent" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar @(usedPercent >= 90 ? "bg-danger" : usedPercent >= 80 ? "bg-warning" : "")" style="width: @(usedPercent)%"></div>
+                    </div>
+                    <div class="small text-body-secondary tabular-nums mt-1">@((free / 1073741824).ToString("#,###.##")) GB free (@(Convert.ToDecimal(((double)free / ((double)total)) * 100).ToString("###.##"))%)</div>
+                </div>
+            }
+        </SectionCard>
+    </div>
+</div>
+
+<SectionCard Title="Network interfaces" Flush="true" Class="mt-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle iigo-table">
+            <thead>
+                <tr>
+                    <th>Interface</th>
+                    <th>Addresses</th>
+                    <th class="text-end">Sent</th>
+                    <th class="text-end">Received</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var i in interfaces)
+                {
+                    var sent = i.PCSent!.NextValue();
+                    var received = i.PCReceived!.NextValue();
+                    <tr>
+                        <td>@i.InterfaceName</td>
+                        <td>
+                            @foreach (var address in GetIPAddresses(i.InterfaceName!))
+                            {
+                                <div class="font-monospace small">@address</div>
+                            }
+                        </td>
+                        <td class="text-end tabular-nums">
+                            <div>@((sent / 1024).ToString("N2")) KBps</div>
+                            <span class="small text-body-secondary">@((sent * 8 / 1024).ToString("N2")) kbps</span>
+                        </td>
+                        <td class="text-end tabular-nums">
+                            <div>@((received / 1024).ToString("N2")) KBps</div>
+                            <span class="small text-body-secondary">@((received * 8 / 1024).ToString("N2")) kbps</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</SectionCard>
 
 @code {
     SystemStatusService service = new SystemStatusService();

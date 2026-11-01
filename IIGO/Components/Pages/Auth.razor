@@ -6,8 +6,10 @@
 
 <PageTitle>Auth</PageTitle>
 
-<h1>You are authenticated</h1>
+<PageHeader Title="You are authenticated" />
 
-<AuthorizeView>
-    Hello @context.User.Identity?.Name!
-</AuthorizeView>
+<SectionCard>
+    <AuthorizeView>
+        Hello @context.User.Identity?.Name!
+    </AuthorizeView>
+</SectionCard>

@@ -5,36 +5,29 @@
 
 <PageTitle>License Status</PageTitle>
 
-<h1>License Status</h1>
+<PageHeader Title="License Status" />
 
 @if (!isLoaded || licenseData == null)
 {
-    <p><em>Invalid License!</em></p>
+    <div class="alert alert-danger d-flex align-items-start gap-2">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <div>Invalid License!</div>
+    </div>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Company</th>
-                <th>Initial Version</th>
-                <th>Date</th>
-                <th>Term</th>
-                <th>Type</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>@licenseData.CompanyName</td>
-                <td>@licenseData.InitialVersion</td>
-                <td>@licenseData.LicenseDate</td>
-                <td>@licenseData.LicenseTerm</td>
-                <td>@licenseData.LicenseType</td>
-                <td><span style="color:@(licenseStatus ? "#0a0" : "#a00")">@(licenseStatus ? "Valid" : "Invalid")</span></td>
-            </tr>
-        </tbody>
-    </table>
+    <SectionCard Title="License">
+        <Actions><StatusBadge Status="@(licenseStatus ? "Valid" : "Invalid")" /></Actions>
+        <ChildContent>
+            <dl class="kv-list">
+                <dt>Company</dt><dd>@licenseData.CompanyName</dd>
+                <dt>Initial Version</dt><dd>@licenseData.InitialVersion</dd>
+                <dt>Date</dt><dd>@licenseData.LicenseDate</dd>
+                <dt>Term</dt><dd>@licenseData.LicenseTerm</dd>
+                <dt>Type</dt><dd>@licenseData.LicenseType</dd>
+            </dl>
+        </ChildContent>
+    </SectionCard>
 }
 
 

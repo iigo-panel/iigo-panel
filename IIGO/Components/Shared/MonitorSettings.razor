@@ -4,9 +4,7 @@
 @inject ConfigurationService configService
 @inject IEnumerable<IMessengerService> messengers
 
-<div class="card mt-3">
-    <div class="card-body">
-        <h5 class="card-title">Settings</h5>
+<SectionCard Title="Settings">
         @foreach (var setting in Settings)
         {
             <div class="mb-3">
@@ -57,14 +55,15 @@
         }
         @if (!ReadOnly)
         {
-            <button class="btn btn-primary" @onclick="Save">Save Settings</button>
-            @if (saveMessage != null)
-            {
-                <span class="ms-3 text-success">@saveMessage</span>
-            }
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-primary" @onclick="Save">Save Settings</button>
+                @if (saveMessage != null)
+                {
+                    <span class="text-success">@saveMessage</span>
+                }
+            </div>
         }
-    </div>
-</div>
+</SectionCard>
 
 @code {
     [Parameter, EditorRequired]

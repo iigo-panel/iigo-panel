@@ -1,0 +1,50 @@
+@* Top of every page: optional breadcrumb, the page h1 (FocusOnNavigate targets it), subtitle and actions *@
+
+<div class="page-header">
+    <div>
+        @if (ParentHref != null)
+        {
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="@ParentHref">@ParentText</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Title</li>
+                </ol>
+            </nav>
+        }
+        <div class="page-title-row">
+            <h1 class="page-title">@Title</h1>
+            @TitleExtra
+        </div>
+        @if (Subtitle != null)
+        {
+            <p class="page-subtitle">@Subtitle</p>
+        }
+    </div>
+    @if (Actions != null)
+    {
+        <div class="page-actions">@Actions</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    // Breadcrumb parent, e.g. "Websites" and "/websites"
+    [Parameter]
+    public string? ParentText { get; set; }
+
+    [Parameter]
+    public string? ParentHref { get; set; }
+
+    // Shown next to the title, e.g. a StatusBadge
+    [Parameter]
+    public RenderFragment? TitleExtra { get; set; }
+
+    // Buttons on the right
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

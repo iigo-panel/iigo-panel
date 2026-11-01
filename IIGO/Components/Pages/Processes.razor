@@ -14,50 +14,56 @@
 
 <PageTitle>Processes</PageTitle>
 
-<h1>Processes</h1>
+<PageHeader Title="Processes" Subtitle="Sorted by CPU, then memory. CPU is sampled over one second when the page opens." />
 
 @if (processes == null)
 {
-    <p><em>Loading...</em></p>
+    <LoadingState Text="Sampling CPU usage..." />
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>PID</th>
-                <th>Name</th>
-                <th>User</th>
-                <th>Memory Usage</th>
-                <th>CPU %</th>
-                <th>Command Line</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var proc in processes)
-            {
-                <tr>
-                    <td>@proc.Id</td>
-                    <td>@proc.ProcessName</td>
-                    <td>@GetProcessUser(proc)</td>
-                    <td>@((proc.WorkingSet64 / 1024).ToString("N0")) KB</td>
-                    <td>
-                        @{
-                            if (cpuUsages.TryGetValue(proc.Id, out var cpu))
-                            {
-                                <text>@($"{cpu:F1} %")</text>;
-                            }
-                            else
-                            {
-                                <text>—</text>;
-                            }
-                        }
-                    </td>
-                    <td style="max-width:400px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden">@GetCommandLineOfProcess(proc)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <SectionCard Flush="true">
+        <div class="table-scroll">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th class="text-end tabular-nums">PID</th>
+                        <th>Name</th>
+                        <th>User</th>
+                        <th class="text-end tabular-nums">Memory Usage</th>
+                        <th class="text-end tabular-nums">CPU %</th>
+                        <th>Command Line</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var proc in processes)
+                    {
+                        var user = GetProcessUser(proc);
+                        var commandLine = GetCommandLineOfProcess(proc);
+                        <tr>
+                            <td class="text-end tabular-nums">@proc.Id</td>
+                            <td>@proc.ProcessName</td>
+                            <td>@user</td>
+                            <td class="text-end tabular-nums">@((proc.WorkingSet64 / 1024).ToString("N0")) KB</td>
+                            <td class="text-end tabular-nums">
+                                @{
+                                    if (cpuUsages.TryGetValue(proc.Id, out var cpu))
+                                    {
+                                        <text>@($"{cpu:F1} %")</text>;
+                                    }
+                                    else
+                                    {
+                                        <text>—</text>;
+                                    }
+                                }
+                            </td>
+                            <td><div class="cell-truncate cell-truncate-lg font-monospace small" title="@commandLine">@commandLine</div></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {

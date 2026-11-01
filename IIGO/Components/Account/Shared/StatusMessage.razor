@@ -1,8 +1,10 @@
 ﻿@if (!string.IsNullOrEmpty(DisplayMessage))
 {
     var statusMessageClass = DisplayMessage.StartsWith("Error") ? "danger" : "success";
-    <div class="alert alert-@statusMessageClass" role="alert">
-        @DisplayMessage
+    var statusMessageIcon = statusMessageClass == "danger" ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill";
+    <div class="alert alert-@statusMessageClass d-flex align-items-start gap-2" role="alert">
+        <i class="bi @statusMessageIcon" aria-hidden="true"></i>
+        <div>@DisplayMessage</div>
     </div>
 }
 

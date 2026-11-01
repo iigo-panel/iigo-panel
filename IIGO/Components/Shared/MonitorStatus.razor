@@ -1,13 +1,14 @@
 @using IIGO.Services
 @implements IDisposable
 
-<p class="text-muted mb-2">
-    Last check: @Format(Monitor.LastRun)
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 small text-body-secondary">
+    <i class="bi bi-clock-history" aria-hidden="true"></i>
+    <span>Last check: @Format(Monitor.LastRun)</span>
     @if (Monitor.IsRunning)
     {
-        <span class="badge bg-info text-dark ms-2">Check in progress</span>
+        <span class="badge text-info-emphasis bg-info-subtle border border-info-subtle">Check in progress</span>
     }
-</p>
+</div>
 @if (Monitor.LastError != null)
 {
     <div class="alert alert-danger">Last check failed at @Format(Monitor.LastAttempt): @Monitor.LastError</div>

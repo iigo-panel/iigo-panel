@@ -13,75 +13,78 @@
 
 <PageTitle>Add Website</PageTitle>
 
-<h1>Add Website</h1>
+<PageHeader Title="Add Website" ParentText="Websites" ParentHref="/websites" />
 
 @if (LastMessage != null)
 {
-    <div class="alert alert-@(Success ? "success" : "danger") alert-dismissable mt-4">
-        @LastMessage
+    <div class="alert alert-@(Success ? "success" : "danger") d-flex align-items-start gap-2">
+        <i class="bi @(Success ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")" aria-hidden="true"></i>
+        <div>@LastMessage</div>
     </div>
 }
 
 <div class="row">
-    <div class="col-md-8 mx-auto">
-        <EditForm method="post" OnValidSubmit="SubmitWebsite" Model="NewWebsite" FormName="NewWebsite">
-            <DataAnnotationsValidator />
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite!.Name" id="name" @oninput="NameInput" aria-required="true" placeholder="Website Name" />
-                        <label for="name" class="form-label">Website Name</label>
-                        <ValidationMessage For="() => NewWebsite.Name" class="text-danger" />
+    <div class="col-xl-8">
+        <SectionCard>
+            <EditForm method="post" OnValidSubmit="SubmitWebsite" Model="NewWebsite" FormName="NewWebsite">
+                <DataAnnotationsValidator />
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewWebsite!.Name" id="name" @oninput="NameInput" aria-required="true" placeholder="Website Name" />
+                            <label for="name" class="form-label">Website Name</label>
+                            <ValidationMessage For="() => NewWebsite.Name" class="text-danger" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewWebsite.ApplicationPool" id="applicationPool" aria-required="true" placeholder="Application Pool" />
+                            <label for="applicationPool" class="form-label">Application Pool</label>
+                            <ValidationMessage For="() => NewWebsite.ApplicationPool" class="text-danger" />
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.ApplicationPool" id="applicationPool" aria-required="true" placeholder="Application Pool" />
-                        <label for="applicationPool" class="form-label">Application Pool</label>
-                        <ValidationMessage For="() => NewWebsite.ApplicationPool" class="text-danger" />
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewWebsite.Hostname" id="hostname" aria-required="true" placeholder="Host Name" />
+                            <label for="hostname" class="form-label">Host Name</label>
+                            <ValidationMessage For="() => NewWebsite.Hostname" class="text-danger" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewWebsite.PhysicalPath" id="physicalPath" aria-required="true" placeholder="Physical Path" />
+                            <label for="physicalPath" class="form-label">Physical Path</label>
+                            <ValidationMessage For="() => NewWebsite.PhysicalPath" class="text-danger" />
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.Hostname" id="hostname" aria-required="true" placeholder="Host Name" />
-                        <label for="hostname" class="form-label">Host Name</label>
-                        <ValidationMessage For="() => NewWebsite.Hostname" class="text-danger" />
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputSelect class="form-select" @bind-Value="NewWebsite.Scheme" id="scheme" aria-required="true" placeholder="Scheme">
+                                <option value="http">http</option>
+                                <option value="https">https</option>
+                            </InputSelect>
+                            <label for="scheme" class="form-label">Type</label>
+                            <ValidationMessage For="() => NewWebsite.Scheme" class="text-danger" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="NewWebsite.IPAddress" id="IPAddress" aria-required="true" placeholder="IP Address" />
+                            <label for="IPAddress" class="form-label">IP Address</label>
+                            <ValidationMessage For="() => NewWebsite.IPAddress" class="text-danger" />
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.PhysicalPath" id="physicalPath" aria-required="true" placeholder="Physical Path" />
-                        <label for="physicalPath" class="form-label">Physical Path</label>
-                        <ValidationMessage For="() => NewWebsite.PhysicalPath" class="text-danger" />
-                    </div>
+                <div class="form-actions">
+                    <a href="/websites" class="btn btn-outline-secondary">Back</a>
+                    <button type="submit" @onclick="SubmitWebsite" class="btn btn-primary">Submit</button>
                 </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputSelect class="form-control" @bind-Value="NewWebsite.Scheme" id="scheme" aria-required="true" placeholder="Scheme">
-                           <option value="http">http</option>
-                            <option value="https">https</option>
-                        </InputSelect>
-                        <label for="scheme" class="form-label">Type</label>
-                        <ValidationMessage For="() => NewWebsite.Scheme" class="text-danger" />
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-floating">
-                        <InputText class="form-control" @bind-Value="NewWebsite.IPAddress" id="IPAddress" aria-required="true" placeholder="IP Address" />
-                        <label for="IPAddress" class="form-label">IP Address</label>
-                        <ValidationMessage For="() => NewWebsite.IPAddress" class="text-danger" />
-                    </div>
-                </div>
-            </div>
-            <div>
-                <button type="submit" @onclick="SubmitWebsite" class="btn btn-primary">Submit</button>
-                <a href="/websites" class="btn btn-danger">Back</a>
-            </div>
-        </EditForm>
+            </EditForm>
+        </SectionCard>
     </div>
 </div>
 

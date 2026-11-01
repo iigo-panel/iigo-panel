@@ -9,39 +9,58 @@
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
-<a href="/apppools">&laquo; Back to List</a>
-
 @if (!loaded)
 {
-	<p><em>Loading...</em></p>
+	<LoadingState />
 }
 else if (appPool == null)
 {
 	<PageTitle>Application Pool</PageTitle>
 
-	<h1>Application Pool: @Name</h1>
-	<div class="alert alert-danger mt-3">Application pool "@Name" was not found.</div>
+	<PageHeader Title="@Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools" />
+
+	<div class="alert alert-danger d-flex align-items-start gap-2">
+		<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+		<div>Application pool "@Name" was not found.</div>
+	</div>
 }
 else
 {
 	<PageTitle>Application Pool: @appPool.Name</PageTitle>
 
-	<h1>Application Pool: @appPool.Name</h1>
+	<PageHeader Title="@appPool.Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools">
+		<TitleExtra><StatusBadge Status="@appPool.State.ToString()" /></TitleExtra>
+		<Actions>
+			<button @onclick="Reload" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reload</button>
+			@if (canEdit)
+			{
+				<button @onclick="RecyclePool" class="btn btn-outline-secondary"><i class="bi bi-recycle me-1" aria-hidden="true"></i>Recycle</button>
+				@if (appPool.State == ObjectState.Stopped)
+				{
+					<button @onclick="StartPool" class="btn btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+				}
+				@if (appPool.State == ObjectState.Started)
+				{
+					<button @onclick="StopPool" class="btn btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+				}
+			}
+		</Actions>
+	</PageHeader>
 
 	@if (LastMessage != null)
 	{
-		<div class="alert alert-@(Success ? "success" : "danger") mt-3">
-			@LastMessage
+		<div class="alert alert-@(Success ? "success" : "danger") d-flex align-items-start gap-2">
+			<i class="bi @(Success ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")" aria-hidden="true"></i>
+			<div>@LastMessage</div>
 		</div>
 	}
 
-	<div class="container">
-		<div class="row">
-			<div class="col-10">
-				<h3>Details</h3>
-				<dl>
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="Details" Class="h-100">
+				<dl class="kv-list">
 					<dt>Status</dt>
-					<dd>@appPool.State</dd>
+					<dd><StatusBadge Status="@appPool.State.ToString()" /></dd>
 					<dt>.NET CLR version</dt>
 					<dd>@(string.IsNullOrEmpty(appPool.ManagedRuntimeVersion) ? "No Managed Code" : appPool.ManagedRuntimeVersion)</dd>
 					<dt>Managed pipeline mode</dt>
@@ -53,133 +72,127 @@ else
 					<dt>Start automatically</dt>
 					<dd>@YesNo(appPool.AutoStart)</dd>
 					<dt>Applications</dt>
-					<dd><a href="/apppools/@appPool.Name/applications">@applicationCount</a></dd>
+					<dd><a class="badge rounded-pill text-primary-emphasis bg-primary-subtle text-decoration-none" href="/apppools/@appPool.Name/applications">@applicationCount</a></dd>
 				</dl>
-			</div>
-			<div class="col-2">
-				<div class="row">
-					<div class="col-6">
-						<button @onclick="Reload" class="btn btn-secondary">Reload</button>
-					</div>
-					@if (canEdit)
-					{
-						<div class="col-6">
-							<button @onclick="RecyclePool" class="btn btn-primary">Recycle</button>
-						</div>
-						@if (appPool.State == ObjectState.Stopped)
-						{
-							<div class="col-6 mt-2">
-								<button @onclick="StartPool" class="btn btn-success">Start</button>
-							</div>
-						}
-						@if (appPool.State == ObjectState.Started)
-						{
-							<div class="col-6 mt-2">
-								<button @onclick="StopPool" class="btn btn-danger">Stop</button>
-							</div>
-						}
-					}
-				</div>
-			</div>
+			</SectionCard>
 		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Identity" Class="h-100">
+				<dl class="kv-list">
+					<dt>Identity type</dt>
+					<dd>@appPool.ProcessModel.IdentityType</dd>
+					@if (appPool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser)
+					{
+						<dt>User name</dt>
+						<dd>@appPool.ProcessModel.UserName</dd>
+					}
+					<dt>Load user profile</dt>
+					<dd>@YesNo(appPool.ProcessModel.LoadUserProfile)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
 
-		<h3 class="mt-4">Identity</h3>
-		<dl>
-			<dt>Identity type</dt>
-			<dd>@appPool.ProcessModel.IdentityType</dd>
-			@if (appPool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser)
-			{
-				<dt>User name</dt>
-				<dd>@appPool.ProcessModel.UserName</dd>
-			}
-			<dt>Load user profile</dt>
-			<dd>@YesNo(appPool.ProcessModel.LoadUserProfile)</dd>
-		</dl>
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="Process Model" Class="h-100">
+				<dl class="kv-list">
+					<dt>Idle time-out</dt>
+					<dd>@DurationText(appPool.ProcessModel.IdleTimeout)</dd>
+					<dt>Idle time-out action</dt>
+					<dd>@appPool.ProcessModel.IdleTimeoutAction</dd>
+					<dt>Maximum worker processes</dt>
+					<dd>@appPool.ProcessModel.MaxProcesses</dd>
+					<dt>Ping enabled</dt>
+					<dd>@YesNo(appPool.ProcessModel.PingingEnabled)</dd>
+					<dt>Ping interval</dt>
+					<dd>@DurationText(appPool.ProcessModel.PingInterval)</dd>
+					<dt>Ping maximum response time</dt>
+					<dd>@DurationText(appPool.ProcessModel.PingResponseTime)</dd>
+					<dt>Start-up time limit</dt>
+					<dd>@DurationText(appPool.ProcessModel.StartupTimeLimit)</dd>
+					<dt>Shutdown time limit</dt>
+					<dd>@DurationText(appPool.ProcessModel.ShutdownTimeLimit)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Recycling" Class="h-100">
+				<dl class="kv-list">
+					<dt>Regular time interval</dt>
+					<dd>@DurationText(appPool.Recycling.PeriodicRestart.Time)</dd>
+					<dt>Specific times</dt>
+					<dd>@scheduleText</dd>
+					<dt>Request limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.Requests, "")</dd>
+					<dt>Virtual memory limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.Memory, " KB")</dd>
+					<dt>Private memory limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.PrivateMemory, " KB")</dd>
+					<dt>Disable overlapped recycle</dt>
+					<dd>@YesNo(appPool.Recycling.DisallowOverlappingRotation)</dd>
+					<dt>Disable recycling on configuration changes</dt>
+					<dd>@YesNo(appPool.Recycling.DisallowRotationOnConfigChange)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
 
-		<h3 class="mt-4">Process Model</h3>
-		<dl>
-			<dt>Idle time-out</dt>
-			<dd>@DurationText(appPool.ProcessModel.IdleTimeout)</dd>
-			<dt>Idle time-out action</dt>
-			<dd>@appPool.ProcessModel.IdleTimeoutAction</dd>
-			<dt>Maximum worker processes</dt>
-			<dd>@appPool.ProcessModel.MaxProcesses</dd>
-			<dt>Ping enabled</dt>
-			<dd>@YesNo(appPool.ProcessModel.PingingEnabled)</dd>
-			<dt>Ping interval</dt>
-			<dd>@DurationText(appPool.ProcessModel.PingInterval)</dd>
-			<dt>Ping maximum response time</dt>
-			<dd>@DurationText(appPool.ProcessModel.PingResponseTime)</dd>
-			<dt>Start-up time limit</dt>
-			<dd>@DurationText(appPool.ProcessModel.StartupTimeLimit)</dd>
-			<dt>Shutdown time limit</dt>
-			<dd>@DurationText(appPool.ProcessModel.ShutdownTimeLimit)</dd>
-		</dl>
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="CPU" Class="h-100">
+				<dl class="kv-list">
+					<dt>Limit</dt>
+					<dd>@(appPool.Cpu.Limit == 0 ? "No limit" : $"{appPool.Cpu.Limit / 1000.0:0.###}%")</dd>
+					<dt>Limit action</dt>
+					<dd>@appPool.Cpu.Action</dd>
+					<dt>Limit interval</dt>
+					<dd>@DurationText(appPool.Cpu.ResetInterval)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Rapid-Fail Protection" Class="h-100">
+				<dl class="kv-list">
+					<dt>Enabled</dt>
+					<dd>@YesNo(appPool.Failure.RapidFailProtection)</dd>
+					<dt>Maximum failures</dt>
+					<dd>@appPool.Failure.RapidFailProtectionMaxCrashes</dd>
+					<dt>Failure interval</dt>
+					<dd>@DurationText(appPool.Failure.RapidFailProtectionInterval)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
 
-		<h3 class="mt-4">Recycling</h3>
-		<dl>
-			<dt>Regular time interval</dt>
-			<dd>@DurationText(appPool.Recycling.PeriodicRestart.Time)</dd>
-			<dt>Specific times</dt>
-			<dd>@scheduleText</dd>
-			<dt>Request limit</dt>
-			<dd>@LimitText(appPool.Recycling.PeriodicRestart.Requests, "")</dd>
-			<dt>Virtual memory limit</dt>
-			<dd>@LimitText(appPool.Recycling.PeriodicRestart.Memory, " KB")</dd>
-			<dt>Private memory limit</dt>
-			<dd>@LimitText(appPool.Recycling.PeriodicRestart.PrivateMemory, " KB")</dd>
-			<dt>Disable overlapped recycle</dt>
-			<dd>@YesNo(appPool.Recycling.DisallowOverlappingRotation)</dd>
-			<dt>Disable recycling on configuration changes</dt>
-			<dd>@YesNo(appPool.Recycling.DisallowRotationOnConfigChange)</dd>
-		</dl>
-
-		<h3 class="mt-4">CPU</h3>
-		<dl>
-			<dt>Limit</dt>
-			<dd>@(appPool.Cpu.Limit == 0 ? "No limit" : $"{appPool.Cpu.Limit / 1000.0:0.###}%")</dd>
-			<dt>Limit action</dt>
-			<dd>@appPool.Cpu.Action</dd>
-			<dt>Limit interval</dt>
-			<dd>@DurationText(appPool.Cpu.ResetInterval)</dd>
-		</dl>
-
-		<h3 class="mt-4">Rapid-Fail Protection</h3>
-		<dl>
-			<dt>Enabled</dt>
-			<dd>@YesNo(appPool.Failure.RapidFailProtection)</dd>
-			<dt>Maximum failures</dt>
-			<dd>@appPool.Failure.RapidFailProtectionMaxCrashes</dd>
-			<dt>Failure interval</dt>
-			<dd>@DurationText(appPool.Failure.RapidFailProtectionInterval)</dd>
-		</dl>
-
-		<h3 class="mt-4">Worker Processes</h3>
+	<SectionCard Title="Worker Processes" Flush="true">
 		@if (workerProcesses.Count == 0)
 		{
-			<p><em>No worker processes are running.</em></p>
+			<EmptyState Icon="bi-cpu" Title="No worker processes are running." />
 		}
 		else
 		{
-			<table class="table">
-				<thead>
-					<tr>
-						<th>Process Id</th>
-						<th>State</th>
-					</tr>
-				</thead>
-				<tbody>
-					@foreach (var wp in workerProcesses)
-					{
+			<div class="table-responsive">
+				<table class="table table-hover align-middle iigo-table">
+					<thead>
 						<tr>
-							<td>@wp.ProcessId</td>
-							<td>@wp.State</td>
+							<th>Process Id</th>
+							<th>State</th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						@foreach (var wp in workerProcesses)
+						{
+							<tr>
+								<td>@wp.ProcessId</td>
+								<td>@wp.State</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		}
-	</div>
+	</SectionCard>
 }
 
 @code {

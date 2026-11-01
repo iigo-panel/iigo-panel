@@ -1,0 +1,29 @@
+@* Shown when a list has nothing to display *@
+
+<div class="empty-state">
+    <i class="bi @Icon empty-state-icon" aria-hidden="true"></i>
+    <div class="empty-state-title">@Title</div>
+    @if (Message != null)
+    {
+        <p class="mb-0">@Message</p>
+    }
+    @if (ChildContent != null)
+    {
+        <div class="mt-3">@ChildContent</div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = "bi-inbox";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    // Optional action buttons
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}
