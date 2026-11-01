@@ -959,7 +959,7 @@ Razor gotcha: when a component has more than one `RenderFragment` parameter and 
         }
         <div class="page-title-row">
             <h1 class="page-title">@Title</h1>
-            @Meta
+            @TitleExtra
         </div>
         @if (Subtitle != null)
         {
@@ -988,7 +988,7 @@ Razor gotcha: when a component has more than one `RenderFragment` parameter and 
 
     // Shown next to the title, e.g. a StatusBadge
     [Parameter]
-    public RenderFragment? Meta { get; set; }
+    public RenderFragment? TitleExtra { get; set; }
 
     // Buttons on the right
     [Parameter]
@@ -1516,7 +1516,7 @@ Common steps for every page below unless noted:
 - Loaded branch, keep `<PageTitle>Website: @site.Name</PageTitle>`, then:
   ```razor
   <PageHeader Title="@site.Name" Subtitle="@($"Website ID {site.Id}")" ParentText="Websites" ParentHref="/websites">
-      <Meta><StatusBadge Status="@site.State.ToString()" /></Meta>
+      <TitleExtra><StatusBadge Status="@site.State.ToString()" /></TitleExtra>
       <Actions>
           @if (isAdmin)
           {

@@ -22,7 +22,7 @@ else
 	<PageTitle>Website: @site.Name</PageTitle>
 
 	<PageHeader Title="@site.Name" Subtitle="@($"Website ID {site.Id}")" ParentText="Websites" ParentHref="/websites">
-		<Meta><StatusBadge Status="@site.State.ToString()" /></Meta>
+		<TitleExtra><StatusBadge Status="@site.State.ToString()" /></TitleExtra>
 		<Actions>
 			@if (isAdmin)
 			{

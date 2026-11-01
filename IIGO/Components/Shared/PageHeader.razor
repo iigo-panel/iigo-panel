@@ -13,7 +13,7 @@
         }
         <div class="page-title-row">
             <h1 class="page-title">@Title</h1>
-            @Meta
+            @TitleExtra
         </div>
         @if (Subtitle != null)
         {
@@ -42,7 +42,7 @@
 
     // Shown next to the title, e.g. a StatusBadge
     [Parameter]
-    public RenderFragment? Meta { get; set; }
+    public RenderFragment? TitleExtra { get; set; }
 
     // Buttons on the right
     [Parameter]
