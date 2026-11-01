@@ -95,9 +95,9 @@ namespace IIGO.Services
             return [.. certificates.OrderBy(x => x.Name).ThenByDescending(x => x.NotAfter)];
         }
 
-        public void AddAppPool(string appPoolName)
+        public void AddAppPool(string name, string managedRuntimeVersion, ManagedPipelineMode pipelineMode, bool autoStart)
         {
-            _iisWrapper.CreateAppPool(appPoolName);
+            _iisWrapper.AddAppPool(name, managedRuntimeVersion, pipelineMode, autoStart);
         }
 
         public void DeleteAppPool(string appPoolName)
