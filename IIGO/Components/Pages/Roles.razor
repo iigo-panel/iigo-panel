@@ -3,68 +3,79 @@
 @using Microsoft.AspNetCore.Identity
 @inject NavigationManager _nav
 @inject RoleManager<IdentityRole> _roleManager
-@inject IJSRuntime JsRuntime
 @inject ILogger<Roles> logger
 @attribute [Authorize(Policy = Feature.ViewRoles)]
 @rendermode InteractiveServer
 
 <PageTitle>Roles</PageTitle>
 
-<h3>Roles</h3>
+<PageHeader Title="Roles" />
+
+<ConfirmDialog @ref="dialog" />
 
 <AuthorizeView Roles="Administrator">
     <Authorized>
-        <div class="mb-3">
-            <input class="form-control d-inline-block w-auto" @bind="newRoleName" placeholder="New role name" />
-            <button class="btn btn-primary" @onclick="CreateRole">Create Role</button>
+        <div class="input-group mb-3 mw-input">
+            <input class="form-control" @bind="newRoleName" placeholder="New role name" />
+            <button class="btn btn-primary" @onclick="CreateRole"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Role</button>
         </div>
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="alert alert-danger">@errorMessage</div>
+            <div class="alert alert-danger d-flex align-items-start gap-2">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                <div>@errorMessage</div>
+            </div>
         }
     </Authorized>
 </AuthorizeView>
 
 @if (roles == null)
 {
-    <p><em>Loading...</em></p>
+    <LoadingState />
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var role in roles)
-            {
-                <tr>
-                    <td>@role.Name</td>
-                    <td>
-                        @if (role.Name != "Administrator")
-                        {
-                            <button class="btn btn-primary" @onclick="@(() => _nav.NavigateTo($"/roles/{role.Id}"))">Permissions</button>
-                            <AuthorizeView Roles="Administrator">
-                                <Authorized>
-                                    <button class="btn btn-danger ms-1" @onclick="@(() => DeleteRole(role.Id))">Delete</button>
-                                </Authorized>
-                            </AuthorizeView>
-                        }
-                        else
-                        {
-                            <span class="text-muted">Built-in (all permissions)</span>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <SectionCard Flush="true">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="text-end"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var role in roles)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@role.Name</td>
+                            <td class="text-end">
+                                <div class="row-actions">
+                                    @if (role.Name != "Administrator")
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => _nav.NavigateTo($"/roles/{role.Id}"))"><i class="bi bi-sliders me-1" aria-hidden="true"></i>Permissions</button>
+                                        <AuthorizeView Roles="Administrator">
+                                            <Authorized>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="@(() => DeleteRole(role.Id))"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-body-secondary"><i class="bi bi-lock me-1" aria-hidden="true"></i>Built-in (all permissions)</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {
+    private ConfirmDialog dialog = default!;
     List<IdentityRole>? roles;
     string newRoleName = "";
     string? errorMessage;
@@ -113,7 +124,10 @@ else
         if (!isAdmin)
             return;
 
-        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this role?");
+        bool confirmed = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this role?",
+            message1: "Users lose the permissions this role grants.",
+            message2: "Do you want to proceed?");
         if (confirmed)
         {
             var role = await _roleManager.FindByIdAsync(id);
