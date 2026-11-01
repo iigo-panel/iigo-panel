@@ -11,72 +11,85 @@
 
 <PageTitle>Firewall</PageTitle>
 
-<h3>Firewall</h3>
-
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 <ConfirmDialog @ref="dialog" />
 
 @if (rules == null)
 {
-    <p><em>Loading...</em></p>
+    <PageHeader Title="Firewall" Subtitle="Windows Defender Firewall rules." />
+
+    <LoadingState />
 }
 else
 {
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <input type="search" class="form-control w-auto flex-grow-1" style="max-width:400px" placeholder="Filter rules" aria-label="Filter rules"
-               @bind="filter" @bind:event="oninput" />
-        <span class="text-muted">@FilteredRules.Count() of @rules.Count rules</span>
-        @if (canEdit)
-        {
-            <button @onclick="AddRule" class="btn btn-primary ms-auto">Add Rule</button>
-        }
-    </div>
-
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Action</th>
-                <th>Scope</th>
-                <th>Direction</th>
-                <th>Profiles</th>
-                <th>Status</th>
-                <th>Protocol</th>
-                <th>Local Ports</th>
-                @if (canEdit)
-                {
-                    <th>Actions</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var rule in FilteredRules)
+    <PageHeader Title="Firewall" Subtitle="Windows Defender Firewall rules.">
+        <Actions>
+            @if (canEdit)
             {
-                <tr>
-                    @* Unresolved app rule names are long strings with no spaces; let them break so Actions stays on screen *@
-                    <td style="overflow-wrap:anywhere">@rule.Name</td>
-                    <td>@rule.Action</td>
-                    <td>@rule.Scope</td>
-                    <td>@rule.Direction</td>
-                    <td>@rule.Profiles.ToString()</td>
-                    <td>@(rule.Enabled ? "Enabled" : "Disabled")</td>
-                    <td>@rule.Protocol</td>
-                    @* max-width doesn't hold on a table cell, so long port lists widened the table and pushed Actions off screen *@
-                    <td><div style="max-width:200px;text-overflow: ellipsis;white-space: nowrap;overflow:hidden" title="@rule.LocalPorts.Replace(",", ", ")">@rule.LocalPorts.Replace(",", ", ")</div></td>
-                    @if (canEdit)
-                    {
-                        <td class="text-nowrap">
-                            @if (rule.EditableRule != null)
-                            {
-                                <button @onclick="@(e => EditRule(rule))" class="btn btn-sm btn-primary">Edit</button><text>&nbsp;</text>
-                                <button @onclick="@(e => DeleteRule(rule))" class="btn btn-sm btn-danger">Delete</button>
-                            }
-                        </td>
-                    }
-                </tr>
+                <button @onclick="AddRule" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Rule</button>
             }
-        </tbody>
-    </table>
+        </Actions>
+    </PageHeader>
+
+    <SectionCard Flush="true">
+        <div class="d-flex flex-wrap align-items-center gap-2 p-3 border-bottom">
+            <div class="input-group mw-input">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search" class="form-control" placeholder="Filter rules" aria-label="Filter rules"
+                       @bind="filter" @bind:event="oninput" />
+            </div>
+            <span class="text-body-secondary small">@FilteredRules.Count() of @rules.Count rules</span>
+        </div>
+        <div class="table-scroll">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Action</th>
+                        <th>Scope</th>
+                        <th>Direction</th>
+                        <th>Profiles</th>
+                        <th>Status</th>
+                        <th>Protocol</th>
+                        <th>Local Ports</th>
+                        @if (canEdit)
+                        {
+                            <th class="text-end">Actions</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var rule in FilteredRules)
+                    {
+                        <tr>
+                            @* Unresolved app rule names are long strings with no spaces; let them break so Actions stays on screen *@
+                            <td style="overflow-wrap:anywhere">@rule.Name</td>
+                            <td><StatusBadge Status="@rule.Action.ToString()" /></td>
+                            <td>@rule.Scope</td>
+                            <td>@rule.Direction</td>
+                            <td>@rule.Profiles.ToString()</td>
+                            <td><StatusBadge Status="@(rule.Enabled ? "Enabled" : "Disabled")" /></td>
+                            <td>@rule.Protocol</td>
+                            @* max-width doesn't hold on a table cell, so long port lists widened the table and pushed Actions off screen *@
+                            <td><div class="cell-truncate" title="@rule.LocalPorts.Replace(",", ", ")">@rule.LocalPorts.Replace(",", ", ")</div></td>
+                            @if (canEdit)
+                            {
+                                <td class="text-end">
+                                    @if (rule.EditableRule != null)
+                                    {
+                                        <div class="row-actions">
+                                            <button @onclick="@(e => EditRule(rule))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+                                            <button @onclick="@(e => DeleteRule(rule))" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+                                        </div>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 
     <Modal @ref="ruleModal" Title="@(editingRule == null ? "Add Rule" : "Edit Rule")" Size="ModalSize.Large">
         <BodyTemplate>
@@ -127,7 +140,7 @@ else
                     </div>
                 </div>
                 <div class="mb-3">
-                    <span class="me-3">Profiles</span>
+                    <span class="form-label d-block">Profiles</span>
                     <div class="form-check form-check-inline">
                         <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Domain" id="ruleDomain" />
                         <label class="form-check-label" for="ruleDomain">Domain</label>
@@ -184,8 +197,8 @@ else
                     <InputCheckbox class="form-check-input" @bind-Value="ruleForm.Enabled" id="ruleEnabled" />
                     <label class="form-check-label" for="ruleEnabled">Enabled</label>
                 </div>
-                <div class="text-end">
-                    <button type="button" @onclick="@(() => ruleModal.HideAsync())" class="btn btn-secondary">Cancel</button>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" @onclick="@(() => ruleModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
             </EditForm>

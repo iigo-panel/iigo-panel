@@ -8,37 +8,47 @@
 
 <PageTitle>Scheduled Tasks</PageTitle>
 
-<h1>Tasks</h1>
+<PageHeader Title="Scheduled Tasks" />
 
 @if (tasks == null)
 {
-    <p><em>Loading...</em></p>
+    <LoadingState />
+}
+else if (tasks.Count == 0)
+{
+    <SectionCard>
+        <EmptyState Icon="bi-calendar-x" Title="No scheduled tasks in the root folder." />
+    </SectionCard>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Last Run Time</th>
-                <th>Next Run Time</th>
-                <th>State</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var task in tasks)
-            {
-                <tr>
-                    <td>@task.Name</td>
-                    <td>@task.LastRunTime.ToString("g")</td>
-                    <td>@task.NextRunTime</td>
-                    <td>@task.State</td>
-                    <td>@(task.IsActive ? "Active" : "Inactive")</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <SectionCard Flush="true">
+        <div class="table-scroll">
+            <table class="table table-hover align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Last Run Time</th>
+                        <th>Next Run Time</th>
+                        <th>State</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var task in tasks)
+                    {
+                        <tr>
+                            <td>@task.Name</td>
+                            <td class="text-nowrap tabular-nums">@task.LastRunTime.ToString("g")</td>
+                            <td class="text-nowrap tabular-nums">@task.NextRunTime</td>
+                            <td><StatusBadge Status="@task.State.ToString()" /></td>
+                            <td><StatusBadge Status="@(task.IsActive ? "Active" : "Inactive")" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
 }
 
 @code {
