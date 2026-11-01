@@ -2,43 +2,301 @@
 @using Microsoft.Web.Administration
 @using IIGO.Services
 @inject IISService IISService
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<AppPool> logger
 @attribute [Authorize(Policy = Feature.ViewAppPools)]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
-
-@if (appPool == null)
+@if (!loaded)
 {
 	<LoadingState />
+}
+else if (appPool == null)
+{
+	<PageTitle>Application Pool</PageTitle>
+
+	<PageHeader Title="@Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools" />
+
+	<div class="alert alert-danger d-flex align-items-start gap-2">
+		<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+		<div>Application pool "@Name" was not found.</div>
+	</div>
 }
 else
 {
 	<PageTitle>Application Pool: @appPool.Name</PageTitle>
 
-	<PageHeader Title="@appPool.Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools" />
+	<PageHeader Title="@appPool.Name" Subtitle="Application pool" ParentText="App Pools" ParentHref="/apppools">
+		<TitleExtra><StatusBadge Status="@appPool.State.ToString()" /></TitleExtra>
+		<Actions>
+			<button @onclick="Reload" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reload</button>
+			@if (canEdit)
+			{
+				<button @onclick="RecyclePool" class="btn btn-outline-secondary"><i class="bi bi-recycle me-1" aria-hidden="true"></i>Recycle</button>
+				@if (appPool.State == ObjectState.Stopped)
+				{
+					<button @onclick="StartPool" class="btn btn-outline-success"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Start</button>
+				}
+				@if (appPool.State == ObjectState.Started)
+				{
+					<button @onclick="StopPool" class="btn btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop</button>
+				}
+			}
+		</Actions>
+	</PageHeader>
 
-	<SectionCard Title="Settings">
-		<dl class="kv-list">
-			<dt>Enable 32-bit</dt>
-			<dd>@appPool.Enable32BitAppOnWin64</dd>
-			<dt>Maximum Memory</dt>
-			<dd>@appPool.Recycling.PeriodicRestart.Memory</dd>
-			<dt>CPU Limit</dt>
-			<dd>@appPool.Cpu.Limit</dd>
-			<dt>CPU Limit Action</dt>
-			<dd>@appPool.Cpu.Action.ToString()</dd>
-		</dl>
+	@if (LastMessage != null)
+	{
+		<div class="alert alert-@(Success ? "success" : "danger") d-flex align-items-start gap-2">
+			<i class="bi @(Success ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")" aria-hidden="true"></i>
+			<div>@LastMessage</div>
+		</div>
+	}
+
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="Details" Class="h-100">
+				<dl class="kv-list">
+					<dt>Status</dt>
+					<dd><StatusBadge Status="@appPool.State.ToString()" /></dd>
+					<dt>.NET CLR version</dt>
+					<dd>@(string.IsNullOrEmpty(appPool.ManagedRuntimeVersion) ? "No Managed Code" : appPool.ManagedRuntimeVersion)</dd>
+					<dt>Managed pipeline mode</dt>
+					<dd>@appPool.ManagedPipelineMode</dd>
+					<dt>Enable 32-bit applications</dt>
+					<dd>@YesNo(appPool.Enable32BitAppOnWin64)</dd>
+					<dt>Start mode</dt>
+					<dd>@appPool.StartMode</dd>
+					<dt>Start automatically</dt>
+					<dd>@YesNo(appPool.AutoStart)</dd>
+					<dt>Applications</dt>
+					<dd><a class="badge rounded-pill text-primary-emphasis bg-primary-subtle text-decoration-none" href="/apppools/@appPool.Name/applications">@applicationCount</a></dd>
+				</dl>
+			</SectionCard>
+		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Identity" Class="h-100">
+				<dl class="kv-list">
+					<dt>Identity type</dt>
+					<dd>@appPool.ProcessModel.IdentityType</dd>
+					@if (appPool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser)
+					{
+						<dt>User name</dt>
+						<dd>@appPool.ProcessModel.UserName</dd>
+					}
+					<dt>Load user profile</dt>
+					<dd>@YesNo(appPool.ProcessModel.LoadUserProfile)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
+
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="Process Model" Class="h-100">
+				<dl class="kv-list">
+					<dt>Idle time-out</dt>
+					<dd>@DurationText(appPool.ProcessModel.IdleTimeout)</dd>
+					<dt>Idle time-out action</dt>
+					<dd>@appPool.ProcessModel.IdleTimeoutAction</dd>
+					<dt>Maximum worker processes</dt>
+					<dd>@appPool.ProcessModel.MaxProcesses</dd>
+					<dt>Ping enabled</dt>
+					<dd>@YesNo(appPool.ProcessModel.PingingEnabled)</dd>
+					<dt>Ping interval</dt>
+					<dd>@DurationText(appPool.ProcessModel.PingInterval)</dd>
+					<dt>Ping maximum response time</dt>
+					<dd>@DurationText(appPool.ProcessModel.PingResponseTime)</dd>
+					<dt>Start-up time limit</dt>
+					<dd>@DurationText(appPool.ProcessModel.StartupTimeLimit)</dd>
+					<dt>Shutdown time limit</dt>
+					<dd>@DurationText(appPool.ProcessModel.ShutdownTimeLimit)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Recycling" Class="h-100">
+				<dl class="kv-list">
+					<dt>Regular time interval</dt>
+					<dd>@DurationText(appPool.Recycling.PeriodicRestart.Time)</dd>
+					<dt>Specific times</dt>
+					<dd>@scheduleText</dd>
+					<dt>Request limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.Requests, "")</dd>
+					<dt>Virtual memory limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.Memory, " KB")</dd>
+					<dt>Private memory limit</dt>
+					<dd>@LimitText(appPool.Recycling.PeriodicRestart.PrivateMemory, " KB")</dd>
+					<dt>Disable overlapped recycle</dt>
+					<dd>@YesNo(appPool.Recycling.DisallowOverlappingRotation)</dd>
+					<dt>Disable recycling on configuration changes</dt>
+					<dd>@YesNo(appPool.Recycling.DisallowRotationOnConfigChange)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
+
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<SectionCard Title="CPU" Class="h-100">
+				<dl class="kv-list">
+					<dt>Limit</dt>
+					<dd>@(appPool.Cpu.Limit == 0 ? "No limit" : $"{appPool.Cpu.Limit / 1000.0:0.###}%")</dd>
+					<dt>Limit action</dt>
+					<dd>@appPool.Cpu.Action</dd>
+					<dt>Limit interval</dt>
+					<dd>@DurationText(appPool.Cpu.ResetInterval)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+		<div class="col-lg-6">
+			<SectionCard Title="Rapid-Fail Protection" Class="h-100">
+				<dl class="kv-list">
+					<dt>Enabled</dt>
+					<dd>@YesNo(appPool.Failure.RapidFailProtection)</dd>
+					<dt>Maximum failures</dt>
+					<dd>@appPool.Failure.RapidFailProtectionMaxCrashes</dd>
+					<dt>Failure interval</dt>
+					<dd>@DurationText(appPool.Failure.RapidFailProtectionInterval)</dd>
+				</dl>
+			</SectionCard>
+		</div>
+	</div>
+
+	<SectionCard Title="Worker Processes" Flush="true">
+		@if (workerProcesses.Count == 0)
+		{
+			<EmptyState Icon="bi-cpu" Title="No worker processes are running." />
+		}
+		else
+		{
+			<div class="table-responsive">
+				<table class="table table-hover align-middle iigo-table">
+					<thead>
+						<tr>
+							<th>Process Id</th>
+							<th>State</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var wp in workerProcesses)
+						{
+							<tr>
+								<td>@wp.ProcessId</td>
+								<td>@wp.State</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
 	</SectionCard>
 }
 
 @code {
 	private ApplicationPool? appPool;
+	private bool loaded;
+	private bool canEdit;
+	private int applicationCount;
+	private string scheduleText = "None";
+	private List<(int ProcessId, WorkerProcessState State)> workerProcesses = [];
+	private string? LastMessage = null;
+	private bool Success = true;
 
 	[Parameter]
 	public string Name { get; set; } = "";
 
-	protected override void OnInitialized()
+	protected override async Task OnInitializedAsync()
+	{
+		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditAppPools)).Succeeded;
+		Load();
+	}
+
+	private void Load()
 	{
 		appPool = IISService.GetAppPool(Name);
+		applicationCount = IISService.GetApplicationCountsByPool().GetValueOrDefault(Name, 0);
+		scheduleText = "None";
+		workerProcesses = [];
+		if (appPool != null)
+		{
+			try
+			{
+				var times = appPool.Recycling.PeriodicRestart.Schedule.Select(x => x.Time).OrderBy(x => x).ToList();
+				if (times.Count > 0)
+					scheduleText = string.Join(", ", times.Select(x => x.ToString(@"hh\:mm")));
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Error loading recycle schedule for application pool {Name}", Name);
+			}
+
+			try
+			{
+				workerProcesses = [.. appPool.WorkerProcesses.Select(x => (x.ProcessId, x.State))];
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Error loading worker processes for application pool {Name}", Name);
+			}
+		}
+		loaded = true;
 	}
+
+	protected void Reload()
+	{
+		LastMessage = null;
+		Load();
+	}
+
+	// Checked again in each handler so only users with EditAppPools can change a pool, whatever the UI shows
+	protected void RecyclePool()
+	{
+		if (!canEdit)
+			return;
+
+		Run(() => IISService.Recycle(Name), "recycled");
+	}
+
+	protected void StartPool()
+	{
+		if (!canEdit)
+			return;
+
+		Run(() => IISService.StartPool(Name), "started");
+	}
+
+	protected void StopPool()
+	{
+		if (!canEdit)
+			return;
+
+		Run(() => IISService.StopPool(Name), "stopped");
+	}
+
+	private void Run(Action action, string done)
+	{
+		try
+		{
+			action();
+			LastMessage = $"{Name} {done}.";
+			Success = true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error changing application pool {Name}", Name);
+			LastMessage = $"{Name} was not {done}: {ex.Message}";
+			Success = false;
+		}
+		Load();
+	}
+
+	private static string YesNo(bool value) => value ? "Yes" : "No";
+
+	private static string DurationText(TimeSpan value) => value == TimeSpan.Zero ? "0 (disabled)" : value.ToString();
+
+	private static string LimitText(long value, string unit) => value == 0 ? "No limit" : $"{value:N0}{unit}";
 }
