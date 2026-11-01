@@ -1,0 +1,71 @@
+@implements IDisposable
+
+@inject NavigationManager NavigationManager
+
+<header class="app-topbar">
+    <button type="button" class="btn-icon d-lg-none" data-iigo-action="toggle-nav" aria-controls="app-sidebar" aria-label="Open navigation" title="Open navigation">
+        <i class="bi bi-list fs-5" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="btn-icon d-none d-lg-inline-flex" data-iigo-action="toggle-sidebar" aria-label="Collapse or expand the sidebar" title="Collapse or expand the sidebar">
+        <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
+    </button>
+
+    <div class="topbar-server" title="Server">
+        <i class="bi bi-hdd-network text-body-secondary" aria-hidden="true"></i>
+        <span class="text-truncate">@System.Environment.MachineName</span>
+    </div>
+
+    <div class="ms-auto d-flex align-items-center gap-1">
+        <button type="button" class="btn-icon" data-iigo-action="toggle-theme" aria-label="Switch between light and dark theme" title="Switch between light and dark theme">
+            <i class="bi bi-moon-stars theme-icon-dark" aria-hidden="true"></i>
+            <i class="bi bi-sun theme-icon-light" aria-hidden="true"></i>
+        </button>
+
+        <AuthorizeView>
+            <Authorized>
+                <details class="account-menu">
+                    <summary class="btn-icon" aria-label="Account menu">
+                        <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>
+                        <span class="d-none d-sm-inline text-body">@context.User.Identity?.Name</span>
+                        <i class="bi bi-chevron-down small" aria-hidden="true"></i>
+                    </summary>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-header">Signed in as <strong>@context.User.Identity?.Name</strong></div>
+                        <a class="dropdown-item" href="Account/Manage">
+                            <i class="bi bi-person-gear" aria-hidden="true"></i> Manage account
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <form action="Account/Logout" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                            <button type="submit" class="dropdown-item">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout
+                            </button>
+                        </form>
+                    </div>
+                </details>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
