@@ -5,7 +5,9 @@
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityUserAccessor UserAccessor
+@inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
+@inject IIGO.Services.ConfigurationService ConfigService
 @inject ILogger<Disable2fa> Logger
 
 <PageTitle>Disable two-factor authentication (2FA)</PageTitle>
@@ -51,11 +53,22 @@
 
     private async Task OnSubmitAsync()
     {
+        if (ConfigService.IsTwoFactorRequired(HttpContext.User))
+        {
+            RedirectManager.RedirectToWithStatus(
+                "Account/Manage/TwoFactorAuthentication",
+                "Error: 2FA is required for your account and can't be disabled.",
+                HttpContext);
+        }
+
         var disable2faResult = await UserManager.SetTwoFactorEnabledAsync(user, false);
         if (!disable2faResult.Succeeded)
         {
             throw new InvalidOperationException("Unexpected error occurred disabling 2FA.");
         }
+
+        // Drops the 2FA claim, so a requirement added later applies straight away
+        await SignInManager.RefreshSignInAsync(user);
 
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userId);

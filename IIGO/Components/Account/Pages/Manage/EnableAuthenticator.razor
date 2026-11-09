@@ -9,6 +9,8 @@
 @using IIGO.Data
 
 @inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ConfigurationService ConfigService
 @inject IdentityUserAccessor UserAccessor
 @inject UrlEncoder UrlEncoder
 @inject IdentityRedirectManager RedirectManager
@@ -23,6 +25,16 @@
 else
 {
     <StatusMessage Message="@message" />
+    @if (setupRequired)
+    {
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+            <div>
+                <strong>Two-factor authentication is required for your account.</strong>
+                <p class="mb-0">Set up an authenticator app to continue using the panel.</p>
+            </div>
+        </div>
+    }
     <h2 class="h5 mb-3">Configure authenticator app</h2>
     <div>
         <p>To use an authenticator app go through the following steps:</p>
@@ -76,6 +88,7 @@ else
     private string? sharedKey;
     private string? authenticatorUri;
     private IEnumerable<string>? recoveryCodes;
+    private bool setupRequired;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -87,6 +100,7 @@ else
     {
         Input ??= new InputModel();
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        setupRequired = !user.TwoFactorEnabled && ConfigService.IsTwoFactorRequired(HttpContext.User);
 
         await LoadSharedKeyAndQrCodeUriAsync(user);
     }
@@ -112,6 +126,9 @@ else
         }
 
         await UserManager.SetTwoFactorEnabledAsync(user, true);
+        // Adds the 2FA claim, so a 2FA requirement stops redirecting here
+        await SignInManager.RefreshSignInAsync(user);
+        setupRequired = false;
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
 

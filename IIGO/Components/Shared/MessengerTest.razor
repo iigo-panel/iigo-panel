@@ -1,0 +1,84 @@
+@* Sends a test message through one messenger service, using its saved settings *@
+@using IIGO.Models
+@using IIGO.Services.Interfaces
+
+<div class="border-top mt-3 pt-3">
+    @if (Messenger.IsEmail)
+    {
+        <label class="form-label" for="test-@Messenger.ServiceIdentifier">Send a test to</label>
+        <input class="form-control mb-2" type="email" id="test-@Messenger.ServiceIdentifier" @bind="recipient" />
+    }
+    <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-outline-secondary" disabled="@sending" @onclick="Send">
+            @if (sending)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Send test message
+        </button>
+        @if (result != null)
+        {
+            <span class="@(succeeded ? "text-success" : "text-danger")" role="status">@result</span>
+        }
+    </div>
+    <div class="form-text">Uses the saved settings. Save any changes first.</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IMessengerService Messenger { get; set; } = default!;
+
+    // Starting value for the email recipient, e.g. the signed-in user's address
+    [Parameter]
+    public string? DefaultRecipient { get; set; }
+
+    string recipient = "";
+    bool sending;
+    bool succeeded;
+    string? result;
+
+    protected override void OnInitialized()
+    {
+        recipient = DefaultRecipient ?? "";
+    }
+
+    async Task Send()
+    {
+        result = null;
+        if (Messenger.IsEmail && !System.Net.Mail.MailAddress.TryCreate(recipient.Trim(), out _))
+        {
+            succeeded = false;
+            result = "Enter a valid email address.";
+            return;
+        }
+
+        sending = true;
+        try
+        {
+            var message = new MessageData
+            {
+                Subject = $"[{Environment.MachineName}] IIGO Panel test message",
+                Body = $"This is a test message from IIGO Panel, sent through {Messenger.ServiceName}.",
+                Recipients = Messenger.IsEmail ? [recipient.Trim()] : []
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            succeeded = await Messenger.SendMessageAsync(message, cts.Token);
+            result = succeeded ? "Sent." : "Not sent. The service reported a failure.";
+        }
+        catch (OperationCanceledException)
+        {
+            succeeded = false;
+            result = "Not sent. The service didn't respond within 30 seconds.";
+        }
+        catch (Exception ex)
+        {
+            succeeded = false;
+            result = $"Not sent: {ex.Message}";
+        }
+        finally
+        {
+            sending = false;
+        }
+    }
+}

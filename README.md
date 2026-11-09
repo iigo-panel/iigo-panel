@@ -47,6 +47,14 @@ Sign-in is limited to 10 attempts per minute per address, and an account is lock
 
 Set `AllowedHosts` in `appsettings.json` to the host name the panel is reached on (for example `"AllowedHosts": "panel.example.com"`) so requests with a forged `Host` header are rejected.
 
+## Settings
+
+The Settings page (Administration > Settings) holds sign-in security and the settings for each notification service. Users whose role has the `View Settings` feature can see it; only administrators can change it.
+
+Two-factor authentication can be required for administrators or for everyone. Users it applies to are sent to set up an authenticator app before they can use the panel, and can't turn 2FA off. API keys are not affected.
+
+Each notification service has a "Send test message" button that uses its saved settings and shows the error if sending fails. Choose which services each monitor sends through on the monitor's own page.
+
 ## Secrets and keys
 
 Notification secrets (the SMTP password, SendGrid and Postmark keys, AWS secret keys, and Discord, Slack and Google Chat webhook URLs) are encrypted before they're stored in the database. A value typed straight into the `ConfigSetting` table as plain text is encrypted the first time it's used. The encryption keys, which also protect sign-in cookies and password reset tokens, are kept in the `Data` folder next to the database, protected with DPAPI for the machine. Back that folder up with the database: without the keys, stored secrets have to be entered again and everyone has to sign in again.

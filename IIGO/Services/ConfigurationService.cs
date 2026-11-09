@@ -1,6 +1,7 @@
 ﻿using IIGO.Data;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 
 namespace IIGO.Services
 {
@@ -15,6 +16,12 @@ namespace IIGO.Services
                 .Where(x => list.Contains(x.SettingName))
                 .ToDictionary(x => x.SettingName, x => x.SettingValue);
         }
+
+        public string GetSetting(string name, string defaultValue = "") =>
+            context.ConfigSetting.Where(x => x.SettingName == name).Select(x => x.SettingValue).FirstOrDefault() ?? defaultValue;
+
+        public bool IsTwoFactorRequired(ClaimsPrincipal user) =>
+            SecuritySettings.IsTwoFactorRequired(GetSetting(SecuritySettings.RequireTwoFactor, SecuritySettings.TwoFactorOff), user);
 
         public HashSet<string> GetNotificationServices(string feature) =>
             [.. context.NotificationSubscription.Where(x => x.Feature == feature).Select(x => x.ServiceIdentifier)];

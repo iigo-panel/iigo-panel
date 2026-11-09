@@ -8,40 +8,32 @@ namespace IIGO.Services
 {
     internal class SendGridService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        private readonly ApplicationDbContext _context = context;
-
         public string ServiceName => "SendGrid Email Relay";
         public string ServiceIdentifier => nameof(SendGridService);
 
         public bool IsEmail => true;
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SG_ApiKey") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SG_ApiKey", SettingValue = "SendGridApiKey" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SG_FromName") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SG_FromName", SettingValue = "IIGO Panel" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SG_FromAddress") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SG_FromAddress", SettingValue = "admin@example.com" });
-            _context.SaveChanges();
-        }
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("SG_ApiKey", "API key", MonitorSettingType.Secret, "", "Needs the Mail Send permission."),
+            new("SG_FromName", "From name", MonitorSettingType.Text, "IIGO Panel"),
+            new("SG_FromAddress", "From address", MonitorSettingType.Email, "admin@example.com", "Must be a verified sender in SendGrid.")
+        ];
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
-            {
-                var client = new SendGridClient(GetSecret("SG_ApiKey"));
-                var from = new EmailAddress(GetSetting("SG_FromAddress"), GetSetting("SG_FromName"));
-                var to = new EmailAddress("", "");
-                var msg = MailHelper.CreateSingleEmail(from, to, "", "", "");
-                var response = await client.SendEmailAsync(msg, ct);
-                return true;
-            }
-            catch(Exception)
-            {
-                return false;
-            }
+            RequireRecipients(message);
+
+            var client = new SendGridClient(GetRequired("SG_ApiKey", secret: true));
+            var from = new EmailAddress(GetRequired("SG_FromAddress"), GetSetting("SG_FromName"));
+            var to = message.Recipients.Select(x => new EmailAddress(x)).ToList();
+            var msg = MailHelper.CreateSingleEmailToMultipleRecipients(from, to, message.Subject, message.Body, message.HtmlBody);
+
+            var response = await client.SendEmailAsync(msg, ct);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"SendGrid returned {(int)response.StatusCode}: {await response.Body.ReadAsStringAsync(ct)}");
+
+            return true;
         }
     }
 }

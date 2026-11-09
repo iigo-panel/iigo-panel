@@ -5,6 +5,7 @@ using Amazon.SimpleEmail.Model;
 using IIGO.Data;
 using IIGO.Models;
 using IIGO.Services.Interfaces;
+using MimeKit;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -14,42 +15,33 @@ namespace IIGO.Services
 {
     internal class SESService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        readonly ApplicationDbContext _context = context;
-
         public string ServiceName => "Simple Email Service (Amazon SES)";
         public string ServiceIdentifier => nameof(SESService);
 
         public bool IsEmail => true;
 
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("SES_AccessKey", "Access key ID", MonitorSettingType.Text, ""),
+            new("SES_SecretKey", "Secret access key", MonitorSettingType.Secret, ""),
+            new("SES_Region", "Region", MonitorSettingType.Text, "us-west-2", "AWS region code, e.g. us-east-1."),
+            new("SES_FromName", "From name", MonitorSettingType.Text, "IIGO Panel"),
+            new("SES_FromAddress", "From address", MonitorSettingType.Email, "admin@example.com", "Must be a verified identity in SES.")
+        ];
+
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            Message msg = new Message(new Content(""), new Body() { Html = new Content("") });
-            SendEmailRequest req = new SendEmailRequest("", new Destination(new List<string> { "" }), msg) { ReturnPath = "" };
-            //if (!String.IsNullOrWhiteSpace(replyTo))
-            //    req.ReplyToAddresses.Add(replyTo);
-            using (AmazonSimpleEmailServiceClient client = new AmazonSimpleEmailServiceClient(new BasicAWSCredentials(GetSetting("SES_AccessKey", "AccessKey"), GetSecret("SES_SecretKey", "SecretKey")), RegionEndpoint.USWest2))
-            {
-                try
-                {
-                    var resp = await client.SendEmailAsync(req, ct);
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-        }
+            RequireRecipients(message);
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SES_AccessKey") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SES_AccessKey", SettingValue = "AccessKey" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SES_SecretKey") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SES_SecretKey", SettingValue = "SecretKey" });
+            var source = new MailboxAddress(GetSetting("SES_FromName"), GetRequired("SES_FromAddress")).ToString();
+            var msg = new Message(new Content(message.Subject), new Body { Text = new Content(message.Body), Html = new Content(message.HtmlBody) });
+            var req = new SendEmailRequest(source, new Destination(message.Recipients), msg);
 
-            _context.SaveChanges();
+            using var client = new AmazonSimpleEmailServiceClient(
+                new BasicAWSCredentials(GetRequired("SES_AccessKey"), GetRequired("SES_SecretKey", secret: true)),
+                RegionEndpoint.GetBySystemName(GetRequired("SES_Region")));
+            await client.SendEmailAsync(req, ct);
+            return true;
         }
     }
 }

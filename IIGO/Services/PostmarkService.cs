@@ -10,38 +10,37 @@ namespace IIGO.Services
 {
     internal class PostmarkService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        readonly ApplicationDbContext _context = context;
-
         public string ServiceName => "Postmark Email Relay";
         public string ServiceIdentifier => nameof(PostmarkService);
 
         public bool IsEmail => true;
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "PM_ServerToken") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_ServerToken", SettingValue = "ServerToken" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "PM_FromAddress") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_FromAddress", SettingValue = "admin@example.com" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "PM_MessageStream") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "PM_MessageStream", SettingValue = "outbound" });
-            _context.SaveChanges();
-        }
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("PM_ServerToken", "Server token", MonitorSettingType.Secret, ""),
+            new("PM_FromAddress", "From address", MonitorSettingType.Email, "admin@example.com", "Must be a confirmed sender signature or on a verified domain."),
+            new("PM_MessageStream", "Message stream", MonitorSettingType.Text, "outbound")
+        ];
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
+            RequireRecipients(message);
+
+            var msg = new PostmarkMessage
             {
-                var msg = new PostmarkMessage(GetSetting("PM_FromAddress"), "", "", "", "", messageStream: GetSetting("PM_MessageStream"));
-                var client = new PostmarkClient(GetSecret("PM_ServerToken"));
-                var resp = await client.SendMessageAsync(msg);
-                return resp.Status == PostmarkStatus.Success;
-            }
-            catch
-            {
-                return false;
-            }
+                From = GetRequired("PM_FromAddress"),
+                To = string.Join(",", message.Recipients),
+                Subject = message.Subject,
+                TextBody = message.Body,
+                HtmlBody = message.HtmlBody,
+                MessageStream = GetRequired("PM_MessageStream")
+            };
+            var client = new PostmarkClient(GetRequired("PM_ServerToken", secret: true));
+            var resp = await client.SendMessageAsync(msg);
+            if (resp.Status != PostmarkStatus.Success)
+                throw new InvalidOperationException($"Postmark returned error {resp.ErrorCode}: {resp.Message}");
+
+            return true;
         }
     }
 }

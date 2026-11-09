@@ -277,6 +277,7 @@ namespace IIGO
             app.UseAuthorization();
             app.UseAntiforgery();
             app.UseMiddleware<MustChangePasswordMiddleware>();
+            app.UseMiddleware<RequireTwoFactorMiddleware>();
 
             // The sign-in cookie is marked Secure, so browsers only send it over HTTPS
             app.Lifetime.ApplicationStarted.Register(() =>

@@ -8,6 +8,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
+@inject IIGO.Services.ConfigurationService ConfigService
 
 <PageTitle>Two-factor authentication (2FA)</PageTitle>
 
@@ -57,7 +58,10 @@
                 </form>
             }
 
-            <a href="Account/Manage/Disable2fa" class="btn btn-outline-danger">Disable 2FA</a>
+            @if (!is2faRequired)
+            {
+                <a href="Account/Manage/Disable2fa" class="btn btn-outline-danger">Disable 2FA</a>
+            }
             <a href="Account/Manage/GenerateRecoveryCodes" class="btn btn-outline-secondary">Reset recovery codes</a>
         </div>
     }
@@ -92,6 +96,7 @@ else
     private int recoveryCodesLeft;
     private bool is2faEnabled;
     private bool isMachineRemembered;
+    private bool is2faRequired;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -104,6 +109,7 @@ else
         is2faEnabled = await UserManager.GetTwoFactorEnabledAsync(user);
         isMachineRemembered = await SignInManager.IsTwoFactorClientRememberedAsync(user);
         recoveryCodesLeft = await UserManager.CountRecoveryCodesAsync(user);
+        is2faRequired = ConfigService.IsTwoFactorRequired(HttpContext.User);
     }
 
     private async Task OnSubmitForgetBrowserAsync()
