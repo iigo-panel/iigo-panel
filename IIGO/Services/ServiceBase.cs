@@ -1,4 +1,5 @@
 ﻿using IIGO.Data;
+using IIGO.Models;
 using System.Linq;
 using System.Reflection;
 
@@ -6,6 +7,23 @@ namespace IIGO.Services
 {
     public abstract class ServiceBase(ApplicationDbContext context, SecretProtector secrets)
     {
+        /// <summary>
+        /// The service's settings, shown on the Settings page
+        /// </summary>
+        public abstract IReadOnlyList<MonitorSetting> Settings { get; }
+
+        /// <summary>
+        /// Adds any of the service's settings that aren't in the database yet, with their default values
+        /// </summary>
+        public void Initialize()
+        {
+            var names = Settings.Select(x => x.Name).ToList();
+            var existing = context.ConfigSetting.Where(x => names.Contains(x.SettingName)).Select(x => x.SettingName).ToHashSet();
+            foreach (var setting in Settings.Where(x => !existing.Contains(x.Name)))
+                context.ConfigSetting.Add(new ConfigSetting { SettingName = setting.Name, SettingValue = setting.DefaultValue });
+            context.SaveChanges();
+        }
+
         protected string GetSetting(string setting, string defaultValue = "") => GetOrCreate(setting, defaultValue).SettingValue;
 
         /// <summary>
@@ -27,6 +45,26 @@ namespace IIGO.Services
             }
 
             return row.SettingValue;
+        }
+
+        /// <summary>
+        /// Reads a required setting, with an error naming it when it's empty
+        /// </summary>
+        protected string GetRequired(string setting, bool secret = false)
+        {
+            var value = secret ? GetSecret(setting) : GetSetting(setting);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                var label = Settings.FirstOrDefault(x => x.Name == setting)?.Label ?? setting;
+                throw new InvalidOperationException($"{label} is not set.");
+            }
+            return value.Trim();
+        }
+
+        protected static void RequireRecipients(MessageData message)
+        {
+            if (message.Recipients.Count == 0)
+                throw new InvalidOperationException("The message has no recipients.");
         }
 
         ConfigSetting GetOrCreate(string setting, string defaultValue)

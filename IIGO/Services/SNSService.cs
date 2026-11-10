@@ -14,45 +14,34 @@ namespace IIGO.Services
 {
     internal class SNSService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        private readonly ApplicationDbContext _context = context;
-
         public string ServiceName => "Simple Notification Service (Amazon SNS)";
         public string ServiceIdentifier => nameof(SNSService);
 
         public bool IsEmail => false;
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SNS_AccessKey") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SNS_AccessKey", SettingValue = "AccessKey" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SNS_SecretKey") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SNS_SecretKey", SettingValue = "SecretKey" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SNS_TopicArn") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SNS_TopicArn", SettingValue = "TopicArn" });
-            _context.SaveChanges();
-        }
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("SNS_AccessKey", "Access key ID", MonitorSettingType.Text, ""),
+            new("SNS_SecretKey", "Secret access key", MonitorSettingType.Secret, ""),
+            new("SNS_Region", "Region", MonitorSettingType.Text, "us-west-2", "AWS region code, e.g. us-east-1. Must match the topic's region."),
+            new("SNS_TopicArn", "Topic ARN", MonitorSettingType.Text, "", "Messages are published to this topic and delivered to its subscribers.")
+        ];
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
+            using var client = new AmazonSimpleNotificationServiceClient(
+                new BasicAWSCredentials(GetRequired("SNS_AccessKey"), GetRequired("SNS_SecretKey", secret: true)),
+                RegionEndpoint.GetBySystemName(GetRequired("SNS_Region")));
+            var request = new PublishRequest
             {
-                string messageText = "";
+                TopicArn = GetRequired("SNS_TopicArn"),
+                // SNS subjects are limited to 100 characters, and only some subscribers show them
+                Subject = message.Subject.Length > 100 ? message.Subject[..100] : message.Subject,
+                Message = message.Subject + "\n\n" + message.Body
+            };
 
-                IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient(new BasicAWSCredentials(GetSetting("SNS_AccessKey"), GetSecret("SNS_SecretKey")), RegionEndpoint.USWest2);
-                var request = new PublishRequest
-                {
-                    TopicArn = GetSetting("SNS_TopicArn"),
-                    Message = messageText,
-                };
-
-                var response = await client.PublishAsync(request, ct);
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            await client.PublishAsync(request, ct);
+            return true;
         }
     }
 }

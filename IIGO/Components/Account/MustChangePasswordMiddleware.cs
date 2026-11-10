@@ -10,7 +10,7 @@ namespace IIGO.Components.Account
 
         // Paths a flagged user still needs: the account pages (to change the password or sign out),
         // Blazor's own endpoints, and the API, which uses keys rather than the sign-in cookie
-        static readonly PathString[] AllowedPrefixes =
+        internal static readonly PathString[] AllowedPrefixes =
         [
             "/Account",
             "/_blazor",

@@ -93,6 +93,13 @@
                         </NavLink>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@IIGO.Services.Feature.ViewSettings">
+                    <Authorized Context="auth">
+                        <NavLink class="nav-link" href="/settings" title="Settings">
+                            <i class="bi bi-sliders" aria-hidden="true"></i><span class="nav-label">Settings</span>
+                        </NavLink>
+                    </Authorized>
+                </AuthorizeView>
                 @if (context.User.IsInRole("Administrator"))
                 {
                     <NavLink class="nav-link" href="/license" title="License Status">

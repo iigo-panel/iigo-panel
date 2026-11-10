@@ -277,6 +277,7 @@ namespace IIGO
             app.UseAuthorization();
             app.UseAntiforgery();
             app.UseMiddleware<MustChangePasswordMiddleware>();
+            app.UseMiddleware<RequireTwoFactorMiddleware>();
 
             // The sign-in cookie is marked Secure, so browsers only send it over HTTPS
             app.Lifetime.ApplicationStarted.Register(() =>
@@ -335,9 +336,6 @@ namespace IIGO
             {
                 using (var context = serviceScope.ServiceProvider.GetService<ApplicationDbContext>()!)
                 {
-                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "MessengerService") == null)
-                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "MessengerService", SettingValue = nameof(SMTPService) });
-
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "AppPoolNotificationThreshold") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "AppPoolNotificationThreshold", SettingValue = "5,30" });
 
@@ -441,11 +439,26 @@ namespace IIGO
 
             using (var scope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
-                var services = scope.ServiceProvider.GetServices<IMessengerService>();
+                var services = scope.ServiceProvider.GetServices<IMessengerService>().ToList();
                 foreach (var service in services)
                 {
                     service.Initialize();
                 }
+
+                // Monitors used to pick email services one by one. Move them to "Email", which sends through
+                // the service chosen on the Settings page, starting with the one they already used.
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var emailServices = services.Where(x => x.IsEmail).Select(x => x.ServiceIdentifier).ToList();
+                var oldSubscriptions = context.NotificationSubscription.Where(x => emailServices.Contains(x.ServiceIdentifier)).ToList();
+                if (!context.ConfigSetting.Any(x => x.SettingName == EmailNotifications.Setting))
+                    context.ConfigSetting.Add(new ConfigSetting { SettingName = EmailNotifications.Setting, SettingValue = oldSubscriptions.FirstOrDefault()?.ServiceIdentifier ?? EmailNotifications.DefaultService });
+                foreach (var feature in oldSubscriptions.Select(x => x.Feature).Distinct())
+                {
+                    if (!context.NotificationSubscription.Any(x => x.Feature == feature && x.ServiceIdentifier == EmailNotifications.ServiceIdentifier))
+                        context.NotificationSubscription.Add(new NotificationSubscription { Feature = feature, ServiceIdentifier = EmailNotifications.ServiceIdentifier });
+                }
+                context.NotificationSubscription.RemoveRange(oldSubscriptions);
+                context.SaveChanges();
             }
         }
     }

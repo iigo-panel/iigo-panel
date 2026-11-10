@@ -1,0 +1,123 @@
+﻿@page "/settings"
+@using IIGO.Data
+@using IIGO.Services
+@using IIGO.Services.Interfaces
+@using Microsoft.AspNetCore.Identity
+@inject IEnumerable<IMessengerService> messengers
+@inject UserManager<ApplicationUser> userManager
+@inject ConfigurationService configService
+@attribute [Authorize(Policy = Feature.ViewSettings)]
+@rendermode InteractiveServer
+
+<PageTitle>Settings</PageTitle>
+
+<PageHeader Title="Settings" Subtitle="Sign-in security and the services notifications are sent through. Choose which ones each monitor uses on the monitor's own page." />
+
+@if (!isAdmin)
+{
+    <div class="alert alert-info">Only administrators can change these settings.</div>
+}
+
+<h2 class="h6 text-body-secondary mb-3">Security</h2>
+<div class="row g-3">
+    <div class="col-xl-6">
+        <MonitorSettings Title="Sign-in" Settings="SecuritySettings.Settings" ReadOnly="!isAdmin" OnSaved="CheckOwnTwoFactor">
+            @if (needsOwnTwoFactor)
+            {
+                <div class="alert alert-warning mt-3 mb-0">
+                    Your account doesn't have 2FA yet, so you'll be asked to set it up on your next page load.
+                    <a href="Account/Manage/EnableAuthenticator">Set it up now</a>.
+                </div>
+            }
+        </MonitorSettings>
+    </div>
+</div>
+
+<h2 class="h6 text-body-secondary mt-4 mb-3">Email</h2>
+<div class="row g-3">
+    <div class="col-xl-6">
+        @* Recreated when the service changes, so the form loads that service's settings *@
+        <MonitorSettings @key="emailService" Title="Email" Settings="EmailMessenger.Settings" ReadOnly="!isAdmin" OnSaved="SaveEmailService">
+            <HeaderContent>
+                <div class="mb-3">
+                    <label class="form-label" for="email-service">Send email through</label>
+                    <select class="form-select" id="email-service" disabled="@(!isAdmin)" @bind="emailService">
+                        @foreach (var messenger in messengers.Where(x => x.IsEmail))
+                        {
+                            <option value="@messenger.ServiceIdentifier">@messenger.ServiceName</option>
+                        }
+                    </select>
+                    @if (emailService != savedEmailService)
+                    {
+                        <div class="form-text text-warning-emphasis">Email keeps going through @ServiceName(savedEmailService) until you save.</div>
+                    }
+                </div>
+            </HeaderContent>
+            <ChildContent>
+                @if (isAdmin)
+                {
+                    <MessengerTest Messenger="EmailMessenger" DefaultRecipient="@userEmail" />
+                }
+            </ChildContent>
+        </MonitorSettings>
+    </div>
+</div>
+
+<h2 class="h6 text-body-secondary mt-4 mb-3">Chat and messaging services</h2>
+<div class="row g-3">
+    @foreach (var messenger in messengers.Where(x => !x.IsEmail))
+    {
+        <div class="col-xl-6">
+            @MessengerCard(messenger)
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    bool isAdmin;
+    string? userEmail;
+    bool needsOwnTwoFactor;
+    // The email service shown in the form, and the one notifications use
+    string emailService = EmailNotifications.DefaultService;
+    string savedEmailService = EmailNotifications.DefaultService;
+
+    IMessengerService EmailMessenger => messengers.First(x => x.ServiceIdentifier == emailService);
+
+    string ServiceName(string identifier) => messengers.FirstOrDefault(x => x.ServiceIdentifier == identifier)?.ServiceName ?? identifier;
+
+    RenderFragment MessengerCard(IMessengerService messenger) =>
+        @<MonitorSettings Title="@messenger.ServiceName" Settings="messenger.Settings" ReadOnly="!isAdmin">
+            @if (isAdmin)
+            {
+                <MessengerTest Messenger="messenger" DefaultRecipient="@userEmail" />
+            }
+        </MonitorSettings>;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState;
+        isAdmin = state.User.IsInRole("Administrator");
+        userEmail = (await userManager.GetUserAsync(state.User))?.Email;
+
+        savedEmailService = configService.GetSetting(EmailNotifications.Setting, EmailNotifications.DefaultService);
+        if (!messengers.Any(x => x.IsEmail && x.ServiceIdentifier == savedEmailService))
+            savedEmailService = EmailNotifications.DefaultService;
+        emailService = savedEmailService;
+    }
+
+    void SaveEmailService()
+    {
+        configService.SaveSettings(new Dictionary<string, string> { [EmailNotifications.Setting] = emailService });
+        savedEmailService = emailService;
+    }
+
+    async Task CheckOwnTwoFactor()
+    {
+        var state = await AuthenticationState;
+        var user = await userManager.GetUserAsync(state.User);
+        needsOwnTwoFactor = user?.TwoFactorEnabled == false && configService.IsTwoFactorRequired(state.User);
+    }
+}

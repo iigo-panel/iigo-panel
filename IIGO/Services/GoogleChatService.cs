@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,41 +14,25 @@ namespace IIGO.Services
 {
     internal class GoogleChatService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        readonly ApplicationDbContext _context = context;
-
         public string ServiceName => "Google Chat";
         public string ServiceIdentifier => nameof(GoogleChatService);
 
         public bool IsEmail => false;
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "GChatUrl") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "GChatUrl", SettingValue = "" });
-            _context.SaveChanges();
-        }
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("GChat_Url", "Webhook URL", MonitorSettingType.Secret, "", "From the space's Apps & integrations settings in Google Chat.")
+        ];
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
-            {
-                using HttpClient c = new HttpClient();
+            using HttpClient c = new HttpClient();
+            using var sc = new StringContent(JsonSerializer.Serialize(new { text = $"*{message.Subject}*\n{message.Body}" }), Encoding.UTF8, "application/json");
+            using var response = await c.PostAsync(GetRequired("GChat_Url", secret: true), sc, ct);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Google Chat returned {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}");
 
-                using var sc = new StringContent(JsonSerializer.Serialize(new { text = "" }));
-                using var response = await c.PostAsync(GetSecret("GChat_Url"), sc, ct);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var data = await response.Content.ReadAsStringAsync();
-                    throw new Exception(JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
-                }
-
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            return true;
         }
     }
 }

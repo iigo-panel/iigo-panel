@@ -2,6 +2,7 @@
 using IIGO.Models;
 using IIGO.Services.Interfaces;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using System;
 using System.Linq;
@@ -10,83 +11,63 @@ using System.Threading.Tasks;
 
 namespace IIGO.Services
 {
-    internal class SMTPService : ServiceBase, IMessengerService
+    internal class SMTPService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        private readonly ApplicationDbContext _context;
-
-        public SMTPService(ApplicationDbContext context, SecretProtector secrets) : base(context, secrets)
-        {
-            _context = context;
-        }
-
         public string ServiceName => "SMTP Email Relay";
         public string ServiceIdentifier => nameof(SMTPService);
 
         public bool IsEmail => true;
 
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("SMTP_Host", "Server", MonitorSettingType.Text, "smtp.example.com"),
+            new("SMTP_Port", "Port", MonitorSettingType.Number, "587", "Usually 587, or 465 for TLS from the start of the connection."),
+            new("SMTP_UseSSL", "Use TLS", MonitorSettingType.Toggle, "true", "Port 465 connects with TLS; any other port upgrades with STARTTLS."),
+            new("SMTP_UserName", "User name", MonitorSettingType.Text, "", "Leave blank if the server doesn't need a sign-in."),
+            new("SMTP_Password", "Password", MonitorSettingType.Secret, ""),
+            new("SMTP_FromName", "From name", MonitorSettingType.Text, "IIGO Panel"),
+            new("SMTP_FromAddress", "From address", MonitorSettingType.Email, "admin@example.com"),
+            new("SMTP_SenderName", "Sender name", MonitorSettingType.Text, "", "Optional. Only needed when the server sends on behalf of the from address."),
+            new("SMTP_SenderAddress", "Sender address", MonitorSettingType.Email, "")
+        ];
+
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
+            RequireRecipients(message);
+
+            var email = new MimeMessage();
+            email.From.Add(new MailboxAddress(GetSetting("SMTP_FromName"), GetRequired("SMTP_FromAddress")));
+
+            var senderAddress = GetSetting("SMTP_SenderAddress");
+            if (!string.IsNullOrWhiteSpace(senderAddress))
+                email.Sender = new MailboxAddress(GetSetting("SMTP_SenderName"), senderAddress);
+
+            foreach (var recipient in message.Recipients)
+                email.To.Add(MailboxAddress.Parse(recipient));
+
+            email.Subject = message.Subject;
+            email.Body = new BodyBuilder
             {
-                var email = new MimeMessage();
+                HtmlBody = message.HtmlBody,
+                TextBody = message.Body
+            }.ToMessageBody();
 
-                email.From.Add(new MailboxAddress(GetSetting("SMTP_FromName", "IIGO Panel"), GetSetting("SMTP_FromAddress", "admin@example.com")));
-                email.Sender = new MailboxAddress(GetSetting("SMTP_SenderName", "IIGO Panel"), GetSetting("SMTP_SenderAddress", "admin@example.com"));
+            var port = int.TryParse(GetSetting("SMTP_Port", "587"), out var p) ? p : 587;
+            var security = !bool.TryParse(GetSetting("SMTP_UseSSL", "true"), out var useTls) || useTls
+                ? (port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls)
+                : SecureSocketOptions.None;
 
-                if (message.Recipients.Count == 0)
-                    return false;
+            using var smtp = new SmtpClient();
+            await smtp.ConnectAsync(GetRequired("SMTP_Host"), port, security, ct);
 
-                foreach (var recipient in message.Recipients)
-                    email.To.Add(MailboxAddress.Parse(recipient));
+            var userName = GetSetting("SMTP_UserName");
+            if (!string.IsNullOrWhiteSpace(userName))
+                await smtp.AuthenticateAsync(userName, GetSecret("SMTP_Password"), ct);
 
-                email.Subject = message.Subject;
+            await smtp.SendAsync(email, ct);
+            await smtp.DisconnectAsync(true, ct);
 
-                var body = new BodyBuilder()
-                {
-                    HtmlBody = "<p>" + System.Net.WebUtility.HtmlEncode(message.Body).Replace("\n", "<br>") + "</p>",
-                    TextBody = message.Body
-                };
-                email.Body = body.ToMessageBody();
-
-                using var smtp = new SmtpClient();
-
-                await smtp.ConnectAsync(GetSetting("SMTP_Host"), Convert.ToInt32(GetSetting("SMTP_Port", "587")), Convert.ToBoolean(GetSetting("SMTP_UseSSL", "true")), ct);
-                await smtp.AuthenticateAsync(GetSetting("SMTP_UserName", "user"), GetSecret("SMTP_Password", "password"), ct);
-                await smtp.SendAsync(email, ct);
-                await smtp.DisconnectAsync(true, ct);
-
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_FromName") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_FromName", SettingValue = "IIGO Panel" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_FromAddress") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_FromAddress", SettingValue = "admin@example.com" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_SenderName") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_SenderName", SettingValue = "IIGO Panel" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_SenderAddress") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_SenderAddress", SettingValue = "admin@example.com" });
-
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Host") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Host", SettingValue = "smtp.example.com" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Port") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Port", SettingValue = "587" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_UseSSL") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_UseSSL", SettingValue = "true" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_UserName") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_UserName", SettingValue = "user" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "SMTP_Password") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "SMTP_Password", SettingValue = "password" });
-
-            _context.SaveChanges();
+            return true;
         }
     }
 }

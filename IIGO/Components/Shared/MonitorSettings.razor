@@ -3,8 +3,10 @@
 @using IIGO.Services.Interfaces
 @inject ConfigurationService configService
 @inject IEnumerable<IMessengerService> messengers
+@inject SecretProtector secrets
 
-<SectionCard Title="Settings">
+<SectionCard Title="@Title" Subtitle="@Subtitle" Actions="@Actions">
+        @HeaderContent
         @foreach (var setting in Settings)
         {
             <div class="mb-3">
@@ -21,6 +23,21 @@
                             break;
                         case MonitorSettingType.Number:
                             <input class="form-control" type="number" min="1" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
+                            break;
+                        case MonitorSettingType.Email:
+                            <input class="form-control" type="email" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
+                            break;
+                        case MonitorSettingType.Secret:
+                            <input class="form-control" type="password" autocomplete="new-password" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]"
+                                   placeholder="@(savedSecrets.Contains(setting.Name) ? "Saved. Type a new value to replace it." : "Not set")" />
+                            break;
+                        case MonitorSettingType.Choice:
+                            <select class="form-select" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]">
+                                @foreach (var option in setting.Options ?? [])
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </select>
                             break;
                         default:
                             <input class="form-control" type="text" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
@@ -41,7 +58,13 @@
         {
             <div class="mb-3">
                 <span class="form-label d-block">Send notifications through</span>
-                @foreach (var messenger in messengers)
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="notify-@EmailNotifications.ServiceIdentifier" disabled="@ReadOnly"
+                           checked="@selectedServices.Contains(EmailNotifications.ServiceIdentifier)"
+                           @onchange="@(e => ToggleService(EmailNotifications.ServiceIdentifier, (bool)e.Value!))" />
+                    <label class="form-check-label" for="notify-@EmailNotifications.ServiceIdentifier">Email (@emailServiceName)</label>
+                </div>
+                @foreach (var messenger in messengers.Where(x => !x.IsEmail))
                 {
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="notify-@messenger.ServiceIdentifier" disabled="@ReadOnly"
@@ -63,11 +86,33 @@
                 }
             </div>
         }
+        @ChildContent
 </SectionCard>
 
 @code {
     [Parameter, EditorRequired]
     public IReadOnlyList<MonitorSetting> Settings { get; set; } = [];
+
+    [Parameter]
+    public string Title { get; set; } = "Settings";
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    // Shown above the settings, e.g. a service picker
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    // Shown below the Save button, e.g. a test button
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    // Raised after the settings are saved
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
 
     [Parameter]
     public bool ReadOnly { get; set; }
@@ -79,15 +124,26 @@
     Dictionary<string, string> values = new();
     Dictionary<string, string> errors = new();
     HashSet<string> selectedServices = new();
+    // Secrets with a stored value. Their values are never loaded into the form.
+    HashSet<string> savedSecrets = new();
+    string? emailServiceName;
     string? saveMessage;
 
     protected override void OnInitialized()
     {
         var stored = configService.GetSettings(Settings.Select(x => x.Name));
-        values = Settings.ToDictionary(x => x.Name, x => stored.GetValueOrDefault(x.Name, x.DefaultValue));
+        values = Settings.ToDictionary(x => x.Name, x => x.Type == MonitorSettingType.Secret ? "" : stored.GetValueOrDefault(x.Name, x.DefaultValue));
+        savedSecrets = Settings
+            .Where(x => x.Type == MonitorSettingType.Secret && !string.IsNullOrEmpty(stored.GetValueOrDefault(x.Name)))
+            .Select(x => x.Name)
+            .ToHashSet();
 
         if (NotificationFeature != null)
+        {
             selectedServices = configService.GetNotificationServices(NotificationFeature);
+            var emailService = configService.GetSetting(EmailNotifications.Setting, EmailNotifications.DefaultService);
+            emailServiceName = messengers.FirstOrDefault(x => x.ServiceIdentifier == emailService)?.ServiceName ?? emailService;
+        }
     }
 
     bool IsOn(string name) => bool.TryParse(values[name], out var on) && on;
@@ -100,7 +156,7 @@
             selectedServices.Remove(identifier);
     }
 
-    void Save()
+    async Task Save()
     {
         saveMessage = null;
         errors = Settings
@@ -108,21 +164,39 @@
             .Where(x => x.Error != null)
             .ToDictionary(x => x.Name, x => x.Error!);
 
-        // Email services have no one to send to without recipients
-        if (messengers.Any(x => x.IsEmail && selectedServices.Contains(x.ServiceIdentifier)))
+        // Email has no one to send to without recipients
+        if (selectedServices.Contains(EmailNotifications.ServiceIdentifier))
         {
             foreach (var setting in Settings.Where(x => x.Type == MonitorSettingType.EmailList && string.IsNullOrWhiteSpace(values[x.Name])))
-                errors.TryAdd(setting.Name, "Enter at least one address, or untick the email services.");
+                errors.TryAdd(setting.Name, "Enter at least one address, or untick Email.");
         }
 
         if (errors.Count > 0)
             return;
 
-        configService.SaveSettings(Settings.ToDictionary(x => x.Name, x => values[x.Name]?.Trim() ?? ""));
+        // A blank secret keeps the stored value; a new one is encrypted before it's stored
+        var toSave = new Dictionary<string, string>();
+        foreach (var setting in Settings)
+        {
+            var value = values[setting.Name]?.Trim() ?? "";
+            if (setting.Type != MonitorSettingType.Secret)
+                toSave[setting.Name] = value;
+            else if (value.Length > 0)
+                toSave[setting.Name] = secrets.Protect(value);
+        }
+
+        configService.SaveSettings(toSave);
         if (NotificationFeature != null)
             configService.SetNotificationServices(NotificationFeature, selectedServices);
 
+        foreach (var setting in Settings.Where(x => x.Type == MonitorSettingType.Secret && values[x.Name]?.Trim().Length > 0))
+        {
+            savedSecrets.Add(setting.Name);
+            values[setting.Name] = "";
+        }
+
         saveMessage = "Saved!";
+        await OnSaved.InvokeAsync();
     }
 
     static string? Validate(MonitorSetting setting, string value)
@@ -138,6 +212,10 @@
             case MonitorSettingType.NumberPair:
                 var parts = value.Split(',', StringSplitOptions.TrimEntries);
                 return parts.Length == 2 && parts.All(p => int.TryParse(p, out var x) && x > 0) ? null : "Enter two whole numbers separated by a comma, e.g. 5,30.";
+            case MonitorSettingType.Email:
+                return value.Length == 0 || System.Net.Mail.MailAddress.TryCreate(value, out _) ? null : "Enter a valid email address.";
+            case MonitorSettingType.Choice:
+                return setting.Options?.Contains(value) == true ? null : "Choose one of the options.";
             case MonitorSettingType.EmailList:
                 var addresses = value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 var invalid = addresses.Where(a => !System.Net.Mail.MailAddress.TryCreate(a, out _)).ToList();

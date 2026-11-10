@@ -11,35 +11,30 @@ namespace IIGO.Services
 {
     internal class DiscordService(ApplicationDbContext context, SecretProtector secrets) : ServiceBase(context, secrets), IMessengerService
     {
-        readonly ApplicationDbContext _context = context;
+        // Discord rejects messages longer than this
+        const int MaxLength = 2000;
 
         public string ServiceName => "Discord";
         public string ServiceIdentifier => nameof(DiscordService);
 
         public bool IsEmail => false;
 
-        public void Initialize()
-        {
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "Discord_WebhookUrl") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "Discord_WebhookUrl", SettingValue = "" });
-            if (_context.ConfigSetting.FirstOrDefault(x => x.SettingName == "Discord_UserName") == null)
-                _context.ConfigSetting.Add(new ConfigSetting { SettingName = "Discord_UserName", SettingValue = "IIGOPanel" });
-            _context.SaveChanges();
-        }
+        public override IReadOnlyList<MonitorSetting> Settings { get; } =
+        [
+            new("Discord_WebhookUrl", "Webhook URL", MonitorSettingType.Secret, "", "From the channel's Integrations settings in Discord."),
+            new("Discord_UserName", "Post as", MonitorSettingType.Text, "IIGOPanel", "The name messages appear under.")
+        ];
 
         public async Task<bool> SendMessageAsync(MessageData message, CancellationToken ct)
         {
-            // TODO: Get settings from DB
-            try
-            {
-                var c = new DiscordWebhookClient(GetSecret("Discord_WebhookUrl"));
-                await c.SendMessageAsync("", username: GetSetting("Discord_UserName"), avatarUrl: "");
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            var text = $"**{message.Subject}**\n{message.Body}";
+            if (text.Length > MaxLength)
+                text = text[..(MaxLength - 1)] + "…";
+
+            using var client = new DiscordWebhookClient(GetRequired("Discord_WebhookUrl", secret: true));
+            var userName = GetSetting("Discord_UserName");
+            await client.SendMessageAsync(text, username: string.IsNullOrWhiteSpace(userName) ? null : userName);
+            return true;
         }
     }
 }
