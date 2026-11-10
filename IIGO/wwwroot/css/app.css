@@ -580,6 +580,23 @@ html[data-bs-theme=dark] .theme-icon-dark {
     color: var(--bs-body-color);
 }
 
+/* Live command output. column-reverse keeps the scroll at the newest line. */
+.console-output {
+    display: flex;
+    flex-direction: column-reverse;
+    max-height: 60vh;
+    min-height: 8rem;
+    overflow: auto;
+    padding: .75rem 1rem;
+    font-family: var(--bs-font-monospace);
+    font-size: .8125rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bs-tertiary-bg);
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+}
+
 .loading-state {
     display: flex;
     align-items: center;

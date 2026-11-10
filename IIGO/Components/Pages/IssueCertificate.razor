@@ -1,0 +1,315 @@
+@page "/websites/{id:long}/certificate"
+@using Microsoft.Web.Administration
+@using IIGO.Services
+@implements IDisposable
+@inject IISService IISService
+@inject ConfigurationService configService
+@inject CertificateIssuanceService issuance
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
+@attribute [Authorize(Policy = Feature.EditWebsites)]
+@rendermode InteractiveServer
+
+@if (site == null)
+{
+	@if (loaded)
+	{
+		<EmptyState Icon="bi-globe2" Title="This website was not found." />
+	}
+	else
+	{
+		<LoadingState />
+	}
+}
+else
+{
+	<PageTitle>Request Certificate: @site.Name</PageTitle>
+
+	<PageHeader Title="Request Certificate" Subtitle="@($"Requests a certificate with simple-acme for {site.Name} and installs it on the site's HTTPS bindings.")" ParentText="@site.Name" ParentHref="@($"/websites/{site.Id}")" />
+
+	<ConfirmDialog @ref="dialog" />
+
+	@if (configProblem != null)
+	{
+		<div class="alert alert-warning d-flex align-items-start gap-2">
+			<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+			<div>
+				@* Blazor drops whitespace-only text between markup, so the space goes in the expression *@
+				@($"{configProblem} ")
+				@if (isAdmin)
+				{
+					<span>Fix it in the Certificates section of the <a href="/settings">Settings</a> page.</span>
+				}
+				else
+				{
+					<span>Ask an administrator to fix it on the Settings page.</span>
+				}
+			</div>
+		</div>
+	}
+
+	@if (error != null)
+	{
+		<div class="alert alert-danger d-flex align-items-start gap-2">
+			<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+			<div>@error</div>
+		</div>
+	}
+
+	<SectionCard Title="Host names" Subtitle="Pick the names to put on the certificate. They come from the site's bindings." Flush="true" Class="mb-3">
+		@if (hostOptions.Count == 0)
+		{
+			<EmptyState Icon="bi-link-45deg" Title="This site has no bindings with a host name." />
+		}
+		else
+		{
+			<div class="table-responsive">
+				<table class="table table-hover align-middle iigo-table mb-0">
+					<thead>
+						<tr>
+							<th class="w-auto"><span class="visually-hidden">Include</span></th>
+							<th>Host Name</th>
+							<th>Bindings</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var option in hostOptions)
+						{
+							var id = $"host-{option.Host}";
+							<tr>
+								<td>
+									<input class="form-check-input" type="checkbox" id="@id" disabled="@(option.Reason != null || Busy)"
+										   checked="@selected.Contains(option.Host)" @onchange="@(e => ToggleHost(option.Host, (bool)e.Value!))" />
+								</td>
+								<td>
+									<label class="form-check-label" for="@id">@option.Host</label>
+									@if (option.Reason != null)
+									{
+										<div class="form-text mt-0">@option.Reason</div>
+									}
+								</td>
+								<td>
+									@foreach (var binding in option.Bindings)
+									{
+										<span class="badge text-secondary-emphasis bg-secondary-subtle border border-secondary-subtle me-1">@binding</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</SectionCard>
+
+	<SectionCard Title="Options" Class="mb-3">
+		<div class="row g-3 mb-3">
+			<div class="col-md-6">
+				<label class="form-label" for="common-name">Common name</label>
+				<select class="form-select" id="common-name" disabled="@(selected.Count == 0 || Busy)" @bind="commonName">
+					@foreach (var host in SelectedHosts)
+					{
+						<option value="@host">@host</option>
+					}
+				</select>
+				<div class="form-text">The main name on the certificate. All the selected names are included either way.</div>
+			</div>
+			<div class="col-md-6">
+				<span class="form-label d-block">ACME server</span>
+				<div class="text-break">
+					@(baseUri == "" ? "simple-acme's default" : baseUri)
+					@if (baseUri == CertificateIssuanceSettings.LetsEncryptStaging)
+					{
+						<span class="badge text-warning-emphasis bg-warning-subtle border border-warning-subtle ms-1">Staging</span>
+					}
+				</div>
+				@if (baseUri == CertificateIssuanceSettings.LetsEncryptStaging)
+				{
+					<div class="form-text">Staging certificates are for testing. Browsers don't trust them.</div>
+				}
+			</div>
+		</div>
+		<div class="form-check mb-3">
+			<input class="form-check-input" type="checkbox" id="verbose" disabled="@Busy" @bind="verbose" />
+			<label class="form-check-label" for="verbose">Verbose output</label>
+		</div>
+		<p class="form-text">
+			HTTPS bindings for these names on this site get the new certificate. Names with only an http binding get a new
+			https binding on port 443. simple-acme's own settings choose how the names are validated and where the certificate is stored,
+			unless the extra arguments on the Settings page say otherwise. The scheduled task set up with simple-acme renews it.
+		</p>
+		<button class="btn btn-primary" disabled="@(!CanStart)" @onclick="Start">
+			<i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Request Certificate
+		</button>
+	</SectionCard>
+
+	@if (run != null)
+	{
+		<SectionCard Title="Output" Subtitle="@RunSubtitle(run)" Flush="true" Class="mb-3">
+			<Actions>
+				<StatusBadge Status="@run.State.ToString()" Variant="@(run.State == IssuanceState.Running ? "info" : null)" />
+				@if (run.IsRunning)
+				{
+					<button class="btn btn-sm btn-outline-danger" @onclick="Cancel"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Cancel</button>
+				}
+				else if (run.State == IssuanceState.Succeeded)
+				{
+					<a class="btn btn-sm btn-outline-secondary" href="/websites/@run.SiteId">View bindings</a>
+				}
+			</Actions>
+			<ChildContent>
+				@* column-reverse keeps the newest output in view without any script *@
+				<div class="console-output" role="log" aria-live="polite">
+					<div>
+						@foreach (var line in run.GetLines())
+						{
+							<div class="@(line.IsError ? "text-danger" : null)">@line.Text</div>
+						}
+						@if (run.IsRunning)
+						{
+							<div class="text-body-secondary"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Running…</div>
+						}
+						else if (run.ExitCode != null)
+						{
+							<div class="text-body-secondary">Exited with code @run.ExitCode.</div>
+						}
+					</div>
+				</div>
+			</ChildContent>
+		</SectionCard>
+	}
+}
+
+@code {
+	[Parameter]
+	public long Id { get; set; }
+
+	Site? site;
+	bool loaded;
+	bool isAdmin;
+	bool canEdit;
+	string actor = "";
+	string? configProblem;
+	string baseUri = "";
+	string? error;
+	ConfirmDialog dialog = default!;
+
+	List<HostOption> hostOptions = [];
+	HashSet<string> selected = [];
+	string commonName = "";
+	bool verbose;
+
+	// The request shown here: one for this site, or one running for another site
+	IssuanceRun? run;
+	int renderQueued;
+
+	// A request is running somewhere; only one runs at a time
+	bool Busy => issuance.Current?.IsRunning == true;
+
+	bool CanStart => canEdit && configProblem == null && selected.Count > 0 && !Busy;
+
+	IEnumerable<string> SelectedHosts => hostOptions.Select(x => x.Host).Where(selected.Contains);
+
+	protected override async Task OnInitializedAsync()
+	{
+		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		isAdmin = authState.User.IsInRole("Administrator");
+		// Checked again in each handler, whatever the page's policy allows
+		canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditWebsites)).Succeeded;
+		actor = authState.User.Identity?.Name ?? "";
+
+		var settings = CertificateIssuanceSettings.Load(configService);
+		configProblem = CertificateIssuanceSettings.Problem(settings);
+		baseUri = settings[CertificateIssuanceSettings.BaseUri].Trim();
+		site = IISService.GetSite(Id);
+		loaded = true;
+		if (site == null)
+			return;
+
+		hostOptions = CertificateIssuanceService.GetHostOptions(site);
+		selected = [.. hostOptions.Where(x => x.Reason == null).Select(x => x.Host)];
+		commonName = SelectedHosts.FirstOrDefault() ?? "";
+
+		ShowCurrentRun();
+		issuance.Changed += OnIssuanceChanged;
+	}
+
+	void ShowCurrentRun()
+	{
+		var current = issuance.Current;
+		if (current != null && (current.SiteId == Id || current.IsRunning))
+			run = current;
+	}
+
+	void ToggleHost(string host, bool include)
+	{
+		if (include)
+			selected.Add(host);
+		else
+			selected.Remove(host);
+
+		if (!selected.Contains(commonName))
+			commonName = SelectedHosts.FirstOrDefault() ?? "";
+	}
+
+	async Task Start()
+	{
+		if (!CanStart)
+			return;
+
+		var hosts = SelectedHosts.ToList();
+		var confirmation = await dialog.ShowAsync(
+			title: "Request a certificate?",
+			message1: $"simple-acme will request a certificate for {string.Join(", ", hosts)} and install it on {site!.Name}'s HTTPS bindings.",
+			message2: "Do you want to proceed?");
+		if (!confirmation)
+			return;
+
+		error = null;
+		try
+		{
+			run = issuance.Start(Id, hosts, commonName, verbose, actor);
+		}
+		catch (InvalidOperationException ex)
+		{
+			error = ex.Message;
+		}
+	}
+
+	void Cancel()
+	{
+		if (canEdit)
+			issuance.Cancel(actor);
+	}
+
+	// Output arrives a line at a time; renders at most every 100 ms
+	void OnIssuanceChanged()
+	{
+		if (Interlocked.Exchange(ref renderQueued, 1) == 1)
+			return;
+
+		_ = InvokeAsync(async () =>
+		{
+			await Task.Delay(100);
+			Interlocked.Exchange(ref renderQueued, 0);
+			var wasRunning = run?.IsRunning == true;
+			ShowCurrentRun();
+			// Bindings change when a request for this site finishes
+			if (wasRunning && run?.IsRunning == false && run.SiteId == Id)
+			{
+				site = IISService.GetSite(Id) ?? site;
+				if (site != null)
+					hostOptions = CertificateIssuanceService.GetHostOptions(site);
+			}
+			StateHasChanged();
+		});
+	}
+
+	static string RunSubtitle(IssuanceRun run)
+	{
+		var text = $"{run.SiteName}: {string.Join(", ", run.Hosts)}. Started by {run.StartedBy} at {run.StartedAt:g}";
+		return run.FinishedAt is DateTime finished ? $"{text}, finished at {finished:t}." : $"{text}.";
+	}
+
+	public void Dispose() => issuance.Changed -= OnIssuanceChanged;
+}

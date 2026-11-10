@@ -205,6 +205,8 @@ namespace IIGO
             builder.Services.AddScoped<IMessengerService, SNSService>();
             builder.Services.AddScoped<IISService>();
             builder.Services.AddScoped<FirewallService>();
+            // Singleton so a certificate request keeps running, and its output stays visible, after the page is closed
+            builder.Services.AddSingleton<CertificateIssuanceService>();
 
             builder.Services.AddTransient<ServiceResolver>(serviceProvider => serviceTypeName =>
             {
@@ -378,6 +380,12 @@ namespace IIGO
 
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateHistoryLength") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateHistoryLength", SettingValue = "365" });
+
+                    foreach (var setting in CertificateIssuanceSettings.Settings)
+                    {
+                        if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == setting.Name) == null)
+                            context.ConfigSetting.Add(new ConfigSetting { SettingName = setting.Name, SettingValue = setting.DefaultValue });
+                    }
 
                     context.SaveChanges();
                 }

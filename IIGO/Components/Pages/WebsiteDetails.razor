@@ -68,6 +68,7 @@ else
 		<Actions>
 			@if (canEdit)
 			{
+				<a href="/websites/@site.Id/certificate" class="btn btn-sm btn-outline-secondary"><i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Request Certificate</a>
 				<button @onclick="AddBinding" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Binding</button>
 			}
 		</Actions>
