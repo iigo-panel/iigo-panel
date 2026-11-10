@@ -1,0 +1,37 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <!--
+    Builds IIGO Panel.msi. The panel is published self-contained for win-x64 first, then every file in the
+    publish folder goes into the package. Build with:
+      dotnet build IIGO.Installer\IIGO.Installer.wixproj -c Release
+  -->
+
+  <PropertyGroup>
+    <OutputName>IIGO Panel</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <!-- Same folder whether built from the solution (Platform=x64) or on its own -->
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <PanelProject>$(MSBuildThisFileDirectory)..\IIGO\IIGO.csproj</PanelProject>
+    <PanelPublishDir>$(MSBuildThisFileDirectory)obj\publish\$(Configuration)\</PanelPublishDir>
+    <PanelPublishProperties>Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishDir=$(PanelPublishDir)</PanelPublishProperties>
+    <DefineConstants>$(DefineConstants);PublishDir=$(PanelPublishDir)</DefineConstants>
+    <!--
+      ICE61 warns that AllowSameVersionUpgrades lets the same version replace itself. That is wanted: see MajorUpgrade in Package.wxs.
+      ICE60 flags published DLLs whose version resource has no language. It does not affect installing or upgrading.
+    -->
+    <SuppressIces>ICE60;ICE61</SuppressIces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <!-- Publish the panel before the package is compiled. Restore runs on its own first so the win-x64 assets exist. -->
+  <Target Name="PublishPanel" BeforeTargets="BeforeBuild">
+    <RemoveDir Directories="$(PanelPublishDir)" />
+    <MSBuild Projects="$(PanelProject)" Targets="Restore" Properties="$(PanelPublishProperties);_IIGOInstallerRestore=true" />
+    <MSBuild Projects="$(PanelProject)" Targets="Publish" Properties="$(PanelPublishProperties)" />
+  </Target>
+
+</Project>
