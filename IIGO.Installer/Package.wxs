@@ -1,0 +1,112 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <!--
+    The version comes from IIGO.exe's file version. Never change the UpgradeCode: it is how a new package finds
+    the installed one and replaces it.
+  -->
+  <Package Name="IIGO Panel"
+           Manufacturer="IIGO"
+           Version="!(bind.FileVersion.IIGOExe)"
+           UpgradeCode="8A792755-1251-4F08-A53A-7E2DD5FAE267"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <!--
+      A newer package removes the installed one, then installs itself. Files the panel creates at run time
+      (the Data folder with the database and keys) are never part of the package, so they stay.
+      Pre-release builds share a file version (1.0.0-beta7 and 1.0.0-beta8 are both 1.0.0.0), so a package
+      may also replace an install with the same version.
+    -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="IIGO.ico" SourceFile="$(var.PublishDir)wwwroot\favicon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="IIGO.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://iigo.dev" />
+
+    <!-- Upgrades install to the folder picked the first time -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="InstallFolderSearch" Root="HKLM" Key="SOFTWARE\IIGO Panel" Name="InstallFolder" Type="raw" />
+    </Property>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="IIGO Panel">
+        <Directory Id="DATAFOLDER" Name="Data" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Panel" Title="IIGO Panel">
+      <ComponentGroupRef Id="PanelFiles" />
+      <ComponentRef Id="PanelService" />
+      <ComponentRef Id="PanelSettings" />
+      <ComponentRef Id="DataFolder" />
+      <ComponentRef Id="InstallFolderRegistry" />
+    </Feature>
+
+    <ComponentGroup Id="PanelFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)**">
+        <Exclude Files="$(var.PublishDir)IIGO.exe" />
+        <Exclude Files="$(var.PublishDir)appsettings.json" />
+        <Exclude Files="$(var.PublishDir)appsettings.Development.json" />
+        <Exclude Files="$(var.PublishDir)web.config" />
+      </Files>
+    </ComponentGroup>
+
+    <Component Id="PanelService" Directory="INSTALLFOLDER">
+      <File Id="IIGOExe" Source="$(var.PublishDir)IIGO.exe" KeyPath="yes" />
+      <!-- LocalSystem, because managing IIS, the firewall and Windows Update needs administrator rights -->
+      <ServiceInstall Name="IIGOPanel"
+                      DisplayName="IIGO Panel"
+                      Description="Web control panel for IIS, the firewall, scheduled tasks and Windows updates."
+                      Type="ownProcess"
+                      Start="auto"
+                      ErrorControl="normal"
+                      Account="LocalSystem"
+                      Vital="yes">
+        <util:ServiceConfig FirstFailureActionType="restart"
+                            SecondFailureActionType="restart"
+                            ThirdFailureActionType="restart"
+                            RestartServiceDelayInSeconds="60"
+                            ResetPeriodInDays="1" />
+      </ServiceInstall>
+      <ServiceControl Id="PanelServiceControl" Name="IIGOPanel" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+    </Component>
+
+    <!--
+      appsettings.json holds the HTTPS endpoint and host names, so a changed copy must survive upgrades.
+      Permanent keeps it when the old version is removed, NeverOverwrite skips it when the file is already there.
+      New default settings therefore do not reach upgraded installs; the panel's code has its own defaults.
+    -->
+    <Component Id="PanelSettings" Directory="INSTALLFOLDER" Permanent="yes" NeverOverwrite="yes">
+      <File Id="AppSettings" Source="$(var.PublishDir)appsettings.json" KeyPath="yes" />
+    </Component>
+
+    <!--
+      The database and the key ring live in Data. The keys are protected for the machine, so any local account
+      that can read them can decrypt stored secrets and forge sign-in cookies. Only SYSTEM and Administrators get access.
+    -->
+    <Component Id="DataFolder" Directory="DATAFOLDER" Guid="5D3B2A51-2C1B-4E0F-9C8E-1F6B7A2D4E93">
+      <CreateFolder>
+        <PermissionEx Sddl="D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)" />
+      </CreateFolder>
+    </Component>
+
+    <Component Id="InstallFolderRegistry" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKLM" Key="SOFTWARE\IIGO Panel" Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+
+    <!-- Register the IIGO event log before the service starts and writes to it -->
+    <SetProperty Id="CreateEventLog" Value="&quot;[#IIGOExe]&quot; CreateLog" Before="CreateEventLog" Sequence="execute" />
+    <CustomAction Id="CreateEventLog" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="CreateEventLog" After="InstallFiles" Condition="NOT REMOVE~=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+  </Package>
+</Wix>

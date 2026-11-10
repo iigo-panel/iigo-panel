@@ -38,6 +38,12 @@ namespace IIGO
                         Console.WriteLine($"Created Source: {Constants.EventLogSource} on {Constants.EventLogName}");
                     }
                 }
+                else
+                {
+                    // The installer runs this before the service first starts
+                    EventLog.CreateEventSource(Constants.EventLogSource, Constants.EventLogName);
+                    Console.WriteLine($"Created Source: {Constants.EventLogSource} on {Constants.EventLogName}");
+                }
                 return;
             }
 
@@ -49,7 +55,8 @@ namespace IIGO
             });
             builder.Host.UseWindowsService(options =>
             {
-                options.ServiceName = "IIGO Panel Service";
+                // Matches ServiceInstall in IIGO.Installer\Package.wxs
+                options.ServiceName = "IIGOPanel";
             });
 
             builder.Services.AddBlazorBootstrap();

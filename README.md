@@ -9,6 +9,29 @@ Windows Server 2012 may require installing Microsoft Visual C++ 2015-2022 Redist
 
 [Join Discord](https://discord.gg/cKqN9wa2d9)
 
+## Installing
+
+Run `IIGO Panel.msi` as an administrator. It installs the panel to `C:\Program Files\IIGO Panel` (you can pick another folder), registers the `IIGO` event log, and installs and starts the `IIGOPanel` Windows service. The service runs as LocalSystem, starts with Windows, and restarts itself if it stops unexpectedly.
+
+To upgrade, run the newer `IIGO Panel.msi`. It stops the service, replaces the program files in the same folder, and starts the service again. These are kept:
+
+* The `Data` folder (database and encryption keys).
+* `appsettings.json`, including your HTTPS endpoint. A new version never overwrites it, so add any new settings by hand.
+
+Uninstalling removes the service and program files but leaves `Data` and `appsettings.json` behind, so a reinstall picks up where you left off. Delete the folder yourself to remove everything.
+
+The installer limits the `Data` folder to SYSTEM and Administrators. Its keys are protected for the machine, so any account that can read them could decrypt stored secrets.
+
+If you set the panel up as a service by hand before, remove that service first (`sc.exe delete "<service name>"`), and point the installer at the same folder to keep your data.
+
+To build the installer, run this from a Visual Studio Developer prompt (the panel's COM reference needs Visual Studio's MSBuild). The package is written to `IIGO.Installer\bin\Release\IIGO Panel.msi`:
+
+```
+msbuild IIGO.Installer\IIGO.Installer.wixproj -restore /p:Configuration=Release
+```
+
+The MSI version comes from `IIGO.exe`'s file version. Pre-release builds all share `1.0.0.0`, so the installer lets a package replace an install of the same version.
+
 ## Getting Set Up
 
 Modify `appsettings.json` as necessary if default settings need to be changed.
