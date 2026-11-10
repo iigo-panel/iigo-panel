@@ -53,7 +53,7 @@ The Settings page (Administration > Settings) holds sign-in security and the set
 
 Two-factor authentication can be required for administrators or for everyone. Users it applies to are sent to set up an authenticator app before they can use the panel, and can't turn 2FA off. API keys are not affected.
 
-Each notification service has a "Send test message" button that uses its saved settings and shows the error if sending fails. Choose which services each monitor sends through on the monitor's own page.
+Email goes through one service, picked from the Email card's dropdown (SMTP, SendGrid, Postmark or Amazon SES). Monitors that send email use whichever service is picked there. Each notification service has a "Send test message" button that uses its saved settings and shows the error if sending fails. Choose which services each monitor sends through on the monitor's own page.
 
 ## Secrets and keys
 

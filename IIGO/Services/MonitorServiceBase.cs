@@ -111,8 +111,12 @@ namespace IIGO.Services
 
             var messengers = services.GetServices<IMessengerService>().ToList();
             var allSent = true;
-            foreach (var identifier in assigned)
+            foreach (var assignedIdentifier in assigned)
             {
+                // "Email" goes through the email service chosen on the Settings page
+                var identifier = assignedIdentifier == EmailNotifications.ServiceIdentifier
+                    ? GetSetting(context, EmailNotifications.Setting, EmailNotifications.DefaultService)
+                    : assignedIdentifier;
                 var messenger = messengers.FirstOrDefault(x => x.ServiceIdentifier == identifier);
                 if (messenger == null)
                 {

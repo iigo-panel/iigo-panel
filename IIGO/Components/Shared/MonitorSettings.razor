@@ -6,6 +6,7 @@
 @inject SecretProtector secrets
 
 <SectionCard Title="@Title" Subtitle="@Subtitle" Actions="@Actions">
+        @HeaderContent
         @foreach (var setting in Settings)
         {
             <div class="mb-3">
@@ -57,7 +58,13 @@
         {
             <div class="mb-3">
                 <span class="form-label d-block">Send notifications through</span>
-                @foreach (var messenger in messengers)
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="notify-@EmailNotifications.ServiceIdentifier" disabled="@ReadOnly"
+                           checked="@selectedServices.Contains(EmailNotifications.ServiceIdentifier)"
+                           @onchange="@(e => ToggleService(EmailNotifications.ServiceIdentifier, (bool)e.Value!))" />
+                    <label class="form-check-label" for="notify-@EmailNotifications.ServiceIdentifier">Email (@emailServiceName)</label>
+                </div>
+                @foreach (var messenger in messengers.Where(x => !x.IsEmail))
                 {
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="notify-@messenger.ServiceIdentifier" disabled="@ReadOnly"
@@ -95,6 +102,10 @@
     [Parameter]
     public RenderFragment? Actions { get; set; }
 
+    // Shown above the settings, e.g. a service picker
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
     // Shown below the Save button, e.g. a test button
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -115,6 +126,7 @@
     HashSet<string> selectedServices = new();
     // Secrets with a stored value. Their values are never loaded into the form.
     HashSet<string> savedSecrets = new();
+    string? emailServiceName;
     string? saveMessage;
 
     protected override void OnInitialized()
@@ -127,7 +139,11 @@
             .ToHashSet();
 
         if (NotificationFeature != null)
+        {
             selectedServices = configService.GetNotificationServices(NotificationFeature);
+            var emailService = configService.GetSetting(EmailNotifications.Setting, EmailNotifications.DefaultService);
+            emailServiceName = messengers.FirstOrDefault(x => x.ServiceIdentifier == emailService)?.ServiceName ?? emailService;
+        }
     }
 
     bool IsOn(string name) => bool.TryParse(values[name], out var on) && on;
@@ -148,11 +164,11 @@
             .Where(x => x.Error != null)
             .ToDictionary(x => x.Name, x => x.Error!);
 
-        // Email services have no one to send to without recipients
-        if (messengers.Any(x => x.IsEmail && selectedServices.Contains(x.ServiceIdentifier)))
+        // Email has no one to send to without recipients
+        if (selectedServices.Contains(EmailNotifications.ServiceIdentifier))
         {
             foreach (var setting in Settings.Where(x => x.Type == MonitorSettingType.EmailList && string.IsNullOrWhiteSpace(values[x.Name])))
-                errors.TryAdd(setting.Name, "Enter at least one address, or untick the email services.");
+                errors.TryAdd(setting.Name, "Enter at least one address, or untick Email.");
         }
 
         if (errors.Count > 0)
