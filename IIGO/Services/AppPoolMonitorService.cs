@@ -16,7 +16,7 @@ namespace IIGO.Services
             new("AppPoolMonitorEnabled", "Monitoring enabled", MonitorSettingType.Toggle, "true"),
             new("AppPoolMonitorInterval", "Check interval (minutes)", MonitorSettingType.Number, "2"),
             new("AppPoolMonitorExclusions", "Excluded pools", MonitorSettingType.Text, "", "Comma-separated. Pools whose name contains any of these are never restarted."),
-            new("AppPoolNotificationThreshold", "Notification threshold", MonitorSettingType.NumberPair, "5,30", "Restarts,days. \"5,30\" notifies from the 5th restart within 30 days."),
+            new("AppPoolNotificationThreshold", "Notification threshold", MonitorSettingType.NumberPair, "5,30", "Notifies on every restart once a pool reaches this many restarts in the window.", PartLabels: ["restarts within", "days"]),
             new("AppPoolNotificationEmail", "Notification recipients", MonitorSettingType.EmailList, "admin@example.com", "Comma-separated email addresses, used by email notification methods."),
             new("AppPoolHistoryLength", "Keep history (days)", MonitorSettingType.Number, "365")
         ];
