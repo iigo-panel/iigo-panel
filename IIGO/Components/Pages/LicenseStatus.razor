@@ -1,6 +1,7 @@
 ﻿@page "/license"
 @using IIGO.Services
 @inject IHttpContextAccessor httpContextAccessor
+@inject IIGO.Plugins.PluginRegistry Plugins
 @attribute [Authorize(Roles = "Administrator")]
 
 <PageTitle>License Status</PageTitle>
@@ -29,6 +30,26 @@ else
         </ChildContent>
     </SectionCard>
 }
+
+<SectionCard Title="Plugins" Subtitle="Loaded at startup. Restart the service after adding, updating or removing one.">
+    @if (Plugins.Plugins.Count == 0)
+    {
+        <p class="mb-0 text-body-secondary">No plugins are loaded.</p>
+    }
+    else
+    {
+        <dl class="kv-list">
+            @foreach (var plugin in Plugins.Plugins)
+            {
+                <dt>@plugin.Name</dt><dd>@plugin.Version</dd>
+            }
+        </dl>
+    }
+    @foreach (var message in Plugins.Messages.Where(m => m.Level >= LogLevel.Warning))
+    {
+        <div class="alert @(message.Level >= LogLevel.Error ? "alert-danger" : "alert-warning") mt-3 mb-0">@message.Message</div>
+    }
+</SectionCard>
 
 
 @code {

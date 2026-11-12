@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@inject IIGO.Plugins.PluginRegistry Plugins
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -12,6 +13,10 @@
     <ImportMap />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="IIGO.styles.css" />
+    @foreach (var stylesheet in Plugins.Stylesheets)
+    {
+        <link rel="stylesheet" href="@stylesheet" />
+    }
     <script src="js/theme.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">

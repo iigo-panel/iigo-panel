@@ -3,6 +3,7 @@ using IIGO.Authorization;
 using IIGO.Components;
 using IIGO.Components.Account;
 using IIGO.Data;
+using IIGO.Plugins;
 using IIGO.Services;
 using IIGO.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using System.Diagnostics;
 using System.Threading.RateLimiting;
 
@@ -66,7 +68,7 @@ namespace IIGO
                 .AddInteractiveServerComponents();
 
             // API controllers (IIGO.Api), protected by keys from the API Keys page
-            builder.Services.AddControllers();
+            var mvc = builder.Services.AddControllers();
 
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IdentityUserAccessor>();
@@ -88,6 +90,16 @@ namespace IIGO
                 Directory.CreateDirectory(fullPath!);
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlite(conn.ConnectionString));
+
+            // Plugins add services here, and pages, menu links and permissions through the registry
+            var license = LicenseInfo.Load();
+            builder.Services.AddSingleton(license);
+            var plugins = PluginLoader.Load(builder.Services, builder.Configuration, builder.Environment, license, conn.ConnectionString);
+            builder.Services.AddSingleton(plugins);
+            foreach (var assembly in plugins.Assemblies)
+            {
+                mvc.AddApplicationPart(assembly);
+            }
 #if DEBUG
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 #endif
@@ -161,7 +173,7 @@ namespace IIGO
                 // or endpoint that forgets the attribute fails closed
                 options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
 
-                foreach (var feature in Feature.All)
+                foreach (var feature in plugins.AllFeatures)
                 {
                     options.AddPolicy(feature, policy =>
                     {
@@ -225,24 +237,28 @@ namespace IIGO
                 app.Logger.LogInformation(new EventId(1001), "Database: {connDataSource}", conn.DataSource);
             }
 
-            bool validLicense = LicenseKeyService.ValidateLicense(out var licenseKey);
             if (app.Logger.IsEnabled(LogLevel.Information))
             {
-                app.Logger.LogInformation(new EventId(1002), "License Valid: {validLicense}", validLicense);
+                app.Logger.LogInformation(new EventId(1002), "License Valid: {validLicense}", license.IsValid);
             }
-            if (validLicense)
+            if (license.IsValid)
             {
                 if (app.Logger.IsEnabled(LogLevel.Information))
                 {
-                    app.Logger.LogInformation(new EventId(1002), "License Information: {licenseKey}", licenseKey?.ToString() ?? "N/A");
+                    app.Logger.LogInformation(new EventId(1002), "License Information: {licenseKey}", license.Data.ToString());
                 }
             }
             else
             {
                 if (app.Logger.IsEnabled(LogLevel.Warning))
                 {
-                    app.Logger.LogWarning(new EventId(2001), "License Invalid: {licenseKey}", licenseKey?.ToString() ?? "N/A");
+                    app.Logger.LogWarning(new EventId(2001), "License Invalid: {licenseKey}", license.Data.ToString());
                 }
+            }
+
+            foreach (var message in plugins.Messages)
+            {
+                app.Logger.Log(message.Level, new EventId(message.Level >= LogLevel.Warning ? 2006 : 1003), message.Exception, "Plugins: {PluginMessage}", message.Message);
             }
 
             UpdateDatabase(app);
@@ -281,6 +297,10 @@ namespace IIGO
             });
 
             app.UseStaticFiles();
+            foreach (var files in plugins.StaticFileRoots)
+            {
+                app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(files.Directory), RequestPath = files.RequestPath });
+            }
             app.UseRateLimiter();
             app.UseAuthentication();
             app.UseAuthorization();
@@ -300,10 +320,16 @@ namespace IIGO
                 }
             });
 
+            foreach (var plugin in plugins.Plugins)
+            {
+                plugin.Plugin.Configure(app, plugin.Context);
+            }
+
             app.MapControllers();
 
             app.MapRazorComponents<App>()
-                .AddInteractiveServerRenderMode();
+                .AddInteractiveServerRenderMode()
+                .AddAdditionalAssemblies([.. plugins.Assemblies]);
 
             // Add additional endpoints required by the Identity /Account Razor components.
             app.MapAdditionalIdentityEndpoints();
