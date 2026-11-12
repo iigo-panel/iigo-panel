@@ -48,7 +48,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Semver" Version="3.0.0" />
-    <PackageReference Include="StatefulReconnection" Version="0.1.0" />
     <PackageReference Include="System.Management" Version="[10.0.15, 10.999.0)" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="[10.0.15, 10.999.0)" />
     <PackageReference Include="System.Security.Permissions" Version="[10.0.15, 10.999.0)" />

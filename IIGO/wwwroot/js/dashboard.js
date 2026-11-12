@@ -118,7 +118,8 @@ function onVisibility() {
     }
 }
 
-// options: { cpu, memory, network } element ids (omit or null to skip a chart), maxPoints
+// options: { cpu, memory, network } element ids (omit or null to skip a chart), maxPoints.
+// Call load() afterwards to fill the charts.
 export async function init(dotnetRef, options) {
     dotnet = dotnetRef;
     disposed = false;
@@ -162,17 +163,52 @@ export async function init(dotnetRef, options) {
     }
 }
 
-// Append one point to a chart. values has one number per series.
-export function push(kind, timestamp, values) {
-    const entry = charts[kind];
-    if (!entry) return;
+// The numbers one sample gives a chart, one per series, or null when the counter had no reading
+function valuesFor(kind, sample) {
+    if (kind === 'cpu') return sample.cpu == null ? null : [sample.cpu];
+    if (kind === 'memory') return sample.memoryPercent == null ? null : [sample.memoryPercent];
+    return sample.networkReceived == null || sample.networkSent == null ? null : [sample.networkReceived, sample.networkSent];
+}
+
+function append(entry, kind, sample) {
+    const values = valuesFor(kind, sample);
+    if (!values) return false;
+    const last = entry.data[0][entry.data[0].length - 1];
+    // A sample can arrive both in the history and as a live update; keep it once
+    if (last && last[0] >= sample.timestamp) return false;
     entry.data.forEach((points, i) => {
-        points.push([timestamp, values[i]]);
+        points.push([sample.timestamp, values[i]]);
         if (points.length > maxPoints) {
             points.splice(0, points.length - maxPoints);
         }
     });
+    return true;
+}
+
+function redraw(entry) {
     entry.chart.updateSeries(entry.names.map((name, i) => ({ name, data: entry.data[i] })), false);
+}
+
+// Replace every chart's data with the server's recent history, oldest first
+export function load(samples) {
+    for (const kind of Object.keys(charts)) {
+        const entry = charts[kind];
+        entry.data = entry.names.map(() => []);
+        for (const sample of samples) {
+            append(entry, kind, sample);
+        }
+        redraw(entry);
+    }
+}
+
+// Append one sample to every chart
+export function push(sample) {
+    for (const kind of Object.keys(charts)) {
+        const entry = charts[kind];
+        if (append(entry, kind, sample)) {
+            redraw(entry);
+        }
+    }
 }
 
 export function dispose() {

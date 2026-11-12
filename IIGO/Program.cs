@@ -227,6 +227,8 @@ namespace IIGO
             builder.Services.AddHostedService(sp => sp.GetRequiredService<AppPoolMonitorService>());
             builder.Services.AddSingleton<CertificateMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<CertificateMonitorService>());
+            builder.Services.AddSingleton<SystemMetricsService>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemMetricsService>());
             //builder.Services.AddSingleton<IISService>();
             builder.Services.AddSingleton<WindowsUpdateService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<WindowsUpdateService>());
@@ -320,10 +322,15 @@ namespace IIGO
                 await next(context);
             });
 
-            app.UseStaticFiles();
+            // Static files have no version in their URLs, so make browsers check for a newer copy (a cheap 304 when
+            // unchanged) instead of guessing how long theirs stays fresh and running old scripts after an update
+            static void RevalidateStaticFile(Microsoft.AspNetCore.StaticFiles.StaticFileResponseContext context) =>
+                context.Context.Response.Headers.CacheControl = "no-cache";
+
+            app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = RevalidateStaticFile });
             foreach (var files in plugins.StaticFileRoots)
             {
-                app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(files.Directory), RequestPath = files.RequestPath });
+                app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(files.Directory), RequestPath = files.RequestPath, OnPrepareResponse = RevalidateStaticFile });
             }
             app.UseRateLimiter();
             app.UseAuthentication();
