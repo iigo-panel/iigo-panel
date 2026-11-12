@@ -1,0 +1,381 @@
+@* Add or edit form for a scheduled task, in a modal. Call ShowAddAsync or ShowEditAsync; OnSaved gets the saved task *@
+@using Microsoft.Win32.TaskScheduler
+@using IIGO.Services
+@using Task = System.Threading.Tasks.Task
+@inject ScheduledTaskService ScheduledTasks
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
+@inject ILogger<ScheduledTaskEditor> logger
+
+<Modal @ref="modal" Title="@(originalName == null ? "Add Scheduled Task" : $"Edit {originalName}")" Size="ModalSize.ExtraLarge" IsScrollable="true">
+    <BodyTemplate>
+        <EditForm Model="model" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            @if (error != null)
+            {
+                <div class="alert alert-danger">@error</div>
+            }
+
+            <div class="form-floating mb-3">
+                <InputText class="form-control" @bind-Value="model.Name" id="taskName" placeholder="Name" />
+                <label for="taskName">Name</label>
+                <ValidationMessage For="() => model.Name" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputTextArea class="form-control" style="height:5rem" @bind-Value="model.Description" id="taskDescription" placeholder="Description" />
+                <label for="taskDescription">Description (optional)</label>
+            </div>
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" @bind-Value="model.Enabled" id="taskEnabled" />
+                <label class="form-check-label" for="taskEnabled">Enabled</label>
+            </div>
+
+            <h3 class="h6 mt-4 mb-2">Actions</h3>
+            @for (int i = 0; i < model.Actions.Count; i++)
+            {
+                var action = model.Actions[i];
+                var n = i;
+                <div class="border rounded p-3 mb-2" @key="action">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="fw-medium me-auto">Start a program</span>
+                        @if (model.Actions.Count > 1)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => model.Actions.Remove(action)"><i class="bi bi-trash me-1" aria-hidden="true"></i>Remove</button>
+                        }
+                    </div>
+                    <div class="form-floating mb-1">
+                        <InputText class="form-control" @bind-Value="action.Program" id="@($"actionProgram{n}")" placeholder="Program" />
+                        <label for="@($"actionProgram{n}")">Program or script</label>
+                    </div>
+                    <div class="form-text mb-2">Example: C:\Scripts\backup.cmd or powershell.exe</div>
+                    <div class="row g-2">
+                        <div class="col-md-7">
+                            <div class="form-floating">
+                                <InputText class="form-control" @bind-Value="action.Arguments" id="@($"actionArguments{n}")" placeholder="Arguments" />
+                                <label for="@($"actionArguments{n}")">Arguments (optional)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="form-floating">
+                                <InputText class="form-control" @bind-Value="action.StartIn" id="@($"actionStartIn{n}")" placeholder="Start in" />
+                                <label for="@($"actionStartIn{n}")">Start in (optional)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            <ValidationMessage For="() => model.Actions" class="text-danger" />
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-3" @onclick="() => model.Actions.Add(new())"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add action</button>
+
+            <h3 class="h6 mt-4 mb-2">Triggers</h3>
+            @if (model.Triggers.Count == 0)
+            {
+                <p class="form-text">No triggers. The task runs only when started by hand.</p>
+            }
+            @for (int i = 0; i < model.Triggers.Count; i++)
+            {
+                var trigger = model.Triggers[i];
+                var n = i;
+                <div class="border rounded p-3 mb-2" @key="trigger">
+                    <div class="row g-2 align-items-center mb-2">
+                        <div class="col-md-5">
+                            <div class="form-floating">
+                                <InputSelect class="form-select" @bind-Value="trigger.Kind" id="@($"triggerKind{n}")">
+                                    <option value="@TaskTriggerKind.Once">One time</option>
+                                    <option value="@TaskTriggerKind.Daily">Daily</option>
+                                    <option value="@TaskTriggerKind.Weekly">Weekly</option>
+                                    <option value="@TaskTriggerKind.Monthly">Monthly</option>
+                                    <option value="@TaskTriggerKind.AtStartup">At startup</option>
+                                    <option value="@TaskTriggerKind.AtLogon">At sign-in</option>
+                                </InputSelect>
+                                <label for="@($"triggerKind{n}")">Begin the task</label>
+                            </div>
+                        </div>
+                        @if (trigger.IsScheduled)
+                        {
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="trigger.Start" id="@($"triggerStart{n}")" />
+                                    <label for="@($"triggerStart{n}")">Start</label>
+                                </div>
+                            </div>
+                        }
+                        <div class="col d-flex align-items-center justify-content-end gap-3">
+                            <div class="form-check mb-0">
+                                <InputCheckbox class="form-check-input" @bind-Value="trigger.Enabled" id="@($"triggerEnabled{n}")" />
+                                <label class="form-check-label" for="@($"triggerEnabled{n}")">Enabled</label>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => model.Triggers.Remove(trigger)"><i class="bi bi-trash me-1" aria-hidden="true"></i>Remove</button>
+                        </div>
+                    </div>
+
+                    @switch (trigger.Kind)
+                    {
+                        case TaskTriggerKind.Daily:
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        <InputNumber class="form-control" @bind-Value="trigger.DaysInterval" id="@($"triggerDays{n}")" placeholder="Days" />
+                                        <label for="@($"triggerDays{n}")">Every how many days</label>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case TaskTriggerKind.Weekly:
+                            <div class="row g-2 mb-2 align-items-center">
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        <InputNumber class="form-control" @bind-Value="trigger.WeeksInterval" id="@($"triggerWeeks{n}")" placeholder="Weeks" />
+                                        <label for="@($"triggerWeeks{n}")">Every how many weeks</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    @foreach (var day in Weekdays)
+                                    {
+                                        var id = $"triggerDay{n}{day}";
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="@id" checked="@trigger.DaysOfWeek.HasFlag(day)"
+                                                   @onchange="e => trigger.DaysOfWeek = (bool)e.Value! ? trigger.DaysOfWeek | day : trigger.DaysOfWeek & ~day" />
+                                            <label class="form-check-label" for="@id">@day.ToString()[..3]</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            break;
+
+                        case TaskTriggerKind.Monthly:
+                            <div class="mb-2">
+                                <span class="form-label d-block small text-body-secondary">Months</span>
+                                @foreach (var month in Months)
+                                {
+                                    var id = $"triggerMonth{n}{month}";
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="@id" checked="@trigger.Months.HasFlag(month)"
+                                               @onchange="e => trigger.Months = (bool)e.Value! ? trigger.Months | month : trigger.Months & ~month" />
+                                        <label class="form-check-label" for="@id">@month.ToString()[..3]</label>
+                                    </div>
+                                }
+                            </div>
+                            <div class="row g-2 mb-2 align-items-center">
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        <InputText class="form-control" @bind-Value="trigger.DaysOfMonth" id="@($"triggerMonthDays{n}")" placeholder="Days" />
+                                        <label for="@($"triggerMonthDays{n}")">Days of the month</label>
+                                    </div>
+                                    <div class="form-text">Example: 1, 15</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <InputCheckbox class="form-check-input" @bind-Value="trigger.LastDayOfMonth" id="@($"triggerLastDay{n}")" />
+                                        <label class="form-check-label" for="@($"triggerLastDay{n}")">Also on the last day of the month</label>
+                                    </div>
+                                </div>
+                            </div>
+                            break;
+
+                        case TaskTriggerKind.AtLogon:
+                            <div class="form-floating mb-1">
+                                <InputText class="form-control" @bind-Value="trigger.LogonUser" id="@($"triggerUser{n}")" placeholder="User" autocomplete="off" />
+                                <label for="@($"triggerUser{n}")">User (optional)</label>
+                            </div>
+                            <div class="form-text mb-2">Example: DOMAIN\user. Leave blank for any user.</div>
+                            break;
+                    }
+
+                    <div class="row g-2 mb-1">
+                        @if (trigger.HasDelay)
+                        {
+                            <div class="col-md-4">
+                                <DurationInput @bind-Value="trigger.Delay" Id="@($"triggerDelay{n}")" Label="Delay" />
+                            </div>
+                        }
+                        <div class="col-md-4">
+                            <DurationInput @bind-Value="trigger.RepeatInterval" Id="@($"triggerRepeat{n}")" Label="Repeat every" />
+                        </div>
+                        @if (trigger.RepeatInterval != TimeSpan.Zero)
+                        {
+                            <div class="col-md-4">
+                                <DurationInput @bind-Value="trigger.RepeatDuration" Id="@($"triggerRepeatFor{n}")" Label="For" />
+                            </div>
+                        }
+                    </div>
+                    <div class="form-text mb-2">
+                        @(trigger.RepeatInterval == TimeSpan.Zero ? "0 runs it once each time it's triggered." : "A duration of 0 repeats indefinitely.")
+                    </div>
+
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="trigger.HasExpiry" id="@($"triggerHasExpiry{n}")" />
+                                <label class="form-check-label" for="@($"triggerHasExpiry{n}")">Expires</label>
+                            </div>
+                        </div>
+                        @if (trigger.HasExpiry)
+                        {
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="trigger.Expires" id="@($"triggerExpires{n}")" />
+                                    <label for="@($"triggerExpires{n}")">Expires</label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            <ValidationMessage For="() => model.Triggers" class="text-danger" />
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-3" @onclick="() => model.Triggers.Add(new())"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add trigger</button>
+
+            <h3 class="h6 mt-4 mb-2">Run as</h3>
+            <div class="row g-2 mb-1">
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <InputSelect class="form-select" @bind-Value="model.RunAs" id="taskRunAs">
+                            <option value="@TaskRunAs.System">SYSTEM</option>
+                            <option value="@TaskRunAs.LocalService">LOCAL SERVICE</option>
+                            <option value="@TaskRunAs.NetworkService">NETWORK SERVICE</option>
+                            <option value="@TaskRunAs.User">Specific user</option>
+                        </InputSelect>
+                        <label for="taskRunAs">Account</label>
+                    </div>
+                </div>
+                @if (model.RunAs == TaskRunAs.User)
+                {
+                    <div class="col-md-8">
+                        <div class="form-floating">
+                            <InputSelect class="form-select" @bind-Value="model.UserLogon" id="taskLogon">
+                                <option value="@TaskUserLogon.Password">Whether the user is signed in or not (store password)</option>
+                                <option value="@TaskUserLogon.S4U">Whether the user is signed in or not (no password, no network access)</option>
+                                <option value="@TaskUserLogon.InteractiveToken">Only when the user is signed in</option>
+                            </InputSelect>
+                            <label for="taskLogon">Run</label>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (model.RunAs == TaskRunAs.System)
+            {
+                <div class="form-text mb-3">SYSTEM has full control of the server. The task's programs run with that access.</div>
+            }
+            @if (model.RunAs == TaskRunAs.User)
+            {
+                <div class="row g-2 mt-1 mb-1">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <InputText class="form-control" @bind-Value="model.UserName" id="taskUserName" placeholder="User name" autocomplete="off" />
+                            <label for="taskUserName">User name</label>
+                            <ValidationMessage For="() => model.UserName" class="text-danger" />
+                        </div>
+                    </div>
+                    @if (model.UserLogon == TaskUserLogon.Password)
+                    {
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText type="password" class="form-control" @bind-Value="model.Password" id="taskPassword" placeholder="Password" autocomplete="new-password" />
+                                <label for="taskPassword">Password</label>
+                                <ValidationMessage For="() => model.Password" class="text-danger" />
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="form-text mb-3">
+                    Example: DOMAIN\user or .\user.
+                    @if (model.UserLogon == TaskUserLogon.Password)
+                    {
+                        <text> Windows asks for the password every time the task is saved.</text>
+                    }
+                </div>
+            }
+            <div class="form-check mb-3 mt-2">
+                <InputCheckbox class="form-check-input" @bind-Value="model.HighestPrivileges" id="taskHighest" />
+                <label class="form-check-label" for="taskHighest">Run with highest privileges</label>
+            </div>
+
+            <h3 class="h6 mt-4 mb-2">Settings</h3>
+            <div class="row g-2 mb-1">
+                <div class="col-md-4">
+                    <DurationInput @bind-Value="model.StopAfter" Id="taskStopAfter" Label="Stop if it runs longer than" />
+                </div>
+                <div class="col-md-8">
+                    <div class="form-floating">
+                        <InputSelect class="form-select" @bind-Value="model.MultipleInstances" id="taskInstances">
+                            <option value="@TaskInstancesPolicy.IgnoreNew">Don't start a new instance</option>
+                            <option value="@TaskInstancesPolicy.Parallel">Run a new instance in parallel</option>
+                            <option value="@TaskInstancesPolicy.Queue">Queue a new instance</option>
+                            <option value="@TaskInstancesPolicy.StopExisting">Stop the running instance</option>
+                        </InputSelect>
+                        <label for="taskInstances">If the task is already running</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-text mb-3">0 lets the task run as long as it needs.</div>
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" @bind-Value="model.StartWhenAvailable" id="taskStartWhenAvailable" />
+                <label class="form-check-label" for="taskStartWhenAvailable">Run as soon as possible after a missed start</label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button" @onclick="() => modal.HideAsync()" class="btn btn-outline-secondary">Cancel</button>
+                <button type="submit" class="btn btn-primary" disabled="@saving">Save</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    [Parameter]
+    public EventCallback<Microsoft.Win32.TaskScheduler.Task> OnSaved { get; set; }
+
+    private Modal modal = default!;
+    private ScheduledTaskModel model = new();
+    private string? originalName;
+    private string? error;
+    private bool saving;
+
+    private static readonly DaysOfTheWeek[] Weekdays =
+        [DaysOfTheWeek.Monday, DaysOfTheWeek.Tuesday, DaysOfTheWeek.Wednesday, DaysOfTheWeek.Thursday, DaysOfTheWeek.Friday, DaysOfTheWeek.Saturday, DaysOfTheWeek.Sunday];
+
+    private static readonly MonthsOfTheYear[] Months =
+        [MonthsOfTheYear.January, MonthsOfTheYear.February, MonthsOfTheYear.March, MonthsOfTheYear.April, MonthsOfTheYear.May, MonthsOfTheYear.June,
+         MonthsOfTheYear.July, MonthsOfTheYear.August, MonthsOfTheYear.September, MonthsOfTheYear.October, MonthsOfTheYear.November, MonthsOfTheYear.December];
+
+    public async Task ShowAddAsync()
+    {
+        originalName = null;
+        model = new ScheduledTaskModel();
+        error = null;
+        await modal.ShowAsync();
+    }
+
+    public async Task ShowEditAsync(Microsoft.Win32.TaskScheduler.Task task)
+    {
+        originalName = task.Name;
+        model = ScheduledTaskModel.From(task);
+        error = null;
+        await modal.ShowAsync();
+    }
+
+    private async Task Save()
+    {
+        saving = true;
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (!(await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditScheduledTasks)).Succeeded)
+                throw new UnauthorizedAccessException("You don't have permission to change scheduled tasks.");
+            var saved = ScheduledTasks.Save(model, originalName, authState.User.Identity?.Name ?? "IIGO Panel");
+            model.Password = "";
+            await modal.HideAsync();
+            await OnSaved.InvokeAsync(saved);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error saving scheduled task {Name}", model.Name);
+            error = ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

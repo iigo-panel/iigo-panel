@@ -1,14 +1,30 @@
 ﻿@page "/tasks"
 @using Microsoft.Win32.TaskScheduler
 @using IIGO.Services
-@inject IHttpContextAccessor httpContextAccessor
+@using Task = System.Threading.Tasks.Task
+@inject ScheduledTaskService ScheduledTasks
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Tasks> logger
 @attribute [Authorize(Policy = Feature.ViewScheduledTasks)]
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 
 <PageTitle>Scheduled Tasks</PageTitle>
 
-<PageHeader Title="Scheduled Tasks" />
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
+<ConfirmDialog @ref="dialog" />
+<ScheduledTaskEditor @ref="editor" OnSaved="Saved" />
+
+<PageHeader Title="Scheduled Tasks" Subtitle="Tasks in the root folder of Task Scheduler.">
+    <Actions>
+        <button @onclick="Load" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reload</button>
+        @if (canEdit)
+        {
+            <button @onclick="() => editor.ShowAddAsync()" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Task</button>
+        }
+    </Actions>
+</PageHeader>
 
 @if (tasks == null)
 {
@@ -28,21 +44,47 @@ else
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Last Run Time</th>
-                        <th>Next Run Time</th>
-                        <th>State</th>
                         <th>Status</th>
+                        <th>Triggers</th>
+                        <th>Last Run</th>
+                        <th>Last Result</th>
+                        <th>Next Run</th>
+                        @if (canEdit)
+                        {
+                            <th class="text-end">Actions</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var task in tasks)
                     {
                         <tr>
-                            <td>@task.Name</td>
-                            <td class="text-nowrap tabular-nums">@task.LastRunTime.ToString("g")</td>
-                            <td class="text-nowrap tabular-nums">@task.NextRunTime</td>
+                            <td style="overflow-wrap:anywhere"><a href="/tasks/@Uri.EscapeDataString(task.Name)">@task.Name</a></td>
                             <td><StatusBadge Status="@task.State.ToString()" /></td>
-                            <td><StatusBadge Status="@(task.IsActive ? "Active" : "Inactive")" /></td>
+                            <td><div class="cell-truncate" title="@task.TriggerText">@task.TriggerText</div></td>
+                            <td class="text-nowrap tabular-nums">@ScheduledTaskService.RunTimeText(task.LastRunTime, "Never")</td>
+                            <td><StatusBadge Status="@ScheduledTaskService.ResultStatus(task.LastResult)" Text="@ScheduledTaskService.ResultText(task.LastResult)" Variant="@ResultVariant(task.LastResult)" /></td>
+                            <td class="text-nowrap tabular-nums">@ScheduledTaskService.RunTimeText(task.NextRunTime, "—")</td>
+                            @if (canEdit)
+                            {
+                                <td class="text-end">
+                                    <div class="row-actions">
+                                        @if (task.State == TaskState.Running)
+                                        {
+                                            <button @onclick="() => StopTask(task)" class="btn btn-sm btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>End</button>
+                                        }
+                                        else
+                                        {
+                                            <button @onclick="() => RunTask(task)" class="btn btn-sm btn-outline-success" disabled="@(task.State == TaskState.Disabled)"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Run</button>
+                                        }
+                                        @if (task.Editable)
+                                        {
+                                            <button @onclick="() => EditTask(task)" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+                                        }
+                                        <button @onclick="() => DeleteTask(task)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+                                    </div>
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
@@ -52,9 +94,117 @@ else
 }
 
 @code {
-    List<Microsoft.Win32.TaskScheduler.Task>? tasks;
-    protected override void OnInitialized()
+    private ConfirmDialog dialog = default!;
+    private ScheduledTaskEditor editor = default!;
+
+    List<TaskRow>? tasks;
+    bool canEdit;
+
+    // A snapshot of each task, so rendering doesn't call into Task Scheduler for every cell
+    record TaskRow(string Name, TaskState State, string TriggerText, DateTime LastRunTime, int LastResult, DateTime NextRunTime, bool Editable);
+
+    protected override async Task OnInitializedAsync()
     {
-        tasks = TaskService.Instance.RootFolder.Tasks.ToList();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditScheduledTasks)).Succeeded;
+        Load();
     }
+
+    void Load()
+    {
+        try
+        {
+            tasks = [.. ScheduledTasks.GetTasks().Select(task =>
+            {
+                var triggers = task.Definition.Triggers;
+                var triggerText = triggers.Count switch
+                {
+                    0 => "Run by hand",
+                    1 => triggers[0].ToString(),
+                    _ => $"{triggers[0]} (+{triggers.Count - 1} more)"
+                };
+                return new TaskRow(task.Name, task.State, triggerText, task.LastRunTime, task.LastTaskResult, task.NextRunTime,
+                    ScheduledTaskService.NotEditableReason(task) == null);
+            })];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error loading scheduled tasks");
+            tasks ??= [];
+            ShowMessage($"Couldn't load tasks: {ex.Message}", "Error", ToastType.Danger);
+        }
+    }
+
+    static string ResultVariant(int result) => ScheduledTaskService.ResultStatus(result) switch
+    {
+        "Succeeded" => "success",
+        "Running" => "info",
+        "Failed" => "danger",
+        _ => "secondary"
+    };
+
+    void Act(TaskRow row, string verb, Action<Microsoft.Win32.TaskScheduler.Task> action)
+    {
+        if (!canEdit)
+            return;
+
+        try
+        {
+            var task = ScheduledTasks.GetTask(row.Name) ?? throw new InvalidOperationException($"{row.Name} no longer exists.");
+            action(task);
+            ShowMessage($"{row.Name} {verb}.", "Success", ToastType.Success);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error with scheduled task {Name}", row.Name);
+            ShowMessage(ex.Message, "Error", ToastType.Danger);
+        }
+        Load();
+    }
+
+    void RunTask(TaskRow row) => Act(row, "started", ScheduledTasks.Run);
+
+    void StopTask(TaskRow row) => Act(row, "ended", ScheduledTasks.Stop);
+
+    async Task EditTask(TaskRow row)
+    {
+        var task = ScheduledTasks.GetTask(row.Name);
+        if (task == null)
+        {
+            ShowMessage($"{row.Name} no longer exists.", "Error", ToastType.Danger);
+            Load();
+            return;
+        }
+        await editor.ShowEditAsync(task);
+    }
+
+    async Task DeleteTask(TaskRow row)
+    {
+        if (!canEdit)
+            return;
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this task?",
+            message1: $"{row.Name} will be removed from Task Scheduler. This can't be undone.",
+            message2: "Do you want to proceed?");
+
+        if (confirmation)
+            Act(row, "deleted", ScheduledTasks.Delete);
+    }
+
+    void Saved(Microsoft.Win32.TaskScheduler.Task task)
+    {
+        ShowMessage($"{task.Name} saved.", "Success", ToastType.Success);
+        Load();
+    }
+
+    List<ToastMessage> messages = new List<ToastMessage>();
+
+    private void ShowMessage(string message, string title, ToastType toastType) => messages.Add(new ToastMessage
+    {
+        Title = title,
+        Type = toastType,
+        HelpText = $"{DateTime.Now}",
+        Message = message,
+    });
 }
