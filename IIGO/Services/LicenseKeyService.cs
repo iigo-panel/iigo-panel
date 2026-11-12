@@ -54,7 +54,7 @@ namespace IIGO.Services
         }
     }
 
-    internal record LicenseData
+    public record LicenseData
     {
         public string CompanyName { get; init; } = "";
 
@@ -74,7 +74,7 @@ namespace IIGO.Services
     }
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    internal enum LicenseType
+    public enum LicenseType
     {
         Community,
         Standard,
@@ -82,7 +82,7 @@ namespace IIGO.Services
     }
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    internal enum LicenseTerm
+    public enum LicenseTerm
     {
         MIT,
         Annual,

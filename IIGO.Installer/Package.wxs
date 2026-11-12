@@ -35,6 +35,7 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="IIGO Panel">
         <Directory Id="DATAFOLDER" Name="Data" />
+        <Directory Id="PLUGINSFOLDER" Name="Plugins" />
       </Directory>
     </StandardDirectory>
 
@@ -43,6 +44,7 @@
       <ComponentRef Id="PanelService" />
       <ComponentRef Id="PanelSettings" />
       <ComponentRef Id="DataFolder" />
+      <ComponentRef Id="PluginsFolder" />
       <ComponentRef Id="InstallFolderRegistry" />
     </Feature>
 
@@ -91,6 +93,16 @@
     <Component Id="DataFolder" Directory="DATAFOLDER" Guid="5D3B2A51-2C1B-4E0F-9C8E-1F6B7A2D4E93">
       <CreateFolder>
         <PermissionEx Sddl="D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)" />
+      </CreateFolder>
+    </Component>
+
+    <!--
+      Plugins load from Plugins\<Name>\<Name>.dll into the service, which runs as LocalSystem, so only SYSTEM and
+      Administrators may write here. Plugin packages install their own files, so upgrading the panel leaves them alone.
+    -->
+    <Component Id="PluginsFolder" Directory="PLUGINSFOLDER" Guid="B7E4C2D9-6A3F-4E8B-9D1C-2F5A8E7B3C40">
+      <CreateFolder>
+        <PermissionEx Sddl="D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
       </CreateFolder>
     </Component>
 

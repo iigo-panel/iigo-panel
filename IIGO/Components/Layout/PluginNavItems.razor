@@ -1,0 +1,19 @@
+@using IIGO.Plugins
+@inject PluginRegistry Plugins
+
+@* Sidebar links that plugins add to one section *@
+@foreach (var item in Plugins.MenuItemsFor(Section))
+{
+    <AuthorizeView Policy="@item.Policy" Roles="@item.Roles">
+        <Authorized>
+            <NavLink class="nav-link" href="@item.Href" title="@item.Title">
+                <i class="@item.Icon" aria-hidden="true"></i><span class="nav-label">@item.Title</span>
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Section { get; set; } = "";
+}

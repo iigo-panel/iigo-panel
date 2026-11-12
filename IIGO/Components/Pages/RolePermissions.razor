@@ -1,8 +1,10 @@
 @page "/roles/{id}"
+@using IIGO.Plugins
 @using IIGO.Services
 @using Microsoft.AspNetCore.Identity
 @inject RoleManager<IdentityRole> _roleManager
 @inject RolePermissionService _permissionService
+@inject PluginRegistry Plugins
 @inject NavigationManager _nav
 @inject ILogger<RolePermissions> logger
 @attribute [Authorize(Policy = Feature.ViewRoles)]
@@ -20,49 +22,36 @@ else
 {
     <PageHeader Title="Role Permissions" Subtitle="@role.Name" ParentText="Roles" ParentHref="/roles" />
 
-    <AuthorizeView Roles="Administrator">
-        <Authorized>
-            <SectionCard Title="Features">
-                <div class="row row-cols-1 row-cols-md-2 g-2">
-                    @foreach (var feature in Feature.All)
-                    {
-                        <div class="col">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch" id="@feature"
-                                       checked="@selectedFeatures.Contains(feature)"
-                                       @onchange="@(e => ToggleFeature(feature, (bool)e.Value!))" />
-                                <label class="form-check-label" for="@feature">@FormatFeatureName(feature)</label>
-                            </div>
+    @foreach (var group in Plugins.FeatureGroups)
+    {
+        <SectionCard Title="@(group.Name == PluginRegistry.CoreFeatureGroup ? "Features" : group.Name)">
+            <div class="row row-cols-1 row-cols-md-2 g-2">
+                @foreach (var feature in group.Features)
+                {
+                    <div class="col">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="@feature"
+                                   checked="@selectedFeatures.Contains(feature)"
+                                   disabled="@(!isAdmin)"
+                                   @onchange="@(e => ToggleFeature(feature, (bool)e.Value!))" />
+                            <label class="form-check-label" for="@feature">@FormatFeatureName(feature)</label>
                         </div>
-                    }
-                </div>
-                <div class="d-flex align-items-center gap-3 mt-3">
-                    <button class="btn btn-primary" @onclick="Save">Save</button>
-                    @if (!string.IsNullOrEmpty(saveMessage))
-                    {
-                        <span class="text-success">@saveMessage</span>
-                    }
-                </div>
-            </SectionCard>
-        </Authorized>
-        <NotAuthorized>
-            <SectionCard Title="Features">
-                <div class="row row-cols-1 row-cols-md-2 g-2">
-                    @foreach (var feature in Feature.All)
-                    {
-                        <div class="col">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch" id="@feature"
-                                       checked="@selectedFeatures.Contains(feature)"
-                                       disabled />
-                                <label class="form-check-label" for="@feature">@FormatFeatureName(feature)</label>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </SectionCard>
-        </NotAuthorized>
-    </AuthorizeView>
+                    </div>
+                }
+            </div>
+        </SectionCard>
+    }
+
+    @if (isAdmin)
+    {
+        <div class="d-flex align-items-center gap-3 mt-3">
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            @if (!string.IsNullOrEmpty(saveMessage))
+            {
+                <span class="text-success">@saveMessage</span>
+            }
+        </div>
+    }
 }
 
 @code {
@@ -113,7 +102,8 @@ else
 
     static string FormatFeatureName(string feature)
     {
-        // Insert spaces before uppercase letters: "ViewWebsites" -> "View Websites"
+        // Drop a plugin prefix and insert spaces before uppercase letters: "Pro.ViewBackups" -> "View Backups"
+        feature = feature[(feature.LastIndexOf('.') + 1)..];
         var result = new System.Text.StringBuilder();
         foreach (var ch in feature)
         {

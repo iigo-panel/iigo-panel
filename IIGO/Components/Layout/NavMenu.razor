@@ -1,4 +1,7 @@
-﻿<a class="sidebar-brand" href="">
+﻿@using IIGO.Plugins
+@inject PluginRegistry Plugins
+
+<a class="sidebar-brand" href="">
     <img src="favicon-32x32.png" alt="" />
     <span class="brand-text">IIGO</span>
 </a>
@@ -28,6 +31,7 @@
                         </NavLink>
                     </Authorized>
                 </AuthorizeView>
+                <PluginNavItems Section="@NavSections.WebServer" />
             </div>
 
             <div class="nav-section">
@@ -69,6 +73,7 @@
                         <i class="bi bi-cloud-arrow-down" aria-hidden="true"></i><span class="nav-label">Check updates</span>
                     </NavLink>
                 }
+                <PluginNavItems Section="@NavSections.System" />
             </div>
 
             <div class="nav-section">
@@ -106,7 +111,16 @@
                         <i class="bi bi-patch-check" aria-hidden="true"></i><span class="nav-label">License Status</span>
                     </NavLink>
                 }
+                <PluginNavItems Section="@NavSections.Administration" />
             </div>
+
+            @foreach (var section in Plugins.ExtraSections)
+            {
+                <div class="nav-section">
+                    <div class="nav-section-title">@section</div>
+                    <PluginNavItems Section="@section" />
+                </div>
+            }
         </Authorized>
         <NotAuthorized>
             <div class="nav-section">

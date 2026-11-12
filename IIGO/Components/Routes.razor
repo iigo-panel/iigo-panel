@@ -1,8 +1,10 @@
 ﻿@using IIGO.Components.Account.Shared
+@using IIGO.Plugins
+@inject PluginRegistry Plugins
 
 <StatefulReconnection />
 
-<Router AppAssembly="typeof(Program).Assembly">
+<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="Plugins.Assemblies">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
