@@ -30,7 +30,7 @@ namespace IIGO.Services
         [
             new("CertificateMonitorEnabled", "Monitoring enabled", MonitorSettingType.Toggle, "true"),
             new("CertificateMonitorInterval", "Check interval (minutes)", MonitorSettingType.Number, "10"),
-            new("CertificateExpirationThreshold", "Warn before expiry (days)", MonitorSettingType.Number, "30"),
+            new("CertificateExpirationThreshold", "Warn before expiry (days)", MonitorSettingType.Number, "14", "Let's Encrypt clients usually renew 30 to 21 days before expiry, so a 14-day warning means renewal has likely failed."),
             new("CertificateNotificationFrequency", "Repeat notifications (hours)", MonitorSettingType.Number, "24", "How often an unresolved issue is logged and reported again."),
             new("CertificateNotificationEmail", "Notification recipients", MonitorSettingType.EmailList, "admin@example.com", "Comma-separated email addresses, used by email notification methods."),
             new("CertificateHistoryLength", "Keep history (days)", MonitorSettingType.Number, "365")
@@ -44,7 +44,7 @@ namespace IIGO.Services
 
         protected override async Task RunCheckAsync(IServiceProvider services, ApplicationDbContext context, CancellationToken ct)
         {
-            var thresholdDays = GetIntSetting(context, "CertificateExpirationThreshold", 30);
+            var thresholdDays = GetIntSetting(context, "CertificateExpirationThreshold", 14);
             var issues = new List<CertificateIssue>();
 
             var started = IisStateReader.GetStates(IisStateReader.Sites, useCache: false)

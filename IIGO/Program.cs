@@ -453,7 +453,7 @@ namespace IIGO
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateMonitorInterval", SettingValue = "10" });
 
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateExpirationThreshold") == null)
-                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateExpirationThreshold", SettingValue = "30" });
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateExpirationThreshold", SettingValue = "14" });
 
                     if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateNotificationFrequency") == null)
                         context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateNotificationFrequency", SettingValue = "24" });
@@ -468,6 +468,17 @@ namespace IIGO
                     {
                         if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == setting.Name) == null)
                             context.ConfigSetting.Add(new ConfigSetting { SettingName = setting.Name, SettingValue = setting.DefaultValue });
+                    }
+
+                    // The certificate warning default moved from 30 to 14 days, since Let's Encrypt clients renew
+                    // 30 to 21 days out. Move installs still on 30 once, then leave it so an admin can pick 30 again.
+                    if (context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateExpirationThresholdMigrated") == null)
+                    {
+                        var threshold = context.ConfigSetting.FirstOrDefault(x => x.SettingName == "CertificateExpirationThreshold");
+                        if (threshold?.SettingValue.Trim() == "30")
+                            threshold.SettingValue = "14";
+
+                        context.ConfigSetting.Add(new ConfigSetting { SettingName = "CertificateExpirationThresholdMigrated", SettingValue = "true" });
                     }
 
                     context.SaveChanges();

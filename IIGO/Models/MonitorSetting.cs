@@ -6,7 +6,8 @@ namespace IIGO.Models
         Number,
         Text,
         EmailList,
-        // Two positive numbers separated by a comma, e.g. "5,30"
+        // Two positive numbers separated by a comma, e.g. "5,30". Shown as two boxes,
+        // each followed by its entry in MonitorSetting.PartLabels
         NumberPair,
         // A single email address; may be empty
         Email,

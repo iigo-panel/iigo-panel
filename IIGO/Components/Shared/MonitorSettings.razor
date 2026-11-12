@@ -24,6 +24,22 @@
                         case MonitorSettingType.Number:
                             <input class="form-control" type="number" min="1" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
                             break;
+                        case MonitorSettingType.NumberPair:
+                            <div class="input-group" style="max-width:28rem">
+                                @for (int i = 0; i < 2; i++)
+                                {
+                                    var part = i;
+                                    var partLabel = setting.PartLabels?.ElementAtOrDefault(part);
+                                    <input class="form-control" type="number" min="1" id="@(part == 0 ? setting.Name : $"{setting.Name}-{part}")" disabled="@ReadOnly"
+                                           aria-label="@($"{setting.Label} {partLabel}")"
+                                           value="@GetPart(setting.Name, part)" @onchange="@(e => SetPart(setting.Name, part, e.Value?.ToString()))" />
+                                    @if (partLabel != null)
+                                    {
+                                        <span class="input-group-text">@partLabel</span>
+                                    }
+                                }
+                            </div>
+                            break;
                         case MonitorSettingType.Email:
                             <input class="form-control" type="email" id="@setting.Name" disabled="@ReadOnly" @bind="values[setting.Name]" />
                             break;
@@ -147,6 +163,16 @@
     }
 
     bool IsOn(string name) => bool.TryParse(values[name], out var on) && on;
+
+    // NumberPair values stay stored as "a,b"; each box edits one side
+    string GetPart(string name, int index) => values[name]?.Split(',').ElementAtOrDefault(index)?.Trim() ?? "";
+
+    void SetPart(string name, int index, string? value)
+    {
+        var parts = new[] { GetPart(name, 0), GetPart(name, 1) };
+        parts[index] = value?.Trim() ?? "";
+        values[name] = string.Join(",", parts);
+    }
 
     void ToggleService(string identifier, bool selected)
     {
