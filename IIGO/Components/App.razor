@@ -27,10 +27,24 @@
 
 <body>
     <Routes />
+    @* Replaces Blazor's built-in reconnect dialog, whose Reload button uses an inline onclick that the
+       Content-Security-Policy blocks. Blazor toggles the components-reconnect-* classes; js/reconnect.js does the rest. *@
+    <dialog id="components-reconnect-modal" class="reconnect-modal" data-nosnippet aria-live="polite">
+        <div class="reconnect-spinner spinner-border text-primary" aria-hidden="true"></div>
+        <p class="reconnect-first-attempt">Rejoining the server...</p>
+        <p class="reconnect-retrying">Rejoin failed. Trying again in <span id="components-seconds-to-next-attempt"></span> seconds.</p>
+        <p class="reconnect-failed">Could not rejoin the server. Retry, or reload the page.</p>
+        <button type="button" id="components-reconnect-button" class="btn btn-primary reconnect-failed">Retry</button>
+        <p class="reconnect-paused">The server paused this session.</p>
+        <button type="button" id="components-resume-button" class="btn btn-primary reconnect-paused">Resume</button>
+        <p class="reconnect-resume-failed">Could not resume the session. Reload the page.</p>
+        <button type="button" id="components-reload-button" class="btn btn-primary reconnect-resume-failed">Reload</button>
+    </dialog>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js" integrity="sha512-WW8/jxkELe2CAiE4LvQfwm1rajOS8PHasCCx+knHG0gBHt8EXxS6T6tJRTGuDQVnluuAvMxWF4j8SNFDKceLFg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="_content/Blazor.Bootstrap/blazor.bootstrap.js"></script>
     <script src="js/navmenu.js"></script>
+    <script src="js/reconnect.js"></script>
 </body>
 
 </html>

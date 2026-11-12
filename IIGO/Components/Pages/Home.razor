@@ -1,5 +1,4 @@
 ﻿@page "/"
-@using System.Diagnostics
 @using IIGO.Data
 @using IIGO.Services
 @using Microsoft.AspNetCore.Authorization
@@ -8,6 +7,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IAuthorizationService AuthorizationService
 @inject IISService IISService
+@inject SystemMetricsService Metrics
 @inject IJSRuntime JS
 @attribute [Authorize]
 @rendermode InteractiveServer
@@ -145,10 +145,13 @@ else
 }
 
 @code {
-    private const int WindowPoints = 60;
     private const string cpuChartId = "dash-chart-cpu";
     private const string memoryChartId = "dash-chart-memory";
     private const string networkChartId = "dash-chart-network";
+
+    // Static files are served without Cache-Control, so browsers may keep an old copy of the module after an
+    // update. The build's id in the URL makes each build fetch its own copy.
+    private static readonly string DashboardScript = $"./js/dashboard.js?v={typeof(Home).Assembly.ManifestModule.ModuleVersionId:N}";
 
     private readonly record struct Counts(int Total, int Started, int Stopped)
     {
@@ -170,17 +173,14 @@ else
     private string networkText = "-";
     private string? chartError;
 
-    private readonly SystemStatusService service = new();
-    private PerformanceCounter? cpuCounter;
-    private readonly List<(PerformanceCounter Received, PerformanceCounter Sent)> networkCounters = [];
-
     private IJSObjectReference? module;
     private DotNetObjectReference<Home>? dotnetRef;
     private readonly CancellationTokenSource cts = new();
-    private readonly SemaphoreSlim sampleGate = new(1, 1);
+    // Keeps loading the history and pushing live samples in order, so no point is lost or drawn twice
+    private readonly SemaphoreSlim chartGate = new(1, 1);
     private readonly SemaphoreSlim countsGate = new(1, 1);
-    private PeriodicTimer? sampleTimer;
     private PeriodicTimer? countsTimer;
+    private bool subscribed;
     private bool chartsReady;
     private bool paused;
     private bool disposed;
@@ -214,24 +214,35 @@ else
             return;
         }
 
-        SetUpCounters();
+        await Metrics.Initialized;
+        if (disposed)
+        {
+            return;
+        }
+        ReadAvailability();
         if (!cpuAvailable && !memoryAvailable && !networkAvailable)
         {
             StateHasChanged();
             return;
         }
 
+        // Subscribe before reading the history, so a sample taken in between is not missed
+        Metrics.Sampled += OnSampled;
+        subscribed = true;
+
+        await chartGate.WaitAsync();
         try
         {
-            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/dashboard.js");
+            module = await JS.InvokeAsync<IJSObjectReference>("import", DashboardScript);
             dotnetRef = DotNetObjectReference.Create(this);
             await module.InvokeVoidAsync("init", dotnetRef, new
             {
                 cpu = cpuAvailable ? cpuChartId : null,
                 memory = memoryAvailable ? memoryChartId : null,
                 network = networkAvailable ? networkChartId : null,
-                maxPoints = WindowPoints
+                maxPoints = SystemMetricsService.HistoryLength
             });
+            await LoadHistoryAsync();
             chartsReady = true;
         }
         catch (JSDisconnectedException)
@@ -242,15 +253,13 @@ else
         {
             chartError = "The charts could not be loaded. Check that this browser can reach cdnjs.cloudflare.com.";
         }
-
-        // Repaint to drop the chart containers of any unavailable counter and show the notice
-        StateHasChanged();
-
-        if (!disposed)
+        finally
         {
-            sampleTimer = new PeriodicTimer(TimeSpan.FromSeconds(2));
-            _ = RunSampleLoop(sampleTimer, cts.Token);
+            chartGate.Release();
         }
+
+        // Repaint to show the readouts, and drop the chart containers of any unavailable counter
+        StateHasChanged();
     }
 
     // Called by dashboard.js when the browser tab is hidden or shown
@@ -263,73 +272,115 @@ else
             return;
         }
 
-        await SampleAsync();
+        // Refill the charts, so the time the tab was hidden shows as data rather than a gap
+        if (chartsReady && await TryEnterChartGateAsync())
+        {
+            try
+            {
+                await LoadHistoryAsync();
+                StateHasChanged();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or JSException or ObjectDisposedException or OperationCanceledException)
+            {
+            }
+            finally
+            {
+                chartGate.Release();
+            }
+        }
+
         await LoadCountsAsync();
     }
 
-    private void SetUpCounters()
+    // Raised by SystemMetricsService on a background thread every 2 seconds
+    private void OnSampled(MetricSample sample)
+    {
+        if (disposed || paused || !chartsReady)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (!await TryEnterChartGateAsync())
+            {
+                return;
+            }
+
+            try
+            {
+                if (disposed || paused || module == null)
+                {
+                    return;
+                }
+
+                ReadAvailability();
+                ShowReadouts(sample);
+                await module.InvokeVoidAsync("push", sample);
+                StateHasChanged();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or JSException or ObjectDisposedException or OperationCanceledException)
+            {
+            }
+            finally
+            {
+                chartGate.Release();
+            }
+        });
+    }
+
+    private async Task<bool> TryEnterChartGateAsync()
     {
         try
         {
-            cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total");
-            cpuCounter.NextValue(); // the first read is always 0
+            await chartGate.WaitAsync(cts.Token);
+            return true;
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
         {
-            cpuCounter?.Dispose();
-            cpuCounter = null;
-            cpuAvailable = false;
-        }
-
-        try
-        {
-            var instances = new PerformanceCounterCategory("Network Interface").GetInstanceNames();
-            foreach (var instance in instances)
-            {
-                var received = new PerformanceCounter("Network Interface", "Bytes Received/sec", instance);
-                var sent = new PerformanceCounter("Network Interface", "Bytes Sent/sec", instance);
-                received.NextValue();
-                sent.NextValue();
-                networkCounters.Add((received, sent));
-            }
-            networkAvailable = networkCounters.Count > 0;
-        }
-        catch (Exception)
-        {
-            DisposeNetworkCounters();
-            networkAvailable = false;
-        }
-
-        try
-        {
-            memoryAvailable = service.GetTotalMemoryInMiB(true) > 0;
-        }
-        catch (Exception)
-        {
-            memoryAvailable = false;
+            return false;
         }
     }
 
-    private async Task RunSampleLoop(PeriodicTimer timer, CancellationToken token)
+    // Caller holds chartGate
+    private async Task LoadHistoryAsync()
     {
-        try
+        if (module == null)
         {
-            while (await timer.WaitForNextTickAsync(token))
-            {
-                if (!paused)
-                {
-                    try
-                    {
-                        await SampleAsync();
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }
-            }
+            return;
         }
-        catch (OperationCanceledException)
+
+        var history = Metrics.GetHistory();
+        await module.InvokeVoidAsync("load", history);
+        if (history.Count > 0)
         {
+            ShowReadouts(history[^1]);
+        }
+    }
+
+    private void ReadAvailability()
+    {
+        cpuAvailable = Metrics.CpuAvailable;
+        memoryAvailable = Metrics.MemoryAvailable;
+        networkAvailable = Metrics.NetworkAvailable;
+    }
+
+    private void ShowReadouts(MetricSample sample)
+    {
+        if (sample.Cpu is double cpu)
+        {
+            cpuText = cpu.ToString("N1") + "%";
+        }
+
+        if (sample.MemoryPercent is double memory)
+        {
+            memoryText = memory.ToString("N1") + "%";
+            memorySubtitle = $"{FormatSize(sample.MemoryUsedMiB)} used of {FormatSize(sample.MemoryTotalMiB)}";
+        }
+
+        if (sample.NetworkReceived is double received && sample.NetworkSent is double sent)
+        {
+            networkText = $"In {FormatRate(received)} / Out {FormatRate(sent)}";
         }
     }
 
@@ -353,88 +404,6 @@ else
         }
         catch (OperationCanceledException)
         {
-        }
-    }
-
-    // Reads every counter once and pushes one point per chart. Skips if a sample is already running.
-    private async Task SampleAsync()
-    {
-        if (disposed || !chartsReady || !await sampleGate.WaitAsync(0))
-        {
-            return;
-        }
-
-        try
-        {
-            if (disposed || module == null)
-            {
-                return;
-            }
-
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-            if (cpuAvailable && cpuCounter != null)
-            {
-                try
-                {
-                    var cpu = Math.Clamp(cpuCounter.NextValue(), 0f, 100f);
-                    cpuText = cpu.ToString("N1") + "%";
-                    await module.InvokeVoidAsync("push", "cpu", now, new double[] { cpu });
-                }
-                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
-                {
-                    cpuAvailable = false;
-                }
-            }
-
-            if (memoryAvailable)
-            {
-                try
-                {
-                    var total = service.GetTotalMemoryInMiB(true);
-                    var available = service.GetPhysicalAvailableMemoryInMiB();
-                    if (total > 0 && available >= 0)
-                    {
-                        var percent = (1d - (double)available / total) * 100d;
-                        memoryText = percent.ToString("N1") + "%";
-                        memorySubtitle = $"{FormatSize(total - available)} used of {FormatSize(total)}";
-                        await module.InvokeVoidAsync("push", "memory", now, new[] { percent });
-                    }
-                }
-                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
-                {
-                    memoryAvailable = false;
-                }
-            }
-
-            if (networkAvailable)
-            {
-                try
-                {
-                    double received = 0;
-                    double sent = 0;
-                    foreach (var (r, s) in networkCounters)
-                    {
-                        received += r.NextValue();
-                        sent += s.NextValue();
-                    }
-                    networkText = $"In {FormatRate(received)} / Out {FormatRate(sent)}";
-                    await module.InvokeVoidAsync("push", "network", now, new[] { received, sent });
-                }
-                catch (Exception ex) when (ex is not (JSDisconnectedException or ObjectDisposedException or OperationCanceledException))
-                {
-                    networkAvailable = false;
-                }
-            }
-
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or ObjectDisposedException or OperationCanceledException)
-        {
-        }
-        finally
-        {
-            sampleGate.Release();
         }
     }
 
@@ -516,29 +485,19 @@ else
         return (bytesPerSecond / 1024).ToString("N1") + " KB/s";
     }
 
-    private void DisposeNetworkCounters()
-    {
-        foreach (var (received, sent) in networkCounters)
-        {
-            received.Dispose();
-            sent.Dispose();
-        }
-        networkCounters.Clear();
-    }
-
-    // Stop polling, release the counters and tear down the charts when the user leaves the page
+    // Stop listening and tear down the charts when the user leaves the page. The counters keep running in SystemMetricsService.
     public async ValueTask DisposeAsync()
     {
         disposed = true;
+        if (subscribed)
+        {
+            Metrics.Sampled -= OnSampled;
+        }
         cts.Cancel();
-        sampleTimer?.Dispose();
         countsTimer?.Dispose();
 
-        // Wait for a sample that is already running, then block new ones
-        await sampleGate.WaitAsync();
-
-        cpuCounter?.Dispose();
-        DisposeNetworkCounters();
+        // Wait for a chart update that is already running, then block new ones
+        await chartGate.WaitAsync();
 
         try
         {
