@@ -13,6 +13,8 @@ namespace IIGO.Services
         public const string ViewScheduledTasks = "ViewScheduledTasks";
         public const string EditScheduledTasks = "EditScheduledTasks";
         public const string ViewServices = "ViewServices";
+        // Starting and restarting only; adding, editing, deleting and stopping services is limited to the Administrator role
+        public const string StartRestartServices = "StartRestartServices";
         public const string ViewSettings = "ViewSettings";
         // Viewing only; creating roles and changing their permissions is limited to the Administrator role,
         // since anyone who can change permissions can grant themselves everything
@@ -28,7 +30,8 @@ namespace IIGO.Services
             ViewAppPools, EditAppPools, CreateAppPools,
             ViewFirewallRules, EditFirewallRules,
             ViewScheduledTasks, EditScheduledTasks,
-            ViewServices, ViewSettings,
+            ViewServices, StartRestartServices,
+            ViewSettings,
             ViewRoles,
             ViewApiKeys,
             ViewSystemStatus
