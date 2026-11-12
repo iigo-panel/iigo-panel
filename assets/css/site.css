@@ -1221,11 +1221,13 @@ code {
 
     .requirements li {
         display: inline-flex;
-        align-items: center;
+        align-items: flex-start;
         gap: .5rem;
     }
 
     .requirements .bi {
+        flex: none;
+        margin-top: .25em;
         color: var(--blue);
     }
 
