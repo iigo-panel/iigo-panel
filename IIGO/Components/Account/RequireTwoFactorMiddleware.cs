@@ -1,3 +1,4 @@
+using IIGO.Authentication;
 using IIGO.Data;
 using IIGO.Services;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +18,8 @@ namespace IIGO.Components.Account
             if (context.User.Identity?.IsAuthenticated == true
                 && !context.User.HasClaim(ApplicationUserClaimsPrincipalFactory.TwoFactorEnabledClaim, "true")
                 && !MustChangePasswordMiddleware.AllowedPrefixes.Any(prefix => context.Request.Path.StartsWithSegments(prefix))
-                && configService.IsTwoFactorRequired(context.User))
+                && configService.IsTwoFactorRequired(context.User)
+                && !(ExternalLogins.GetLoginProvider(context.User) != null && configService.ExternalLoginSatisfiesTwoFactor()))
             {
                 // The claim is missing from sign-ins made before 2FA was turned on, so check the account before redirecting
                 var user = await userManager.GetUserAsync(context.User);

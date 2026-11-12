@@ -102,11 +102,15 @@ namespace IIGO.Plugins
                         PluginDirectory = directory
                     };
 
-                    // Everything the plugin adds is collected first, so a plugin that fails part way adds nothing
+                    // Everything the plugin adds is collected first, so a plugin that fails part way adds nothing.
+                    // The plugin works on a copy of the panel's registrations, so TryAdd calls (AddAuthentication,
+                    // AddHttpClient and so on) see what the panel already has instead of registering it again.
                     List<NavMenuItem> pluginMenu;
                     List<string> pluginFeatures;
                     List<string> pluginStylesheets;
-                    var pluginServices = new ServiceCollection();
+                    IServiceCollection pluginServices = new ServiceCollection();
+                    foreach (var descriptor in services)
+                        pluginServices.Add(descriptor);
                     try
                     {
                         pluginMenu = plugin.MenuItems.ToList();
@@ -129,8 +133,13 @@ namespace IIGO.Plugins
                         }
                     }
 
+                    // Only the registrations the plugin added; removing or replacing the panel's own isn't supported
+                    var existing = new HashSet<ServiceDescriptor>(services, ReferenceEqualityComparer.Instance);
                     foreach (var descriptor in pluginServices)
-                        services.Add(descriptor);
+                    {
+                        if (!existing.Contains(descriptor))
+                            services.Add(descriptor);
+                    }
 
                     plugins.Add(new LoadedPlugin(plugin, assembly, context));
                     menuItems.AddRange(pluginMenu);

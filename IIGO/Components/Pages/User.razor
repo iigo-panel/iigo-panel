@@ -105,7 +105,30 @@ else
                 }
             </SectionCard>
 
-            <SectionCard Title="Reset password" Class="mb-3">
+            @if (logins.Count > 0)
+            {
+                <SectionCard Title="Single sign-on" Class="mb-3">
+                    <p class="text-body-secondary">External accounts this user signs in with. Removing one stops it from signing in as this user until it is linked again.</p>
+                    <ul class="list-group mb-0">
+                        @foreach (var login in logins)
+                        {
+                            <li class="list-group-item d-flex align-items-center gap-3">
+                                <div class="me-auto">
+                                    <div>@(login.ProviderDisplayName ?? login.LoginProvider)</div>
+                                    <div class="small text-body-secondary text-break">@login.ProviderKey</div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLogin(login)"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Remove</button>
+                            </li>
+                        }
+                    </ul>
+                </SectionCard>
+            }
+
+            <SectionCard Title="@(hasPassword ? "Reset password" : "Set password")" Class="mb-3">
+                @if (!hasPassword)
+                {
+                    <p class="text-body-secondary">This user has no password and can only sign in through single sign-on. Set one to let them sign in with a password too.</p>
+                }
                 <EditForm Model="Password" OnValidSubmit="ResetPassword" FormName="ResetPassword">
                     <DataAnnotationsValidator />
                     <div class="row mb-3">
@@ -124,7 +147,7 @@ else
                             </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Reset Password</button>
+                    <button type="submit" class="btn btn-primary">@(hasPassword ? "Reset Password" : "Set Password")</button>
                 </EditForm>
             </SectionCard>
         </div>
@@ -145,6 +168,8 @@ else
     string? lastMessage;
     bool success = true;
     string actor = "";
+    IList<UserLoginInfo> logins = [];
+    bool hasPassword;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = default!;
@@ -164,8 +189,35 @@ else
             };
             roles = _roleManager.Roles.Select(x => x.Name!).OrderBy(x => x).ToList();
             selectedRoles = new HashSet<string>(await _userManager.GetRolesAsync(user));
+            logins = await _userManager.GetLoginsAsync(user);
+            hasPassword = await _userManager.HasPasswordAsync(user);
         }
         loaded = true;
+    }
+
+    async Task RemoveLogin(UserLoginInfo login)
+    {
+        if (user == null)
+            return;
+
+        var name = login.ProviderDisplayName ?? login.LoginProvider;
+        var lastWay = !hasPassword && logins.Count == 1;
+        bool confirmed = await dialog.ShowAsync(
+            title: $"Remove {name} sign-in for {user.UserName}?",
+            message1: lastWay
+                ? "This is the only way this user can sign in. Without it they can't sign in until a password is set or the account is linked again."
+                : $"Their {name} account will no longer sign in as this user.",
+            message2: "Do you want to proceed?");
+        if (!confirmed)
+            return;
+
+        var result = await _userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey);
+        if (result.Succeeded)
+        {
+            logger.LogWarning("{Actor} removed the {Provider} sign-in {ProviderKey} from {UserName}", actor, login.LoginProvider, login.ProviderKey, user.UserName);
+            logins = await _userManager.GetLoginsAsync(user);
+        }
+        ShowResult(result, $"{name} sign-in removed.");
     }
 
     void ToggleRole(string role, bool selected)
@@ -223,6 +275,7 @@ else
         {
             logger.LogWarning("{Actor} reset the password of {UserName}", actor, user.UserName);
             Password = new ResetPasswordModel();
+            hasPassword = true;
         }
         ShowResult(result, "Password reset.");
     }

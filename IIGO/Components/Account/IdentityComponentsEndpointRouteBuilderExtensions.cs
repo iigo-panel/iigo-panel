@@ -1,3 +1,4 @@
+using IIGO.Authentication;
 using IIGO.Components.Account.Pages;
 using IIGO.Components.Account.Pages.Manage;
 using IIGO.Data;
@@ -21,18 +22,23 @@ namespace Microsoft.AspNetCore.Routing
 
             var accountGroup = endpoints.MapGroup("/Account");
 
-            accountGroup.MapPost("/PerformExternalLogin", (
+            accountGroup.MapPost("/PerformExternalLogin", async Task<IResult> (
                 HttpContext context,
                 [FromServices] SignInManager<ApplicationUser> signInManager,
                 [FromForm] string provider,
-                [FromForm] string returnUrl) =>
+                [FromForm] string? returnUrl) =>
             {
+                // Only providers offered on the sign-in page; challenging an unknown scheme throws
+                var schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
+                if (!schemes.Any(s => s.Name == provider))
+                    return TypedResults.BadRequest();
+
                 IEnumerable<KeyValuePair<string, StringValues>> query = [
-                    new("ReturnUrl", returnUrl)];
+                    new("ReturnUrl", returnUrl ?? "")];
 
                 var redirectUrl = UriHelper.BuildRelative(
                     context.Request.PathBase,
-                    "/Account/ExternalLogin",
+                    ExternalLogins.CallbackPath,
                     QueryString.Create(query));
 
                 var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
