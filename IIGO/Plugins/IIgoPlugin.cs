@@ -23,7 +23,10 @@ namespace IIGO.Plugins
         /// </summary>
         string? RequiredEntitlement => null;
 
-        /// <summary>Called before the app is built. Register services, hosted services and DbContexts here.</summary>
+        /// <summary>
+        /// Called before the app is built. Register services, hosted services, DbContexts and authentication schemes here.
+        /// The panel's own services are already registered. Adding is supported; removing or replacing them is not.
+        /// </summary>
         void ConfigureServices(IServiceCollection services, PluginContext context) { }
 
         /// <summary>

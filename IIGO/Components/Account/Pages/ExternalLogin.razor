@@ -1,0 +1,179 @@
+@page "/Account/ExternalLogin"
+@attribute [AllowAnonymous]
+@using IIGO.Authentication
+@using IIGO.Data
+@using IIGO.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject UserManagementService UserService
+@inject ConfigurationService ConfigService
+@inject IEnumerable<IExternalLoginHandler> Handlers
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<ExternalLogin> Logger
+
+@*
+    Where an external provider returns after signing someone in. Results are shown here rather than after a redirect:
+    the browser arrives from the provider's site, and SameSite=Strict cookies (the sign-in cookie and the status message)
+    aren't sent on redirects that continue that cross-site navigation. A refresh started by this page counts as same-site.
+*@
+
+<PageTitle>Sign in</PageTitle>
+
+@if (continueUrl != null)
+{
+    <HeadContent>
+        <meta http-equiv="refresh" content="0;url=@continueUrl" />
+    </HeadContent>
+    <h1 class="h4 mb-1">Signed in</h1>
+    <p class="text-body-secondary mb-0">Taking you to the panel. <a href="@continueUrl">Continue</a> if nothing happens.</p>
+}
+else if (errorMessage != null)
+{
+    <h1 class="h4 mb-3">Sign-in failed</h1>
+    <StatusMessage Message="@($"Error: {errorMessage}")" />
+    <a class="btn btn-primary w-100" href="Account/Login">Back to sign in</a>
+}
+
+@code {
+    string? continueUrl;
+    string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? RemoteError { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (RemoteError != null)
+        {
+            await FailAsync(RemoteError);
+            return;
+        }
+
+        var info = await SignInManager.GetExternalLoginInfoAsync();
+        if (info == null)
+        {
+            await FailAsync("The sign-in from the external provider is missing or has expired. Try again.");
+            return;
+        }
+
+        var providerName = info.ProviderDisplayName ?? info.LoginProvider;
+        var handler = Handlers.FirstOrDefault(h => h.Handles(info.LoginProvider));
+
+        var user = await UserManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+        if (user == null)
+        {
+            if (handler == null)
+            {
+                Logger.LogWarning("Refused a {Provider} sign-in: no user is linked to account {ProviderKey}", info.LoginProvider, info.ProviderKey);
+                await FailAsync($"No panel account is linked to this {providerName} account. Ask an administrator for access.");
+                return;
+            }
+
+            user = await LinkUserAsync(handler, info, providerName);
+            if (user == null)
+                return;
+        }
+
+        if (handler != null)
+        {
+            var refusal = await handler.ValidateSignInAsync(user, info);
+            if (refusal != null)
+            {
+                Logger.LogWarning("Refused a {Provider} sign-in for {UserName}: {Reason}", info.LoginProvider, user.UserName, refusal);
+                await FailAsync(refusal);
+                return;
+            }
+        }
+
+        var result = await SignInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false,
+            bypassTwoFactor: ConfigService.ExternalLoginSatisfiesTwoFactor());
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("{UserName} signed in through {Provider}", user.UserName, info.LoginProvider);
+            continueUrl = LocalUrl(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo("Account/LoginWith2fa", new() { ["ReturnUrl"] = ReturnUrl, ["RememberMe"] = false });
+        }
+        else if (result.IsLockedOut)
+        {
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            await FailAsync(result.IsNotAllowed
+                ? "This account isn't allowed to sign in. Its email address may not be confirmed."
+                : "The sign-in did not succeed.");
+        }
+    }
+
+    // Asks the plugin's handler who this is, then creates or links that user
+    async Task<ApplicationUser?> LinkUserAsync(IExternalLoginHandler handler, ExternalLoginInfo info, string providerName)
+    {
+        var resolution = await handler.ResolveUserAsync(info);
+        if (resolution.User == null)
+        {
+            Logger.LogWarning("Refused a {Provider} sign-in for account {ProviderKey}: {Reason}", info.LoginProvider, info.ProviderKey, resolution.Error);
+            await FailAsync(resolution.Error ?? $"No panel account is linked to this {providerName} account.");
+            return null;
+        }
+
+        var user = resolution.User;
+        if (resolution.CreateUser)
+        {
+            var created = await UserService.CreateUserAsync(user, password: null, resolution.Roles);
+            if (!created.Succeeded)
+            {
+                await FailAsync("The panel account could not be created: " + string.Join(", ", created.Errors.Select(e => e.Description)));
+                return null;
+            }
+            Logger.LogWarning("Created user {UserName} with roles [{Roles}] for a {Provider} sign-in", user.UserName, string.Join(", ", resolution.Roles), info.LoginProvider);
+        }
+
+        var linked = await UserManager.AddLoginAsync(user, info);
+        if (!linked.Succeeded)
+        {
+            await FailAsync($"The {providerName} account could not be linked: " + string.Join(", ", linked.Errors.Select(e => e.Description)));
+            return null;
+        }
+        Logger.LogWarning("Linked {Provider} account {ProviderKey} to user {UserName}", info.LoginProvider, info.ProviderKey, user.UserName);
+        return user;
+    }
+
+    async Task FailAsync(string message)
+    {
+        errorMessage = message;
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+    }
+
+    // Only addresses on this site, as a path, so the refresh can't send the user elsewhere
+    string LocalUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return "/";
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var absolute) && (absolute.Scheme == Uri.UriSchemeHttps || absolute.Scheme == Uri.UriSchemeHttp))
+        {
+            if (absolute.Scheme != HttpContext.Request.Scheme
+                || !string.Equals(absolute.Authority, HttpContext.Request.Host.Value, StringComparison.OrdinalIgnoreCase))
+                return "/";
+            url = absolute.PathAndQuery;
+        }
+
+        if (!url.StartsWith('/'))
+            url = "/" + url;
+        if (url.StartsWith("//") || url.StartsWith("/\\") || !Uri.IsWellFormedUriString(url, UriKind.Relative))
+            return "/";
+        return url;
+    }
+}

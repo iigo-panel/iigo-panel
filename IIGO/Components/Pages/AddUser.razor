@@ -6,6 +6,7 @@
 @inject NavigationManager _nav
 @inject RoleManager<IdentityRole> _roleManager
 @inject UserManagementService _userService
+@inject SignInManager<ApplicationUser> _signInManager
 @inject ILogger<AddUser> logger
 @attribute [Authorize(Roles = "Administrator")]
 @rendermode InteractiveServer
@@ -59,6 +60,10 @@
                         </div>
                     </div>
                 </div>
+                @if (ssoAvailable)
+                {
+                    <p class="form-text mt-n2 mb-3">Leave the password blank for a user who signs in only through single sign-on.</p>
+                }
                 <div class="form-check mb-3">
                     <InputCheckbox class="form-check-input" @bind-Value="NewUser.EmailConfirmed" id="emailConfirmed" />
                     <label class="form-check-label" for="emailConfirmed">Email confirmed (required to sign in)</label>
@@ -88,6 +93,7 @@
     HashSet<string> selectedRoles = new();
     string? errorMessage;
     string actor = "";
+    bool ssoAvailable;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = default!;
@@ -96,6 +102,7 @@
     {
         actor = (await AuthState).User.Identity?.Name ?? "";
         roles = _roleManager.Roles.Select(x => x.Name!).OrderBy(x => x).ToList();
+        ssoAvailable = (await _signInManager.GetExternalAuthenticationSchemesAsync()).Any();
     }
 
     void ToggleRole(string role, bool selected)
@@ -109,6 +116,18 @@
     async Task CreateUser()
     {
         errorMessage = null;
+        var password = string.IsNullOrEmpty(NewUser.Password) ? null : NewUser.Password;
+        if (password == null && !ssoAvailable)
+        {
+            errorMessage = "A password is required, since no single sign-on provider is set up.";
+            return;
+        }
+        if (password != null && password.Length < 12)
+        {
+            errorMessage = "The password must be at least 12 characters long.";
+            return;
+        }
+
         var user = new ApplicationUser
         {
             UserName = NewUser.UserName.Trim(),
@@ -116,7 +135,7 @@
             EmailConfirmed = NewUser.EmailConfirmed
         };
 
-        var result = await _userService.CreateUserAsync(user, NewUser.Password, selectedRoles);
+        var result = await _userService.CreateUserAsync(user, password, selectedRoles);
         if (result.Succeeded)
         {
             logger.LogWarning("{Actor} created user {UserName} with roles [{Roles}]", actor, user.UserName, string.Join(", ", selectedRoles));
@@ -137,15 +156,15 @@
         [EmailAddress]
         public string Email { get; set; } = "";
 
-        [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 12)]
+        // Checked in CreateUser: optional when single sign-on is set up, otherwise at least 12 characters
+        [StringLength(100, ErrorMessage = "The {0} must be at most {1} characters long.")]
         [DataType(DataType.Password)]
-        public string Password { get; set; } = "";
+        public string? Password { get; set; }
 
         [DataType(DataType.Password)]
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
-        public string ConfirmPassword { get; set; } = "";
+        public string? ConfirmPassword { get; set; }
 
         public bool EmailConfirmed { get; set; } = true;
     }

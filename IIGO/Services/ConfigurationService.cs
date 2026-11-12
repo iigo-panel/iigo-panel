@@ -5,7 +5,8 @@ using System.Security.Claims;
 
 namespace IIGO.Services
 {
-    internal class ConfigurationService(ApplicationDbContext context)
+    // Public so plugins can keep their settings alongside the panel's
+    public class ConfigurationService(ApplicationDbContext context)
     {
         public List<ConfigSetting> GetSettings() => [.. context.ConfigSetting];
 
@@ -19,6 +20,9 @@ namespace IIGO.Services
 
         public string GetSetting(string name, string defaultValue = "") =>
             context.ConfigSetting.Where(x => x.SettingName == name).Select(x => x.SettingValue).FirstOrDefault() ?? defaultValue;
+
+        public bool ExternalLoginSatisfiesTwoFactor() =>
+            bool.TryParse(GetSetting(SecuritySettings.ExternalLoginSatisfiesTwoFactor, "false"), out var on) && on;
 
         public bool IsTwoFactorRequired(ClaimsPrincipal user) =>
             SecuritySettings.IsTwoFactorRequired(GetSetting(SecuritySettings.RequireTwoFactor, SecuritySettings.TwoFactorOff), user);

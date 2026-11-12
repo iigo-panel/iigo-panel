@@ -13,9 +13,14 @@ namespace IIGO.Services
             Description = "At least one active administrator is required. Add or enable another administrator first."
         };
 
-        public async Task<IdentityResult> CreateUserAsync(ApplicationUser user, string password, IEnumerable<string> roles)
+        /// <summary>
+        /// Creates a user. Without a password the user can only sign in through an external login provider.
+        /// </summary>
+        public async Task<IdentityResult> CreateUserAsync(ApplicationUser user, string? password, IEnumerable<string> roles)
         {
-            var result = await userManager.CreateAsync(user, password);
+            var result = string.IsNullOrEmpty(password)
+                ? await userManager.CreateAsync(user)
+                : await userManager.CreateAsync(user, password);
             if (!result.Succeeded)
                 return result;
 

@@ -1,4 +1,5 @@
 using AsyncAwaitBestPractices;
+using IIGO.Authentication;
 using IIGO.Authorization;
 using IIGO.Components;
 using IIGO.Components.Account;
@@ -14,6 +15,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 namespace IIGO
@@ -119,6 +121,25 @@ namespace IIGO
                 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>()
                 .AddDefaultTokenProviders();
             builder.Services.Configure<DataProtectionTokenProviderOptions>(opt => opt.TokenLifespan = TimeSpan.FromHours(2));
+
+            // The periodic security stamp check rebuilds the sign-in from the database, which drops the claims recording
+            // how the user signed in. Keep them, so a single sign-on session still counts as one afterwards.
+            builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+            {
+                options.OnRefreshingPrincipal = context =>
+                {
+                    if (context.CurrentPrincipal?.Identity is not ClaimsIdentity current || context.NewPrincipal?.Identity is not ClaimsIdentity updated)
+                        return Task.CompletedTask;
+
+                    foreach (var type in new[] { ClaimTypes.AuthenticationMethod, "amr" })
+                    {
+                        var claim = current.FindFirst(type);
+                        if (claim != null && !updated.HasClaim(c => c.Type == type))
+                            updated.AddClaim(new Claim(claim.Type, claim.Value));
+                    }
+                    return Task.CompletedTask;
+                };
+            });
 
             // The panel is meant to be reachable from the Internet, so the sign-in cookie is only ever sent over HTTPS,
             // never with cross-site requests, and a session ends after 8 hours without activity
@@ -285,7 +306,7 @@ namespace IIGO
             {
                 var headers = context.Response.Headers;
                 headers.ContentSecurityPolicy =
-                    "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; " +
+                    $"base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action {FormActionSources(context)}; " +
                     "img-src 'self' data: https:; " +
                     "script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.min.js https://cdnjs.cloudflare.com/ajax/libs/apexcharts/4.7.0/apexcharts.min.js; " +
                     "upgrade-insecure-requests";
@@ -335,6 +356,39 @@ namespace IIGO
             app.MapAdditionalIdentityEndpoints();
 
             app.Run();
+        }
+
+        /// <summary>
+        /// 'self' plus the sign-in origins of external login providers, which the browser is redirected to after
+        /// posting the sign-in form. Only plain https origins are accepted, so a provider can't inject other directives.
+        /// </summary>
+        private static string FormActionSources(HttpContext context)
+        {
+            var sources = new List<string> { "'self'" };
+            foreach (var provider in context.RequestServices.GetServices<IFormActionSourceProvider>())
+            {
+                try
+                {
+                    foreach (var source in provider.GetFormActionSources())
+                    {
+                        if (Uri.TryCreate(source, UriKind.Absolute, out var uri)
+                            && uri.Scheme == Uri.UriSchemeHttps
+                            && uri.AbsolutePath == "/" && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment)
+                            && string.IsNullOrEmpty(uri.UserInfo))
+                        {
+                            var origin = uri.GetLeftPart(UriPartial.Authority);
+                            if (!sources.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                                sources.Add(origin);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    context.RequestServices.GetRequiredService<ILogger<Program>>()
+                        .LogError(ex, "{Provider} failed to list its form-action sources", provider.GetType().FullName);
+                }
+            }
+            return string.Join(' ', sources);
         }
 
         const string DefaultAdminPassword = "IIGOAdmin#10";
