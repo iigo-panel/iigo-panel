@@ -97,6 +97,7 @@ Create a key on the API Keys page and send it in the `X-API-KEY` header. A key c
 | Applications | `POST /api/websites/{id}/applications`, `PUT` · `DELETE /api/websites/{id}/applications?path=/alias` |
 | App pools | `GET /api/apppools`, `GET /api/apppools/{name}`, `GET /api/apppools/{name}/applications`, `POST /api/apppools`, `DELETE /api/apppools/{name}`, `POST /api/apppools/{name}/start` · `stop` · `recycle` |
 | Firewall | `GET /api/firewall/rules?search=`, `POST /api/firewall/rules`, `PUT` · `DELETE /api/firewall/rules?name=&direction=` |
+| Scheduled tasks | `GET /api/tasks?search=`, `GET /api/tasks/{name}`, `POST /api/tasks`, `PUT` · `DELETE /api/tasks/{name}`, `POST /api/tasks/{name}/run` · `stop` · `enable` · `disable` |
 | Windows updates | `GET /api/updates`, `POST /api/updates/check` (starts a search; installing is only on the Check Updates page) |
 | Services | `GET /api/services?search=`, `GET /api/services/{name}`, `POST /api/services/{name}/start` · `restart` (stopping, adding, changing and deleting are only on the Services page) |
 | App Pool monitor | `GET /api/monitors/apppool`, `GET /api/monitors/apppool/events?days=30`, `GET` · `PUT /api/monitors/apppool/settings` |
@@ -107,5 +108,6 @@ Notes:
 
 - `POST /api/websites` creates a site with one http binding. Add https bindings afterwards; they need `certificateThumbprint` (the store is found if you leave `certificateStore` out).
 - Firewall rules have no ID. A rule is picked by `name`, plus `direction` when several rules share a name. A name that still matches more than one rule returns 409.
+- Scheduled tasks are the ones in Task Scheduler's root folder, picked by name. `PUT` replaces the whole task, so send back what `GET` returned with your changes; a new `name` renames it. Tasks that run as a user with a stored password need `password` on every save. Trigger `start` and `expires` are the server's local time, since schedules follow its clock; a time sent with `Z` or an offset is converted. Tasks with `"editable": false` can only be run, stopped, enabled, disabled or deleted.
 - `PUT .../settings` changes only the settings you send, as `{"settings": {"Name": "value"}, "notificationServices": ["Email"]}`. Leave out `notificationServices` to keep them. `GET .../settings` lists the setting names and the notification services you can use.
 - `GET /api/IISApi/sites` still works for existing callers. It returns the same list as `GET /api/websites`.

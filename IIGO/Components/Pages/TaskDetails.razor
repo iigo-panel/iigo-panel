@@ -1,0 +1,345 @@
+@page "/tasks/{name}"
+@using Microsoft.Win32.TaskScheduler
+@using IIGO.Services
+@using Task = System.Threading.Tasks.Task
+@inject ScheduledTaskService ScheduledTasks
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<TaskDetails> logger
+@attribute [Authorize(Policy = Feature.ViewScheduledTasks)]
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+<ConfirmDialog @ref="dialog" />
+<ScheduledTaskEditor @ref="editor" OnSaved="Saved" />
+
+@if (!loaded)
+{
+    <LoadingState />
+}
+else if (task == null)
+{
+    <PageTitle>Scheduled Task</PageTitle>
+
+    <PageHeader Title="@Name" Subtitle="Scheduled task" ParentText="Scheduled Tasks" ParentHref="/tasks" />
+
+    <div class="alert alert-danger d-flex align-items-start gap-2">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <div>Scheduled task "@Name" was not found.</div>
+    </div>
+}
+else
+{
+    var definition = task.Definition;
+    var principal = definition.Principal;
+    var settings = definition.Settings;
+
+    <PageTitle>Scheduled Task: @task.Name</PageTitle>
+
+    <PageHeader Title="@task.Name" Subtitle="Scheduled task" ParentText="Scheduled Tasks" ParentHref="/tasks">
+        <TitleExtra><StatusBadge Status="@task.State.ToString()" /></TitleExtra>
+        <Actions>
+            <button @onclick="Load" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reload</button>
+            @if (canEdit)
+            {
+                @if (task.State == TaskState.Running)
+                {
+                    <button @onclick="@(() => Act(ScheduledTasks.Stop, $"{task.Name} ended."))" class="btn btn-outline-danger"><i class="bi bi-stop-fill me-1" aria-hidden="true"></i>End</button>
+                }
+                else
+                {
+                    <button @onclick="@(() => Act(ScheduledTasks.Run, $"{task.Name} started."))" class="btn btn-outline-success" disabled="@(!task.Enabled)"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Run</button>
+                }
+                @if (task.Enabled)
+                {
+                    <button @onclick="@(() => Act(t => ScheduledTasks.SetEnabled(t, false), $"{task.Name} disabled."))" class="btn btn-outline-secondary"><i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Disable</button>
+                }
+                else
+                {
+                    <button @onclick="@(() => Act(t => ScheduledTasks.SetEnabled(t, true), $"{task.Name} enabled."))" class="btn btn-outline-secondary"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Enable</button>
+                }
+                @if (notEditableReason == null)
+                {
+                    <button @onclick="() => editor.ShowEditAsync(task)" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+                }
+                <button @onclick="DeleteTask" class="btn btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+            }
+        </Actions>
+    </PageHeader>
+
+    @if (LastMessage != null)
+    {
+        <div class="alert alert-@(Success ? "success" : "danger") d-flex align-items-start gap-2">
+            <i class="bi @(Success ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill")" aria-hidden="true"></i>
+            <div>@LastMessage</div>
+        </div>
+    }
+
+    @if (canEdit && notEditableReason != null)
+    {
+        <div class="alert alert-info d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+            <div>This task can't be edited here. @notEditableReason You can still run, enable, disable or delete it.</div>
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <SectionCard Title="General" Class="h-100">
+                <dl class="kv-list">
+                    <dt>Description</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(definition.RegistrationInfo.Description) ? "—" : definition.RegistrationInfo.Description)</dd>
+                    <dt>Location</dt>
+                    <dd>@task.Path</dd>
+                    <dt>Author</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(definition.RegistrationInfo.Author) ? "—" : definition.RegistrationInfo.Author)</dd>
+                    <dt>Created</dt>
+                    <dd>@ScheduledTaskService.RunTimeText(definition.RegistrationInfo.Date, "—")</dd>
+                    <dt>Enabled</dt>
+                    <dd>@YesNo(task.Enabled)</dd>
+                    <dt>Run as</dt>
+                    <dd>@ScheduledTaskService.PrincipalText(principal)</dd>
+                    <dt>Run</dt>
+                    <dd>@ScheduledTaskService.LogonText(principal.LogonType)</dd>
+                    <dt>Highest privileges</dt>
+                    <dd>@YesNo(principal.RunLevel == TaskRunLevel.Highest)</dd>
+                </dl>
+            </SectionCard>
+        </div>
+        <div class="col-lg-6">
+            <SectionCard Title="Runs" Class="h-100">
+                <dl class="kv-list">
+                    <dt>Status</dt>
+                    <dd><StatusBadge Status="@task.State.ToString()" /></dd>
+                    <dt>Last run</dt>
+                    <dd class="tabular-nums">@ScheduledTaskService.RunTimeText(task.LastRunTime, "Never")</dd>
+                    <dt>Last result</dt>
+                    <dd>@ScheduledTaskService.ResultText(task.LastTaskResult)</dd>
+                    <dt>Next run</dt>
+                    <dd class="tabular-nums">@ScheduledTaskService.RunTimeText(task.NextRunTime, "Not scheduled")</dd>
+                    <dt>Missed runs</dt>
+                    <dd>@task.NumberOfMissedRuns</dd>
+                </dl>
+            </SectionCard>
+        </div>
+    </div>
+
+    <SectionCard Title="Actions" Flush="true" Class="mb-3">
+        @if (definition.Actions.Count == 0)
+        {
+            <EmptyState Icon="bi-play-circle" Title="No actions." />
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="table align-middle iigo-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Program</th>
+                            <th>Arguments</th>
+                            <th>Start In</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var action in definition.Actions)
+                        {
+                            <tr>
+                                @if (action is ExecAction exec)
+                                {
+                                    <td class="text-nowrap">Start a program</td>
+                                    <td style="overflow-wrap:anywhere"><code>@exec.Path</code></td>
+                                    <td style="overflow-wrap:anywhere"><code>@exec.Arguments</code></td>
+                                    <td style="overflow-wrap:anywhere"><code>@exec.WorkingDirectory</code></td>
+                                }
+                                else
+                                {
+                                    <td class="text-nowrap">@action.ActionType</td>
+                                    <td colspan="3" style="overflow-wrap:anywhere">@action.ToString()</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </SectionCard>
+
+    <SectionCard Title="Triggers" Flush="true" Class="mb-3">
+        @if (definition.Triggers.Count == 0)
+        {
+            <EmptyState Icon="bi-calendar" Title="No triggers. The task runs only when started by hand." />
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="table align-middle iigo-table">
+                    <thead>
+                        <tr>
+                            <th>Trigger</th>
+                            <th>Details</th>
+                            <th>Expires</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var trigger in definition.Triggers)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@TriggerName(trigger)</td>
+                                <td>@trigger.ToString()</td>
+                                <td class="text-nowrap tabular-nums">@(trigger.EndBoundary == DateTime.MaxValue ? "Never" : trigger.EndBoundary.ToString("g"))</td>
+                                <td><StatusBadge Status="@(trigger.Enabled ? "Enabled" : "Disabled")" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </SectionCard>
+
+    <SectionCard Title="Settings" Class="mb-3">
+        <dl class="kv-list">
+            <dt>Stop if it runs longer than</dt>
+            <dd>@(settings.ExecutionTimeLimit == TimeSpan.Zero ? "No limit" : settings.ExecutionTimeLimit.ToString())</dd>
+            <dt>If already running</dt>
+            <dd>@InstancesText(settings.MultipleInstances)</dd>
+            <dt>Run after a missed start</dt>
+            <dd>@YesNo(settings.StartWhenAvailable)</dd>
+            <dt>Can be run by hand</dt>
+            <dd>@YesNo(settings.AllowDemandStart)</dd>
+            <dt>Don't start on battery</dt>
+            <dd>@YesNo(settings.DisallowStartIfOnBatteries)</dd>
+            <dt>Wake the computer to run</dt>
+            <dd>@YesNo(settings.WakeToRun)</dd>
+            <dt>Hidden</dt>
+            <dd>@YesNo(settings.Hidden)</dd>
+            <dt>Configured for</dt>
+            <dd>@settings.Compatibility</dd>
+        </dl>
+    </SectionCard>
+}
+
+@code {
+    [Parameter]
+    public string Name { get; set; } = "";
+
+    private ConfirmDialog dialog = default!;
+    private ScheduledTaskEditor editor = default!;
+
+    Microsoft.Win32.TaskScheduler.Task? task;
+    string? notEditableReason;
+    bool loaded;
+    bool canEdit;
+
+    string? LastMessage;
+    bool Success;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditScheduledTasks)).Succeeded;
+        LastMessage = null;
+        Load();
+    }
+
+    void Load()
+    {
+        try
+        {
+            task = ScheduledTasks.GetTask(Name);
+            notEditableReason = task == null ? null : ScheduledTaskService.NotEditableReason(task);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error loading scheduled task {Name}", Name);
+            task = null;
+            SetMessage($"Couldn't load the task: {ex.Message}", false);
+        }
+        loaded = true;
+    }
+
+    void SetMessage(string message, bool success)
+    {
+        LastMessage = message;
+        Success = success;
+    }
+
+    void Act(Action<Microsoft.Win32.TaskScheduler.Task> action, string done)
+    {
+        if (!canEdit || task == null)
+            return;
+
+        try
+        {
+            action(task);
+            SetMessage(done, true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error with scheduled task {Name}", Name);
+            SetMessage(ex.Message, false);
+        }
+        Load();
+    }
+
+    async Task DeleteTask()
+    {
+        if (!canEdit || task == null)
+            return;
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Are you sure you want to delete this task?",
+            message1: $"{task.Name} will be removed from Task Scheduler. This can't be undone.",
+            message2: "Do you want to proceed?");
+
+        if (!confirmation)
+            return;
+
+        try
+        {
+            ScheduledTasks.Delete(task);
+            Navigation.NavigateTo("/tasks");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting scheduled task {Name}", Name);
+            SetMessage(ex.Message, false);
+        }
+    }
+
+    void Saved(Microsoft.Win32.TaskScheduler.Task saved)
+    {
+        // A rename moves the task to a new address
+        if (!string.Equals(saved.Name, Name, StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/tasks/{Uri.EscapeDataString(saved.Name)}");
+            return;
+        }
+        SetMessage($"{saved.Name} saved.", true);
+        Load();
+    }
+
+    static string YesNo(bool value) => value ? "Yes" : "No";
+
+    static string TriggerName(Trigger trigger) => ScheduledTaskService.TriggerKindOf(trigger) switch
+    {
+        TaskTriggerKind.Once => "One time",
+        TaskTriggerKind.Daily => "Daily",
+        TaskTriggerKind.Weekly => "Weekly",
+        TaskTriggerKind.Monthly => "Monthly",
+        TaskTriggerKind.AtStartup => "At startup",
+        TaskTriggerKind.AtLogon => "At sign-in",
+        _ => trigger.TriggerType.ToString()
+    };
+
+    static string InstancesText(TaskInstancesPolicy policy) => policy switch
+    {
+        TaskInstancesPolicy.IgnoreNew => "Don't start a new instance",
+        TaskInstancesPolicy.Parallel => "Run a new instance in parallel",
+        TaskInstancesPolicy.Queue => "Queue a new instance",
+        TaskInstancesPolicy.StopExisting => "Stop the running instance",
+        _ => policy.ToString()
+    };
+}
