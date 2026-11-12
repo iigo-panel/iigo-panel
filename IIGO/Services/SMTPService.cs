@@ -1,6 +1,7 @@
 ﻿using IIGO.Data;
 using IIGO.Models;
 using IIGO.Services.Interfaces;
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -64,7 +65,7 @@ namespace IIGO.Services
             if (!string.IsNullOrWhiteSpace(userName))
                 await smtp.AuthenticateAsync(userName, GetSecret("SMTP_Password"), ct);
 
-            await smtp.SendAsync(email, ct);
+            await smtp.SendAsync(new SendRequest(email), ct);
             await smtp.DisconnectAsync(true, ct);
 
             return true;
