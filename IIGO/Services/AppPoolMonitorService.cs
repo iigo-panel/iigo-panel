@@ -9,7 +9,7 @@ namespace IIGO.Services
     /// Starts application pools that have stopped, records each start, and sends a notification
     /// once a pool has been restarted too many times within the configured window.
     /// </summary>
-    internal class AppPoolMonitorService(IServiceScopeFactory scopeFactory, ILogger<AppPoolMonitorService> logger) : MonitorServiceBase(scopeFactory, logger)
+    public class AppPoolMonitorService(IServiceScopeFactory scopeFactory, ILogger<AppPoolMonitorService> logger) : MonitorServiceBase(scopeFactory, logger)
     {
         public static readonly IReadOnlyList<MonitorSetting> Settings =
         [

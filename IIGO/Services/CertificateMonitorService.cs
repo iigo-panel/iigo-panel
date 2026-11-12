@@ -18,7 +18,7 @@ namespace IIGO.Services
     /// Checks the certificates on HTTPS bindings of running sites for expiration, missing
     /// certificates, and certificates that don't cover the binding's host name.
     /// </summary>
-    internal class CertificateMonitorService(IServiceScopeFactory scopeFactory, ILogger<CertificateMonitorService> logger) : MonitorServiceBase(scopeFactory, logger)
+    public class CertificateMonitorService(IServiceScopeFactory scopeFactory, ILogger<CertificateMonitorService> logger) : MonitorServiceBase(scopeFactory, logger)
     {
         // Stores IIS uses for binding certificates, checked when a binding doesn't name its store
         static readonly string[] DefaultStores = ["My", "WebHosting"];

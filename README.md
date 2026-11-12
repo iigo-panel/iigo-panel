@@ -85,3 +85,27 @@ Notification secrets (the SMTP password, SendGrid and Postmark keys, AWS secret 
 ## Permissions
 
 Pages are only available to users whose role has the matching feature, except the Administrator role, which has everything. The System Status and Processes pages need the `View System Status` feature, because the process list shows every process's command line. Roles and their permissions, users and API keys can only be changed by administrators.
+
+## API
+
+Create a key on the API Keys page and send it in the `X-API-KEY` header. A key can do everything the API offers, so treat it like an administrator password. Each address can make 60 calls a minute. Errors come back as JSON problem details with a `detail` or `errors` message. Times are UTC, and enums are names such as `Started` or `Inbound`.
+
+| Area | Endpoints |
+| --- | --- |
+| Websites | `GET /api/websites`, `GET /api/websites/{id}`, `POST /api/websites`, `DELETE /api/websites/{id}`, `POST /api/websites/{id}/start` · `stop` · `restart`, `PUT /api/websites/{id}/path` |
+| Bindings | `POST` · `PUT /api/websites/{id}/bindings`, `DELETE /api/websites/{id}/bindings?protocol=&bindingInformation=`, `GET /api/websites/certificates` |
+| Applications | `POST /api/websites/{id}/applications`, `PUT` · `DELETE /api/websites/{id}/applications?path=/alias` |
+| App pools | `GET /api/apppools`, `GET /api/apppools/{name}`, `GET /api/apppools/{name}/applications`, `POST /api/apppools`, `DELETE /api/apppools/{name}`, `POST /api/apppools/{name}/start` · `stop` · `recycle` |
+| Firewall | `GET /api/firewall/rules?search=`, `POST /api/firewall/rules`, `PUT` · `DELETE /api/firewall/rules?name=&direction=` |
+| Windows updates | `GET /api/updates`, `POST /api/updates/check` (starts a search; installing is only on the Check Updates page) |
+| Services | `GET /api/services?search=`, `GET /api/services/{name}`, `POST /api/services/{name}/start` · `restart` (stopping, adding, changing and deleting are only on the Services page) |
+| App Pool monitor | `GET /api/monitors/apppool`, `GET /api/monitors/apppool/events?days=30`, `GET` · `PUT /api/monitors/apppool/settings` |
+| HTTPS monitor | `GET /api/monitors/https`, `GET /api/monitors/https/events?days=30`, `GET` · `PUT /api/monitors/https/settings` |
+| IP restrictions | `GET` · `POST` · `DELETE /api/IPSecurityRules` |
+
+Notes:
+
+- `POST /api/websites` creates a site with one http binding. Add https bindings afterwards; they need `certificateThumbprint` (the store is found if you leave `certificateStore` out).
+- Firewall rules have no ID. A rule is picked by `name`, plus `direction` when several rules share a name. A name that still matches more than one rule returns 409.
+- `PUT .../settings` changes only the settings you send, as `{"settings": {"Name": "value"}, "notificationServices": ["Email"]}`. Leave out `notificationServices` to keep them. `GET .../settings` lists the setting names and the notification services you can use.
+- `GET /api/IISApi/sites` still works for existing callers. It returns the same list as `GET /api/websites`.

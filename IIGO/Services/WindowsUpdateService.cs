@@ -25,7 +25,7 @@ namespace IIGO.Services
     /// result without waiting on the search. A search can also be started on demand.
     /// The last result is saved to the database so it survives a restart.
     /// </summary>
-    internal class WindowsUpdateService(IServiceScopeFactory scopeFactory, ILogger<WindowsUpdateService> logger) : BackgroundService
+    public class WindowsUpdateService(IServiceScopeFactory scopeFactory, ILogger<WindowsUpdateService> logger) : BackgroundService
     {
         static readonly TimeSpan CheckInterval = TimeSpan.FromDays(7);
 
