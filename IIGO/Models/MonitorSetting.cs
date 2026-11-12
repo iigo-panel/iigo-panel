@@ -17,7 +17,7 @@ namespace IIGO.Models
         Choice
     }
 
-    public record MonitorSetting(string Name, string Label, MonitorSettingType Type, string DefaultValue, string? Help = null, IReadOnlyList<string>? Options = null)
+    public record MonitorSetting(string Name, string Label, MonitorSettingType Type, string DefaultValue, string? Help = null, IReadOnlyList<string>? Options = null, IReadOnlyList<string>? PartLabels = null)
     {
         /// <summary>
         /// Returns why <paramref name="value"/> (already trimmed) can't be saved, or null if it can.
