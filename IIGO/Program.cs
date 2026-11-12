@@ -69,8 +69,10 @@ namespace IIGO
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
-            // API controllers (IIGO.Api), protected by keys from the API Keys page
-            var mvc = builder.Services.AddControllers();
+            // API controllers (IIGO.Api), protected by keys from the API Keys page. Enums are written as
+            // names ("Started", "Inbound"); requests may send names or numbers.
+            var mvc = builder.Services.AddControllers()
+                .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<IdentityUserAccessor>();

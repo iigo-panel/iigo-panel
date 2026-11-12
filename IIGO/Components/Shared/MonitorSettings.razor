@@ -186,7 +186,7 @@
     {
         saveMessage = null;
         errors = Settings
-            .Select(x => (x.Name, Error: Validate(x, values[x.Name]?.Trim() ?? "")))
+            .Select(x => (x.Name, Error: x.Validate(values[x.Name]?.Trim() ?? "")))
             .Where(x => x.Error != null)
             .ToDictionary(x => x.Name, x => x.Error!);
 
@@ -223,31 +223,5 @@
 
         saveMessage = "Saved!";
         await OnSaved.InvokeAsync();
-    }
-
-    static string? Validate(MonitorSetting setting, string value)
-    {
-        // ConfigSetting.SettingValue is varchar(300)
-        if (value.Length > 300)
-            return "Must be 300 characters or fewer.";
-
-        switch (setting.Type)
-        {
-            case MonitorSettingType.Number:
-                return int.TryParse(value, out var n) && n > 0 ? null : "Enter a whole number greater than 0.";
-            case MonitorSettingType.NumberPair:
-                var parts = value.Split(',', StringSplitOptions.TrimEntries);
-                return parts.Length == 2 && parts.All(p => int.TryParse(p, out var x) && x > 0) ? null : "Enter a whole number greater than 0 in both boxes.";
-            case MonitorSettingType.Email:
-                return value.Length == 0 || System.Net.Mail.MailAddress.TryCreate(value, out _) ? null : "Enter a valid email address.";
-            case MonitorSettingType.Choice:
-                return setting.Options?.Contains(value) == true ? null : "Choose one of the options.";
-            case MonitorSettingType.EmailList:
-                var addresses = value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var invalid = addresses.Where(a => !System.Net.Mail.MailAddress.TryCreate(a, out _)).ToList();
-                return invalid.Count == 0 ? null : $"Not a valid email address: {string.Join(", ", invalid)}";
-            default:
-                return null;
-        }
     }
 }
