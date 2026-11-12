@@ -1,36 +1,12 @@
-# IIGO Panel
+# iigo.dev
 
-[![.NET](https://github.com/iigo-panel/iigo-panel/actions/workflows/dotnet.yml/badge.svg)](https://github.com/iigo-panel/iigo-panel/actions/workflows/dotnet.yml)
+Source for the IIGO Panel website, served by GitHub Pages at [iigo.dev](https://iigo.dev).
 
-Self-hosted ASP.NET application using Blazor. Designed to work on Windows Server 2012 and newer.
+Plain HTML and CSS, no build step. `.nojekyll` turns off Jekyll.
 
-Windows Server 2012 may require installing Microsoft Visual C++ 2015-2022 Redistributable:
+* `index.html`: home page
+* `404.html`: not found page
+* `assets/css/site.css`: styles, based on the panel's `IIGO/wwwroot/css/app.css` tokens
+* `assets/js/site.js`: theme toggle and mobile menu
 
-* [VC 2015 x64](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-* [VC 2015 x86](https://aka.ms/vs/17/release/vc_redist.x86.exe)
-
-## Support Development
-
-Support development, get prioritized features and issues: [https://github.com/sponsors/ahwm](https://github.com/sponsors/ahwm)
-
-## Features
-
-* System Status (RAM/CPU/Network Usage, Processes, System Uptime)
-* Windows Update
-* Firewall Management
-* Task Scheduler
-* Notifications via:
-  * Discord
-  * Google Chat
-  * Postmark
-  * Amazon SES
-  * Amazon SNS
-  * SendGrid
-  * Slack
-  * Basic SMTP
-* IIS Management (including most administration capabilities from the IIS Console such as Website and Application Pool management)
-  * IIS Application Pool Monitoring (including restarting stopped app pools with configurable notifications)
-
-## Screenshots
-
-![image](images/IIGO_SystemStatus.png)
+Preview locally with any static server, for example `python -m http.server` from this folder.

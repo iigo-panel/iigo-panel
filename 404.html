@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Page Not Found</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <script>
+        try { var t = localStorage.getItem("iigo-theme"); if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t); } catch (e) { }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/assets/css/site.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="wrap header-inner">
+            <a class="brand" href="/" aria-label="IIGO home">
+                <img src="/assets/img/android-chrome-192x192.png" alt="">
+                <span class="gradient-text">IIGO</span>
+            </a>
+            <div class="header-actions">
+                <button class="btn-icon" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle light or dark theme">
+                    <i class="bi bi-moon-stars theme-icon-dark" aria-hidden="true"></i>
+                    <i class="bi bi-sun theme-icon-light" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="not-found">
+        <div class="wrap">
+            <h1 class="gradient-text">404</h1>
+            <p>That page doesn't exist.</p>
+            <a class="btn btn-primary" href="/"><i class="bi bi-house" aria-hidden="true"></i>Back to home</a>
+        </div>
+    </main>
+
+    <script src="/assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IIGO Panel</title>
+    <meta name="description" content="IIGO is a free, open source, self-hosted control panel for Windows Server and IIS. Manage websites, app pools, certificates, services, the firewall and Windows Update from your browser.">
+    <link rel="canonical" href="https://iigo.dev/">
+    <meta name="theme-color" content="#0f172a">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="IIGO Panel">
+    <meta property="og:title" content="IIGO Panel: a control panel for Windows Server and IIS">
+    <meta property="og:description" content="Free, open source and self-hosted. Manage IIS, certificates and the server itself from your browser.">
+    <meta property="og:url" content="https://iigo.dev/">
+    <meta property="og:image" content="https://iigo.dev/assets/img/android-chrome-512x512.png">
+    <meta name="twitter:card" content="summary">
+
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <script>
+        // Apply a saved theme before first paint
+        try { var t = localStorage.getItem("iigo-theme"); if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t); } catch (e) { }
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/site.css">
+
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-T3CHTV73');</script>
+    <!-- End Google Tag Manager -->
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T3CHTV73" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+        <div class="wrap header-inner">
+            <a class="brand" href="/" aria-label="IIGO home">
+                <img src="assets/img/android-chrome-192x192.png" alt="">
+                <span class="gradient-text">IIGO</span>
+            </a>
+
+            <nav class="site-nav" aria-label="Main">
+                <a href="#features">Features</a>
+                <a href="#monitoring">Monitoring</a>
+                <a href="#security">Security</a>
+                <a href="#pro" class="nav-pro">Pro <span class="pill">Soon</span></a>
+                <a href="#get-started">Get started</a>
+            </nav>
+
+            <div class="header-actions">
+                <a class="btn-icon" href="https://github.com/iigo-panel/iigo-panel" title="GitHub" aria-label="IIGO on GitHub"><i class="bi bi-github" aria-hidden="true"></i></a>
+                <a class="btn-icon" href="https://discord.gg/cKqN9wa2d9" title="Discord" aria-label="IIGO on Discord"><i class="bi bi-discord" aria-hidden="true"></i></a>
+                <button class="btn-icon" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle light or dark theme">
+                    <i class="bi bi-moon-stars theme-icon-dark" aria-hidden="true"></i>
+                    <i class="bi bi-sun theme-icon-light" aria-hidden="true"></i>
+                </button>
+                <details class="mobile-menu">
+                    <summary class="btn-icon" aria-label="Menu"><i class="bi bi-list" aria-hidden="true"></i></summary>
+                    <nav class="mobile-menu-panel" aria-label="Mobile">
+                        <a href="#features"><i class="bi bi-grid" aria-hidden="true"></i>Features</a>
+                        <a href="#monitoring"><i class="bi bi-bell" aria-hidden="true"></i>Monitoring</a>
+                        <a href="#security"><i class="bi bi-shield-lock" aria-hidden="true"></i>Security</a>
+                        <a href="#pro"><i class="bi bi-stars" aria-hidden="true"></i>Pro</a>
+                        <a href="#get-started"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Get started</a>
+                    </nav>
+                </details>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <!-- Hero -->
+        <section class="hero">
+            <div class="wrap">
+                <div class="hero-copy">
+                    <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Free and open source &middot; Now in beta</span>
+                    <h1>The control panel <span class="gradient-text">Windows Server</span> never had.</h1>
+                    <p class="hero-lead">Manage IIS, certificates, services and the server itself from one browser tab. Self-hosted, installed in minutes, and built for Windows Server 2012 and newer.</p>
+                    <div class="hero-ctas">
+                        <a class="btn btn-primary" href="https://github.com/iigo-panel/iigo-panel/releases"><i class="bi bi-download" aria-hidden="true"></i>Download the installer</a>
+                        <a class="btn btn-ghost" href="https://github.com/iigo-panel/iigo-panel"><i class="bi bi-github" aria-hidden="true"></i>View on GitHub</a>
+                    </div>
+                    <ul class="hero-meta">
+                        <li><i class="bi bi-windows" aria-hidden="true"></i>Windows Server 2012+</li>
+                        <li><i class="bi bi-box-seam" aria-hidden="true"></i>MSI installer</li>
+                        <li><i class="bi bi-code-slash" aria-hidden="true"></i>ASP.NET + Blazor</li>
+                    </ul>
+                </div>
+
+                <!-- Illustration of the panel's dashboard -->
+                <div class="mock" role="img" aria-label="The IIGO dashboard, showing website and app pool counts and live CPU, memory and network charts">
+                    <div class="mock-chrome" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                        <div class="mock-url">https://panel.example.com:8443</div>
+                    </div>
+                    <div class="mock-body" aria-hidden="true">
+                        <aside class="mock-sidebar">
+                            <div class="mock-brand"><img src="assets/img/android-chrome-192x192.png" alt=""><span class="gradient-text">IIGO</span></div>
+                            <div class="mock-link active"><i class="bi bi-speedometer2"></i>Dashboard</div>
+                            <div class="mock-section">Web server</div>
+                            <div class="mock-link"><i class="bi bi-globe2"></i>Websites</div>
+                            <div class="mock-link"><i class="bi bi-boxes"></i>App Pools</div>
+                            <div class="mock-section">System</div>
+                            <div class="mock-link"><i class="bi bi-activity"></i>Status</div>
+                            <div class="mock-link"><i class="bi bi-cpu"></i>Processes</div>
+                            <div class="mock-link"><i class="bi bi-gear-wide-connected"></i>Services</div>
+                            <div class="mock-link"><i class="bi bi-calendar-check"></i>Task Scheduler</div>
+                            <div class="mock-link"><i class="bi bi-shield-lock"></i>Firewall</div>
+                            <div class="mock-section">Administration</div>
+                            <div class="mock-link"><i class="bi bi-people"></i>Users</div>
+                            <div class="mock-link"><i class="bi bi-key"></i>API Keys</div>
+                        </aside>
+                        <div class="mock-main">
+                            <div class="mock-topbar">
+                                <i class="bi bi-hdd-network"></i>WEB01
+                                <span class="spacer"></span>
+                                <i class="bi bi-sun muted"></i>
+                                <span class="muted"><i class="bi bi-person-circle"></i> admin</span>
+                            </div>
+                            <div class="mock-content">
+                                <div class="mock-title">Dashboard</div>
+                                <div class="mock-sub">Live server health, refreshed every 2 seconds.</div>
+                                <div class="mock-grid">
+                                    <div class="mock-card">
+                                        <div class="label"><i class="bi bi-globe2"></i>Websites</div>
+                                        <div class="value">14</div>
+                                        <div class="meta"><span class="ok">13 running</span> &middot; 1 stopped</div>
+                                    </div>
+                                    <div class="mock-card">
+                                        <div class="label"><i class="bi bi-boxes"></i>Application pools</div>
+                                        <div class="value">11</div>
+                                        <div class="meta"><span class="ok">All running</span></div>
+                                    </div>
+                                    <div class="mock-card">
+                                        <div class="label"><i class="bi bi-shield-check"></i>Certificates</div>
+                                        <div class="value">22</div>
+                                        <div class="meta"><span class="ok">No issues</span></div>
+                                    </div>
+                                    <div class="mock-card">
+                                        <div class="label"><i class="bi bi-cloud-arrow-down"></i>Updates</div>
+                                        <div class="value">0</div>
+                                        <div class="meta">Up to date</div>
+                                    </div>
+
+                                    <div class="mock-card mock-chart">
+                                        <div class="head"><strong>CPU</strong><span>18.4%</span></div>
+                                        <svg viewBox="0 0 400 90" preserveAspectRatio="none">
+                                            <defs>
+                                                <linearGradient id="g-cpu" x1="0" x2="0" y1="0" y2="1">
+                                                    <stop offset="0" stop-color="#35acff" stop-opacity=".35" />
+                                                    <stop offset="1" stop-color="#35acff" stop-opacity="0" />
+                                                </linearGradient>
+                                            </defs>
+                                            <g stroke="#263042" stroke-width="1" vector-effect="non-scaling-stroke">
+                                                <line x1="0" x2="400" y1="22" y2="22" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="400" y1="45" y2="45" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="400" y1="68" y2="68" vector-effect="non-scaling-stroke" />
+                                            </g>
+                                            <path d="M0,66 C20,60 30,52 50,56 S80,70 100,62 S130,46 150,52 S180,68 200,60 S230,40 250,48 S280,66 300,58 S330,44 350,52 S380,62 400,56 L400,90 L0,90 Z" fill="url(#g-cpu)" />
+                                            <path d="M0,66 C20,60 30,52 50,56 S80,70 100,62 S130,46 150,52 S180,68 200,60 S230,40 250,48 S280,66 300,58 S330,44 350,52 S380,62 400,56" fill="none" stroke="#35acff" stroke-width="2" vector-effect="non-scaling-stroke" />
+                                        </svg>
+                                    </div>
+                                    <div class="mock-card mock-chart">
+                                        <div class="head"><strong>Memory</strong><span>61.2%</span></div>
+                                        <svg viewBox="0 0 400 90" preserveAspectRatio="none">
+                                            <defs>
+                                                <linearGradient id="g-mem" x1="0" x2="0" y1="0" y2="1">
+                                                    <stop offset="0" stop-color="#22d3ee" stop-opacity=".3" />
+                                                    <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
+                                                </linearGradient>
+                                            </defs>
+                                            <g stroke="#263042" stroke-width="1">
+                                                <line x1="0" x2="400" y1="22" y2="22" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="400" y1="45" y2="45" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="400" y1="68" y2="68" vector-effect="non-scaling-stroke" />
+                                            </g>
+                                            <path d="M0,36 C40,35 60,37 100,36 S160,34 200,35 S260,37 300,34 S360,33 400,34 L400,90 L0,90 Z" fill="url(#g-mem)" />
+                                            <path d="M0,36 C40,35 60,37 100,36 S160,34 200,35 S260,37 300,34 S360,33 400,34" fill="none" stroke="#22d3ee" stroke-width="2" vector-effect="non-scaling-stroke" />
+                                        </svg>
+                                    </div>
+                                    <div class="mock-card mock-chart mock-chart-wide">
+                                        <div class="head"><strong>Network</strong><span>In 412 KB/s &middot; Out 96 KB/s</span></div>
+                                        <svg viewBox="0 0 800 90" preserveAspectRatio="none">
+                                            <defs>
+                                                <linearGradient id="g-net" x1="0" x2="0" y1="0" y2="1">
+                                                    <stop offset="0" stop-color="#12b76a" stop-opacity=".28" />
+                                                    <stop offset="1" stop-color="#12b76a" stop-opacity="0" />
+                                                </linearGradient>
+                                            </defs>
+                                            <g stroke="#263042" stroke-width="1">
+                                                <line x1="0" x2="800" y1="22" y2="22" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="800" y1="45" y2="45" vector-effect="non-scaling-stroke" />
+                                                <line x1="0" x2="800" y1="68" y2="68" vector-effect="non-scaling-stroke" />
+                                            </g>
+                                            <path d="M0,40 C30,50 50,70 80,62 S120,10 150,20 S190,84 230,84 S290,48 320,52 S370,84 400,86 S470,86 520,86 S580,52 610,56 S660,84 690,84 S740,40 760,24 S790,70 800,84 L800,90 L0,90 Z" fill="url(#g-net)" />
+                                            <path d="M0,40 C30,50 50,70 80,62 S120,10 150,20 S190,84 230,84 S290,48 320,52 S370,84 400,86 S470,86 520,86 S580,52 610,56 S660,84 690,84 S740,40 760,24 S790,70 800,84" fill="none" stroke="#12b76a" stroke-width="2" vector-effect="non-scaling-stroke" />
+                                            <path d="M0,78 C40,80 80,82 120,84 S200,86 250,82 S300,76 340,82 S420,86 470,85 S560,80 600,84 S700,86 740,80 S780,84 800,84" fill="none" stroke="#3b82f6" stroke-width="2" vector-effect="non-scaling-stroke" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="section" id="features">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="kicker gradient-text">Everything in one place</span>
+                    <h2>Stop remoting in to click through consoles.</h2>
+                    <p>IIGO puts the IIS Manager, Services, Task Scheduler, Firewall and Windows Update behind one sign-in. It works from any browser, including your phone.</p>
+                </div>
+
+                <div class="feature-groups">
+                    <div class="group">
+                        <div class="group-title">Web server</div>
+                        <ul class="feature-list">
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-globe2" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Websites</h3>
+                                    <p>Create sites, edit bindings and applications, and start or stop them. Covers most of what the IIS console does.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-boxes" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Application pools</h3>
+                                    <p>Add, delete, recycle and configure pools. See which applications use each one.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-patch-check" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Free SSL certificates</h3>
+                                    <p>Request a certificate with simple-acme and install it on the site's HTTPS bindings in one step.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="group">
+                        <div class="group-title">System</div>
+                        <ul class="feature-list">
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Live dashboard</h3>
+                                    <p>CPU, memory and network charts that refresh every 2 seconds, plus uptime and site counts.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-cpu" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Processes and services</h3>
+                                    <p>See what is running, who owns it and how much CPU it uses. Check every Windows service and its startup type.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-calendar-check" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Tasks, firewall and updates</h3>
+                                    <p>Manage scheduled tasks and firewall rules. Check for and install Windows updates.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="group">
+                        <div class="group-title">Administration</div>
+                        <ul class="feature-list">
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-people" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Users and roles</h3>
+                                    <p>Give each person only the pages they need. Every feature is a permission you can switch on per role.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-key" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>REST API</h3>
+                                    <p>Automate IIS and IP security rules with API keys. Keys are managed in the panel.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="icon-tile"><i class="bi bi-plug" aria-hidden="true"></i></span>
+                                <div>
+                                    <h3>Plugins</h3>
+                                    <p>Add pages, permissions, background services and sign-in providers without forking the panel.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Monitoring -->
+        <section class="section section-alt" id="monitoring">
+            <div class="wrap split">
+                <div>
+                    <span class="kicker gradient-text">Monitoring</span>
+                    <h2>Know about problems before your users do.</h2>
+                    <p class="split-lead">IIGO watches the parts of IIS that fail quietly. When something goes wrong, it tells you where you already are.</p>
+                    <ul class="check-list">
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>App pool monitor.</strong> Restarts stopped application pools and tells you it did.</span></li>
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>HTTPS monitor.</strong> Checks every running site for expiring certificates, missing certificates and host name mismatches.</span></li>
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span><strong>Per-monitor channels.</strong> Choose which services each monitor sends through, and test each one from Settings.</span></li>
+                    </ul>
+                </div>
+                <div class="channels">
+                    <div class="channels-title">Send alerts through</div>
+                    <ul class="chips">
+                        <li class="chip"><i class="bi bi-discord" aria-hidden="true"></i>Discord</li>
+                        <li class="chip"><i class="bi bi-slack" aria-hidden="true"></i>Slack</li>
+                        <li class="chip"><i class="bi bi-google" aria-hidden="true"></i>Google Chat</li>
+                        <li class="chip"><i class="bi bi-phone" aria-hidden="true"></i>Amazon SNS</li>
+                        <li class="chip"><i class="bi bi-envelope" aria-hidden="true"></i>SMTP</li>
+                        <li class="chip"><i class="bi bi-envelope-paper" aria-hidden="true"></i>SendGrid</li>
+                        <li class="chip"><i class="bi bi-mailbox" aria-hidden="true"></i>Postmark</li>
+                        <li class="chip"><i class="bi bi-cloud" aria-hidden="true"></i>Amazon SES</li>
+                    </ul>
+                    <div class="alert-demo">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                        <div>
+                            <strong>App pool restarted on WEB01</strong>
+                            <span>"Shop" was stopped. IIGO started it again.</span>
+                        </div>
+                    </div>
+                    <div class="alert-demo" style="border-left-color: var(--purple)">
+                        <i class="bi bi-shield-exclamation" aria-hidden="true" style="color: var(--purple)"></i>
+                        <div>
+                            <strong>Certificate expires in 9 days</strong>
+                            <span>shop.example.com on WEB01</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security -->
+        <section class="section" id="security">
+            <div class="wrap split">
+                <div>
+                    <span class="kicker gradient-text">Security</span>
+                    <h2>Built to sit on the Internet.</h2>
+                    <p class="split-lead">A control panel is a target. IIGO ships with safe defaults so you don't have to bolt them on later.</p>
+                    <ul class="check-list">
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>The default password must be changed at first sign-in.</span></li>
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Passwords need 12 or more characters.</span></li>
+                        <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Set allowed hosts to reject forged Host headers.</span></li>
+                    </ul>
+                </div>
+                <div class="security-grid">
+                    <div class="mini-card">
+                        <span class="icon-tile"><i class="bi bi-phone-vibrate" aria-hidden="true"></i></span>
+                        <h3>Two-factor sign-in</h3>
+                        <p>Require an authenticator app for administrators or for everyone.</p>
+                    </div>
+                    <div class="mini-card">
+                        <span class="icon-tile"><i class="bi bi-lock" aria-hidden="true"></i></span>
+                        <h3>HTTPS only</h3>
+                        <p>The sign-in cookie is never sent over plain HTTP.</p>
+                    </div>
+                    <div class="mini-card">
+                        <span class="icon-tile"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+                        <h3>Brute-force limits</h3>
+                        <p>Sign-in is rate limited, and accounts lock after repeated failures.</p>
+                    </div>
+                    <div class="mini-card">
+                        <span class="icon-tile"><i class="bi bi-safe" aria-hidden="true"></i></span>
+                        <h3>Encrypted secrets</h3>
+                        <p>Mail passwords, service keys and webhook URLs are encrypted with machine-bound keys.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pro -->
+        <section class="section pro-band" id="pro">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="kicker gradient-text">Coming soon</span>
+                    <h2>Need more? IIGO Pro adds it.</h2>
+                    <p>The panel stays free and open source. IIGO Pro is an add-on that brings extra functionality for teams and businesses that run Windows servers for a living.</p>
+                </div>
+
+                <div class="plans">
+                    <div class="plan">
+                        <div class="plan-head"><h3>IIGO</h3></div>
+                        <div class="plan-price">Free <small>forever</small></div>
+                        <p class="plan-desc">Everything on this page, with no limits on sites or servers.</p>
+                        <ul class="check-list">
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>IIS websites, app pools and certificates</span></li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>System tools, firewall and Windows Update</span></li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Monitoring and 8 notification channels</span></li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Users, roles, 2FA and REST API</span></li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Open source on GitHub</span></li>
+                        </ul>
+                        <a class="btn btn-ghost" href="https://github.com/iigo-panel/iigo-panel/releases"><i class="bi bi-download" aria-hidden="true"></i>Download</a>
+                    </div>
+
+                    <div class="plan plan-pro">
+                        <div class="plan-head"><h3>IIGO <span class="gradient-text">Pro</span></h3><span class="pill">Coming soon</span></div>
+                        <div class="plan-price">Pricing TBD</div>
+                        <p class="plan-desc">Everything in IIGO, plus extra features. Pro unlocks with a license key on the panel you already run.</p>
+                        <ul class="check-list">
+                            <li><i class="bi bi-stars" aria-hidden="true"></i><span>Extra features that build on the free panel</span></li>
+                            <li><i class="bi bi-plug" aria-hidden="true"></i><span>Installs as a plugin. No migration, no reinstall.</span></li>
+                            <li><i class="bi bi-layout-sidebar" aria-hidden="true"></i><span>New pages appear right in the sidebar</span></li>
+                            <li><i class="bi bi-person-badge" aria-hidden="true"></i><span>Its own permissions on the Roles page</span></li>
+                            <li><i class="bi bi-life-preserver" aria-hidden="true"></i><span>Helps fund ongoing development</span></li>
+                        </ul>
+                        <a class="btn btn-primary" href="https://discord.gg/cKqN9wa2d9"><i class="bi bi-discord" aria-hidden="true"></i>Get notified on Discord</a>
+                    </div>
+                </div>
+
+                <p class="plan-note">Want to help shape Pro now? <a href="https://github.com/sponsors/ahwm">Sponsors</a> get prioritized features and issues.</p>
+            </div>
+        </section>
+
+        <!-- Get started -->
+        <section class="section" id="get-started">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="kicker gradient-text">Get started</span>
+                    <h2>Up and running in three steps.</h2>
+                    <p>The installer sets IIGO up as a Windows service that starts with the server and restarts itself if it stops.</p>
+                </div>
+
+                <ol class="steps">
+                    <li class="step">
+                        <h3>Run the installer</h3>
+                        <p>Download <code>IIGO Panel.msi</code> from the latest release and run it as an administrator. Upgrades keep your data and settings.</p>
+                        <p><a href="https://github.com/iigo-panel/iigo-panel/releases">Latest release <i class="bi bi-arrow-right" aria-hidden="true"></i></a></p>
+                    </li>
+                    <li class="step">
+                        <h3>Add an HTTPS endpoint</h3>
+                        <p>Point Kestrel at a certificate in <code>appsettings.json</code>, or put IIGO behind a reverse proxy.</p>
+                        <pre class="code"><span class="k">"Https"</span>: {
+  <span class="k">"Url"</span>: <span class="s">"https://*:8443"</span>,
+  <span class="k">"Certificate"</span>: {
+    <span class="k">"Subject"</span>: <span class="s">"panel.example.com"</span>,
+    <span class="k">"Store"</span>: <span class="s">"My"</span>,
+    <span class="k">"Location"</span>: <span class="s">"LocalMachine"</span>
+  }
+}</pre>
+                    </li>
+                    <li class="step">
+                        <h3>Sign in and lock it down</h3>
+                        <p>Sign in as <code>admin</code> with the default password from the README. You'll set a new one right away.</p>
+                        <p>Then add users, set up roles and turn on two-factor sign-in.</p>
+                    </li>
+                </ol>
+
+                <ul class="requirements">
+                    <li><i class="bi bi-windows" aria-hidden="true"></i>Windows Server 2012 or newer</li>
+                    <li><i class="bi bi-hdd-stack" aria-hidden="true"></i>IIS for web server features</li>
+                    <li><i class="bi bi-box" aria-hidden="true"></i>Server 2012 may need the <a href="https://aka.ms/vs/17/release/vc_redist.x64.exe">VC++ 2015-2022 runtime</a></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Community -->
+        <section class="section section-alt" id="community">
+            <div class="wrap">
+                <div class="section-head">
+                    <span class="kicker gradient-text">Community</span>
+                    <h2>Built in the open.</h2>
+                    <p>Ask questions, report bugs and follow along as new features land.</p>
+                </div>
+                <div class="community">
+                    <a class="link-card" href="https://discord.gg/cKqN9wa2d9">
+                        <span class="icon-tile"><i class="bi bi-discord" aria-hidden="true"></i></span>
+                        <div>
+                            <h3>Join the Discord</h3>
+                            <p>Chat with other admins and hear about Pro first.</p>
+                        </div>
+                    </a>
+                    <a class="link-card" href="https://github.com/iigo-panel/iigo-panel/issues">
+                        <span class="icon-tile"><i class="bi bi-github" aria-hidden="true"></i></span>
+                        <div>
+                            <h3>Report an issue</h3>
+                            <p>Found a bug or want a feature? Open an issue on GitHub.</p>
+                        </div>
+                    </a>
+                    <a class="link-card" href="https://github.com/sponsors/ahwm">
+                        <span class="icon-tile"><i class="bi bi-heart" aria-hidden="true"></i></span>
+                        <div>
+                            <h3>Sponsor development</h3>
+                            <p>Support the project and get your issues prioritized.</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="wrap footer-inner">
+            <div class="footer-brand">
+                <img src="assets/img/android-chrome-192x192.png" alt="">
+                <span>&copy; <span id="year">2026</span> IIGO Panel</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="https://github.com/iigo-panel/iigo-panel">GitHub</a></li>
+                <li><a href="https://github.com/iigo-panel/iigo-panel/releases">Releases</a></li>
+                <li><a href="https://github.com/iigo-panel/iigo-panel/blob/master/LICENSE">License</a></li>
+                <li><a href="https://github.com/iigo-panel/iigo-panel/blob/master/SECURITY.md">Security</a></li>
+                <li><a href="https://discord.gg/cKqN9wa2d9">Discord</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <script src="assets/js/site.js"></script>
+</body>
+</html>
