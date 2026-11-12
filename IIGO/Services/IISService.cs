@@ -105,6 +105,14 @@ namespace IIGO.Services
             _iisWrapper.DeleteAppPool(appPoolName);
         }
 
+        /// <summary>
+        /// Applies a change to a fresh copy of the application pool and commits it
+        /// </summary>
+        public void UpdateAppPool(string appPoolName, Action<ApplicationPool> change)
+        {
+            _iisWrapper.EditAppPool(appPoolName, change);
+        }
+
         public List<ApplicationPool> GetAppPools()
         {
             try

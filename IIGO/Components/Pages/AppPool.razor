@@ -1,6 +1,8 @@
 ﻿@page "/apppools/{name}"
 @using Microsoft.Web.Administration
 @using IIGO.Services
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
 @inject IISService IISService
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -57,12 +59,12 @@ else
 
 	<div class="row g-3 mb-3">
 		<div class="col-lg-6">
-			<SectionCard Title="Details" Class="h-100">
+			<SectionCard Title="Details" Class="h-100" Actions="@EditButton(EditSection.Details)">
 				<dl class="kv-list">
 					<dt>Status</dt>
 					<dd><StatusBadge Status="@appPool.State.ToString()" /></dd>
 					<dt>.NET CLR version</dt>
-					<dd>@(string.IsNullOrEmpty(appPool.ManagedRuntimeVersion) ? "No Managed Code" : appPool.ManagedRuntimeVersion)</dd>
+					<dd>@RuntimeText(appPool.ManagedRuntimeVersion)</dd>
 					<dt>Managed pipeline mode</dt>
 					<dd>@appPool.ManagedPipelineMode</dd>
 					<dt>Enable 32-bit applications</dt>
@@ -77,7 +79,7 @@ else
 			</SectionCard>
 		</div>
 		<div class="col-lg-6">
-			<SectionCard Title="Identity" Class="h-100">
+			<SectionCard Title="Identity" Class="h-100" Actions="@EditButton(EditSection.Identity)">
 				<dl class="kv-list">
 					<dt>Identity type</dt>
 					<dd>@appPool.ProcessModel.IdentityType</dd>
@@ -95,7 +97,7 @@ else
 
 	<div class="row g-3 mb-3">
 		<div class="col-lg-6">
-			<SectionCard Title="Process Model" Class="h-100">
+			<SectionCard Title="Process Model" Class="h-100" Actions="@EditButton(EditSection.ProcessModel)">
 				<dl class="kv-list">
 					<dt>Idle time-out</dt>
 					<dd>@DurationText(appPool.ProcessModel.IdleTimeout)</dd>
@@ -117,7 +119,7 @@ else
 			</SectionCard>
 		</div>
 		<div class="col-lg-6">
-			<SectionCard Title="Recycling" Class="h-100">
+			<SectionCard Title="Recycling" Class="h-100" Actions="@EditButton(EditSection.Recycling)">
 				<dl class="kv-list">
 					<dt>Regular time interval</dt>
 					<dd>@DurationText(appPool.Recycling.PeriodicRestart.Time)</dd>
@@ -140,7 +142,7 @@ else
 
 	<div class="row g-3 mb-3">
 		<div class="col-lg-6">
-			<SectionCard Title="CPU" Class="h-100">
+			<SectionCard Title="CPU" Class="h-100" Actions="@EditButton(EditSection.Cpu)">
 				<dl class="kv-list">
 					<dt>Limit</dt>
 					<dd>@(appPool.Cpu.Limit == 0 ? "No limit" : $"{appPool.Cpu.Limit / 1000.0:0.###}%")</dd>
@@ -152,7 +154,7 @@ else
 			</SectionCard>
 		</div>
 		<div class="col-lg-6">
-			<SectionCard Title="Rapid-Fail Protection" Class="h-100">
+			<SectionCard Title="Rapid-Fail Protection" Class="h-100" Actions="@EditButton(EditSection.RapidFail)">
 				<dl class="kv-list">
 					<dt>Enabled</dt>
 					<dd>@YesNo(appPool.Failure.RapidFailProtection)</dd>
@@ -193,17 +195,304 @@ else
 			</div>
 		}
 	</SectionCard>
+
+	<Modal @ref="editModal" Title="@($"Edit {SectionTitle(editing)}")" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="editForm" OnValidSubmit="SaveSection">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				@switch (editForm)
+				{
+					case DetailsModel details:
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputSelect class="form-select" @bind-Value="details.ManagedRuntimeVersion" id="poolRuntime">
+										@foreach (var version in RuntimeVersions.Append(details.ManagedRuntimeVersion).Distinct())
+										{
+											<option value="@version">@RuntimeText(version)</option>
+										}
+									</InputSelect>
+									<label for="poolRuntime">.NET CLR version</label>
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputSelect class="form-select" @bind-Value="details.PipelineMode" id="poolPipeline">
+										<option value="@ManagedPipelineMode.Integrated">Integrated</option>
+										<option value="@ManagedPipelineMode.Classic">Classic</option>
+									</InputSelect>
+									<label for="poolPipeline">Managed pipeline mode</label>
+								</div>
+							</div>
+						</div>
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" @bind-Value="details.StartMode" id="poolStartMode">
+								<option value="@StartMode.OnDemand">OnDemand</option>
+								<option value="@StartMode.AlwaysRunning">AlwaysRunning</option>
+							</InputSelect>
+							<label for="poolStartMode">Start mode</label>
+						</div>
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="details.Enable32Bit" id="poolEnable32Bit" />
+							<label class="form-check-label" for="poolEnable32Bit">Enable 32-bit applications</label>
+						</div>
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="details.AutoStart" id="poolAutoStart" />
+							<label class="form-check-label" for="poolAutoStart">Start automatically</label>
+						</div>
+						break;
+
+					case IdentityModel identity:
+						<div class="form-floating mb-3">
+							<InputSelect class="form-select" @bind-Value="identity.IdentityType" id="poolIdentityType">
+								<option value="@ProcessModelIdentityType.ApplicationPoolIdentity">ApplicationPoolIdentity</option>
+								<option value="@ProcessModelIdentityType.LocalService">LocalService</option>
+								<option value="@ProcessModelIdentityType.LocalSystem">LocalSystem</option>
+								<option value="@ProcessModelIdentityType.NetworkService">NetworkService</option>
+								<option value="@ProcessModelIdentityType.SpecificUser">Specific user</option>
+							</InputSelect>
+							<label for="poolIdentityType">Identity type</label>
+						</div>
+						@if (identity.IdentityType == ProcessModelIdentityType.LocalSystem)
+						{
+							<div class="form-text mt-n2 mb-3">LocalSystem has full control of the server. Every application in this pool runs with that access.</div>
+						}
+						@if (identity.IdentityType == ProcessModelIdentityType.SpecificUser)
+						{
+							<div class="row g-2 mb-1">
+								<div class="col-md-4">
+									<div class="form-floating">
+										<InputText class="form-control" @bind-Value="identity.UserName" id="poolUserName" placeholder="User name" autocomplete="off" />
+										<label for="poolUserName">User name</label>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-floating">
+										<InputText type="password" class="form-control" @bind-Value="identity.Password" id="poolPassword" placeholder="Password" autocomplete="new-password" />
+										<label for="poolPassword">Password</label>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-floating">
+										<InputText type="password" class="form-control" @bind-Value="identity.ConfirmPassword" id="poolConfirmPassword" placeholder="Confirm password" autocomplete="new-password" />
+										<label for="poolConfirmPassword">Confirm password</label>
+									</div>
+								</div>
+							</div>
+							<div class="form-text mb-3">
+								Example: DOMAIN\user or .\user.
+								@if (identity.HasSavedPassword)
+								{
+									<text> Leave the password blank to keep the current one.</text>
+								}
+							</div>
+						}
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="identity.LoadUserProfile" id="poolLoadUserProfile" />
+							<label class="form-check-label" for="poolLoadUserProfile">Load user profile</label>
+						</div>
+						break;
+
+					case ProcessModelModel process:
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="process.IdleTimeoutMinutes" id="poolIdleTimeout" placeholder="Idle time-out" />
+									<label for="poolIdleTimeout">Idle time-out (minutes)</label>
+									<ValidationMessage For="() => process.IdleTimeoutMinutes" class="text-danger" />
+								</div>
+								<div class="form-text">0 disables the idle time-out.</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputSelect class="form-select" @bind-Value="process.IdleTimeoutAction" id="poolIdleAction">
+										<option value="@IdleTimeoutAction.Terminate">Terminate</option>
+										<option value="@IdleTimeoutAction.Suspend">Suspend</option>
+									</InputSelect>
+									<label for="poolIdleAction">Idle time-out action</label>
+								</div>
+							</div>
+						</div>
+						<div class="form-floating mb-1">
+							<InputNumber class="form-control" @bind-Value="process.MaxProcesses" id="poolMaxProcesses" placeholder="Maximum worker processes" />
+							<label for="poolMaxProcesses">Maximum worker processes</label>
+							<ValidationMessage For="() => process.MaxProcesses" class="text-danger" />
+						</div>
+						<div class="form-text mb-3">0 starts one worker process per NUMA node.</div>
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="process.PingingEnabled" id="poolPingEnabled" />
+							<label class="form-check-label" for="poolPingEnabled">Ping enabled</label>
+						</div>
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="process.PingIntervalSeconds" id="poolPingInterval" placeholder="Ping interval" />
+									<label for="poolPingInterval">Ping interval (seconds)</label>
+									<ValidationMessage For="() => process.PingIntervalSeconds" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="process.PingResponseSeconds" id="poolPingResponse" placeholder="Ping maximum response time" />
+									<label for="poolPingResponse">Ping maximum response time (seconds)</label>
+									<ValidationMessage For="() => process.PingResponseSeconds" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="process.StartupSeconds" id="poolStartupLimit" placeholder="Start-up time limit" />
+									<label for="poolStartupLimit">Start-up time limit (seconds)</label>
+									<ValidationMessage For="() => process.StartupSeconds" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="process.ShutdownSeconds" id="poolShutdownLimit" placeholder="Shutdown time limit" />
+									<label for="poolShutdownLimit">Shutdown time limit (seconds)</label>
+									<ValidationMessage For="() => process.ShutdownSeconds" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						break;
+
+					case RecyclingModel recycling:
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="recycling.RegularIntervalMinutes" id="poolRecycleInterval" placeholder="Regular time interval" />
+									<label for="poolRecycleInterval">Regular time interval (minutes)</label>
+									<ValidationMessage For="() => recycling.RegularIntervalMinutes" class="text-danger" />
+								</div>
+								<div class="form-text">0 turns off recycling on an interval.</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputText class="form-control" @bind-Value="recycling.SpecificTimes" id="poolRecycleTimes" placeholder="Specific times" />
+									<label for="poolRecycleTimes">Specific times</label>
+									<ValidationMessage For="() => recycling.SpecificTimes" class="text-danger" />
+								</div>
+								<div class="form-text">24-hour times, comma separated. Example: 03:00, 15:30</div>
+							</div>
+						</div>
+						<div class="row g-2 mb-1">
+							<div class="col-md-4">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="recycling.RequestLimit" id="poolRequestLimit" placeholder="Request limit" />
+									<label for="poolRequestLimit">Request limit</label>
+									<ValidationMessage For="() => recycling.RequestLimit" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-4">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="recycling.VirtualMemoryKb" id="poolVirtualMemory" placeholder="Virtual memory limit" />
+									<label for="poolVirtualMemory">Virtual memory limit (KB)</label>
+									<ValidationMessage For="() => recycling.VirtualMemoryKb" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-4">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="recycling.PrivateMemoryKb" id="poolPrivateMemory" placeholder="Private memory limit" />
+									<label for="poolPrivateMemory">Private memory limit (KB)</label>
+									<ValidationMessage For="() => recycling.PrivateMemoryKb" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						<div class="form-text mb-3">0 means no limit.</div>
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="recycling.DisallowOverlapping" id="poolDisallowOverlapping" />
+							<label class="form-check-label" for="poolDisallowOverlapping">Disable overlapped recycle</label>
+						</div>
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="recycling.DisallowOnConfigChange" id="poolDisallowConfigChange" />
+							<label class="form-check-label" for="poolDisallowConfigChange">Disable recycling on configuration changes</label>
+						</div>
+						break;
+
+					case CpuModel cpu:
+						<div class="form-floating mb-1">
+							<InputNumber class="form-control" @bind-Value="cpu.LimitPercent" id="poolCpuLimit" placeholder="Limit" step="0.001" />
+							<label for="poolCpuLimit">Limit (percent)</label>
+							<ValidationMessage For="() => cpu.LimitPercent" class="text-danger" />
+						</div>
+						<div class="form-text mb-3">0 means no limit.</div>
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputSelect class="form-select" @bind-Value="cpu.Action" id="poolCpuAction">
+										<option value="@ProcessorAction.NoAction">NoAction</option>
+										<option value="@ProcessorAction.KillW3wp">KillW3wp</option>
+										<option value="@ProcessorAction.Throttle">Throttle</option>
+										<option value="@ProcessorAction.ThrottleUnderLoad">ThrottleUnderLoad</option>
+									</InputSelect>
+									<label for="poolCpuAction">Limit action</label>
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="cpu.ResetIntervalMinutes" id="poolCpuInterval" placeholder="Limit interval" />
+									<label for="poolCpuInterval">Limit interval (minutes)</label>
+									<ValidationMessage For="() => cpu.ResetIntervalMinutes" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						break;
+
+					case RapidFailModel rapidFail:
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="rapidFail.Enabled" id="poolRapidFail" />
+							<label class="form-check-label" for="poolRapidFail">Enabled</label>
+						</div>
+						<div class="row g-2 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="rapidFail.MaxCrashes" id="poolMaxCrashes" placeholder="Maximum failures" />
+									<label for="poolMaxCrashes">Maximum failures</label>
+									<ValidationMessage For="() => rapidFail.MaxCrashes" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="rapidFail.IntervalMinutes" id="poolFailureInterval" placeholder="Failure interval" />
+									<label for="poolFailureInterval">Failure interval (minutes)</label>
+									<ValidationMessage For="() => rapidFail.IntervalMinutes" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						break;
+				}
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => editModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
 }
 
 @code {
 	private ApplicationPool? appPool;
 	private bool loaded;
 	private bool canEdit;
+	private bool isAdmin;
+	private string actor = "";
 	private int applicationCount;
 	private string scheduleText = "None";
 	private List<(int ProcessId, WorkerProcessState State)> workerProcesses = [];
 	private string? LastMessage = null;
 	private bool Success = true;
+
+	private Modal editModal = default!;
+	private EditSection editing;
+	private ISectionModel editForm = new DetailsModel();
+	private string? ModalError = null;
+
+	private static readonly string[] RuntimeVersions = ["v4.0", "v2.0", ""];
 
 	[Parameter]
 	public string Name { get; set; } = "";
@@ -212,6 +501,8 @@ else
 	{
 		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
 		canEdit = (await AuthorizationService.AuthorizeAsync(authState.User, Feature.EditAppPools)).Succeeded;
+		isAdmin = authState.User.IsInRole("Administrator");
+		actor = authState.User.Identity?.Name ?? "";
 		Load();
 	}
 
@@ -294,9 +585,397 @@ else
 		Load();
 	}
 
+	// The identity decides what every application in the pool can do on the server (LocalSystem is full control),
+	// so changing it is limited to the Administrator role, like adding and editing services
+	private bool CanEditSection(EditSection section) => canEdit && (section != EditSection.Identity || isAdmin);
+
+	private RenderFragment? EditButton(EditSection section)
+	{
+		if (!CanEditSection(section))
+			return null;
+
+		return @<button type="button" @onclick="@(() => EditSectionAsync(section))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>;
+	}
+
+	protected async Task EditSectionAsync(EditSection section)
+	{
+		if (!CanEditSection(section))
+			return;
+
+		// Read the pool again so the form starts from what is in IIS now
+		Load();
+		if (appPool == null)
+			return;
+
+		editing = section;
+		editForm = section switch
+		{
+			EditSection.Details => DetailsModel.From(appPool),
+			EditSection.Identity => IdentityModel.From(appPool),
+			EditSection.ProcessModel => ProcessModelModel.From(appPool),
+			EditSection.Recycling => RecyclingModel.From(appPool),
+			EditSection.Cpu => CpuModel.From(appPool),
+			_ => RapidFailModel.From(appPool)
+		};
+		ModalError = null;
+		await editModal.ShowAsync();
+	}
+
+	// Uses a fresh auth state so a user who lost access since the page loaded can't save
+	private async Task<bool> CanEditNow(EditSection section)
+	{
+		var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+		if (!(await AuthorizationService.AuthorizeAsync(user, Feature.EditAppPools)).Succeeded)
+			return false;
+
+		return section != EditSection.Identity || user.IsInRole("Administrator");
+	}
+
+	protected async Task SaveSection()
+	{
+		if (!await CanEditNow(editing))
+		{
+			ModalError = "You don't have permission to change these settings.";
+			return;
+		}
+
+		ModalError = editForm.Validate();
+		if (ModalError != null)
+			return;
+
+		var section = SectionTitle(editing);
+		try
+		{
+			IISService.UpdateAppPool(Name, editForm.Apply);
+			logger.LogInformation("{Actor} changed {Section} settings on application pool {PoolName}", actor, section, Name);
+
+			await editModal.HideAsync();
+			LastMessage = $"{section} settings saved.";
+			Success = true;
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error saving {Section} settings on application pool {PoolName}", section, Name);
+			ModalError = ex.Message.Trim();
+		}
+		Load();
+	}
+
+	private static string SectionTitle(EditSection section) => section switch
+	{
+		EditSection.Details => "Details",
+		EditSection.Identity => "Identity",
+		EditSection.ProcessModel => "Process Model",
+		EditSection.Recycling => "Recycling",
+		EditSection.Cpu => "CPU",
+		_ => "Rapid-Fail Protection"
+	};
+
+	private static string RuntimeText(string version) => string.IsNullOrEmpty(version) ? "No Managed Code" : version;
+
 	private static string YesNo(bool value) => value ? "Yes" : "No";
 
 	private static string DurationText(TimeSpan value) => value == TimeSpan.Zero ? "0 (disabled)" : value.ToString();
 
 	private static string LimitText(long value, string unit) => value == 0 ? "No limit" : $"{value:N0}{unit}";
+
+	public enum EditSection { Details, Identity, ProcessModel, Recycling, Cpu, RapidFail }
+
+	/// <summary>
+	/// The settings in one card. Apply runs against a fresh copy of the pool, inside the same commit.
+	/// Ranges follow the applicationPools schema in IIS_schema.xml.
+	/// </summary>
+	public interface ISectionModel
+	{
+		/// <summary>
+		/// Checks that DataAnnotations can't express. Returns an error message, or null when valid
+		/// </summary>
+		string? Validate() => null;
+
+		void Apply(ApplicationPool pool);
+	}
+
+	public class DetailsModel : ISectionModel
+	{
+		public string ManagedRuntimeVersion { get; set; } = "";
+		public ManagedPipelineMode PipelineMode { get; set; }
+		public bool Enable32Bit { get; set; }
+		public StartMode StartMode { get; set; }
+		public bool AutoStart { get; set; }
+
+		public static DetailsModel From(ApplicationPool pool) => new()
+		{
+			ManagedRuntimeVersion = pool.ManagedRuntimeVersion ?? "",
+			PipelineMode = pool.ManagedPipelineMode,
+			Enable32Bit = pool.Enable32BitAppOnWin64,
+			StartMode = pool.StartMode,
+			AutoStart = pool.AutoStart
+		};
+
+		public void Apply(ApplicationPool pool)
+		{
+			pool.ManagedRuntimeVersion = ManagedRuntimeVersion;
+			pool.ManagedPipelineMode = PipelineMode;
+			pool.Enable32BitAppOnWin64 = Enable32Bit;
+			pool.StartMode = StartMode;
+			pool.AutoStart = AutoStart;
+		}
+	}
+
+	public class IdentityModel : ISectionModel
+	{
+		public ProcessModelIdentityType IdentityType { get; set; }
+		public string UserName { get; set; } = "";
+		public string Password { get; set; } = "";
+		public string ConfirmPassword { get; set; } = "";
+		public bool LoadUserProfile { get; set; }
+
+		/// <summary>
+		/// User name already in config. Keeping it with a blank password keeps the stored password
+		/// </summary>
+		public string SavedUserName { get; set; } = "";
+
+		public bool HasSavedPassword => SavedUserName != "" && string.Equals(UserName.Trim(), SavedUserName, StringComparison.OrdinalIgnoreCase);
+
+		public static IdentityModel From(ApplicationPool pool)
+		{
+			var userName = pool.ProcessModel.IdentityType == ProcessModelIdentityType.SpecificUser ? pool.ProcessModel.UserName ?? "" : "";
+			return new()
+			{
+				IdentityType = pool.ProcessModel.IdentityType,
+				UserName = userName,
+				SavedUserName = userName,
+				LoadUserProfile = pool.ProcessModel.LoadUserProfile
+			};
+		}
+
+		public string? Validate()
+		{
+			if (IdentityType != ProcessModelIdentityType.SpecificUser)
+				return null;
+			if (string.IsNullOrWhiteSpace(UserName))
+				return "Enter a user name, or choose a built-in identity.";
+			if (Password != ConfirmPassword)
+				return "The passwords don't match.";
+			if (string.IsNullOrEmpty(Password) && !HasSavedPassword)
+				return "Enter a password for the specific user.";
+
+			return null;
+		}
+
+		public void Apply(ApplicationPool pool)
+		{
+			var processModel = pool.ProcessModel;
+			if (IdentityType == ProcessModelIdentityType.SpecificUser)
+			{
+				var userName = UserName.Trim();
+				bool sameUser = processModel.IdentityType == ProcessModelIdentityType.SpecificUser
+					&& !string.IsNullOrEmpty(processModel.UserName)
+					&& string.Equals(processModel.UserName, userName, StringComparison.OrdinalIgnoreCase);
+				if (string.IsNullOrEmpty(Password) && !sameUser)
+					throw new ArgumentException("Enter a password for the specific user.");
+
+				processModel.UserName = userName;
+				if (!string.IsNullOrEmpty(Password))
+					processModel.Password = Password;
+			}
+			else
+			{
+				// A built-in identity doesn't use these, so don't leave a stored password behind
+				processModel.GetAttribute("userName").Delete();
+				processModel.GetAttribute("password").Delete();
+			}
+			processModel.IdentityType = IdentityType;
+			processModel.LoadUserProfile = LoadUserProfile;
+		}
+	}
+
+	public class ProcessModelModel : ISectionModel
+	{
+		[Range(0, 43200, ErrorMessage = "Enter 0 to 43,200 minutes.")]
+		public long IdleTimeoutMinutes { get; set; }
+
+		public IdleTimeoutAction IdleTimeoutAction { get; set; }
+
+		[Range(0, int.MaxValue, ErrorMessage = "Enter 0 or more.")]
+		public long MaxProcesses { get; set; }
+
+		public bool PingingEnabled { get; set; }
+
+		[Range(1, 4294967, ErrorMessage = "Enter 1 to 4,294,967 seconds.")]
+		public long PingIntervalSeconds { get; set; }
+
+		[Range(1, 4294967, ErrorMessage = "Enter 1 to 4,294,967 seconds.")]
+		public long PingResponseSeconds { get; set; }
+
+		[Range(1, 4294967, ErrorMessage = "Enter 1 to 4,294,967 seconds.")]
+		public long StartupSeconds { get; set; }
+
+		[Range(1, 4294967, ErrorMessage = "Enter 1 to 4,294,967 seconds.")]
+		public long ShutdownSeconds { get; set; }
+
+		public static ProcessModelModel From(ApplicationPool pool)
+		{
+			var processModel = pool.ProcessModel;
+			return new()
+			{
+				IdleTimeoutMinutes = (long)processModel.IdleTimeout.TotalMinutes,
+				IdleTimeoutAction = processModel.IdleTimeoutAction,
+				MaxProcesses = processModel.MaxProcesses,
+				PingingEnabled = processModel.PingingEnabled,
+				PingIntervalSeconds = (long)processModel.PingInterval.TotalSeconds,
+				PingResponseSeconds = (long)processModel.PingResponseTime.TotalSeconds,
+				StartupSeconds = (long)processModel.StartupTimeLimit.TotalSeconds,
+				ShutdownSeconds = (long)processModel.ShutdownTimeLimit.TotalSeconds
+			};
+		}
+
+		public void Apply(ApplicationPool pool)
+		{
+			var processModel = pool.ProcessModel;
+			processModel.IdleTimeout = TimeSpan.FromMinutes(IdleTimeoutMinutes);
+			processModel.IdleTimeoutAction = IdleTimeoutAction;
+			processModel.MaxProcesses = MaxProcesses;
+			processModel.PingingEnabled = PingingEnabled;
+			processModel.PingInterval = TimeSpan.FromSeconds(PingIntervalSeconds);
+			processModel.PingResponseTime = TimeSpan.FromSeconds(PingResponseSeconds);
+			processModel.StartupTimeLimit = TimeSpan.FromSeconds(StartupSeconds);
+			processModel.ShutdownTimeLimit = TimeSpan.FromSeconds(ShutdownSeconds);
+		}
+	}
+
+	public class RecyclingModel : ISectionModel, IValidatableObject
+	{
+		[Range(0, 432000, ErrorMessage = "Enter 0 to 432,000 minutes.")]
+		public long RegularIntervalMinutes { get; set; }
+
+		/// <summary>
+		/// Comma separated hh:mm times
+		/// </summary>
+		public string SpecificTimes { get; set; } = "";
+
+		[Range(0, uint.MaxValue, ErrorMessage = "Enter 0 or more.")]
+		public long RequestLimit { get; set; }
+
+		[Range(0, uint.MaxValue, ErrorMessage = "Enter 0 or more.")]
+		public long VirtualMemoryKb { get; set; }
+
+		[Range(0, uint.MaxValue, ErrorMessage = "Enter 0 or more.")]
+		public long PrivateMemoryKb { get; set; }
+
+		public bool DisallowOverlapping { get; set; }
+		public bool DisallowOnConfigChange { get; set; }
+
+		public static RecyclingModel From(ApplicationPool pool)
+		{
+			var restart = pool.Recycling.PeriodicRestart;
+			return new()
+			{
+				RegularIntervalMinutes = (long)restart.Time.TotalMinutes,
+				SpecificTimes = string.Join(", ", restart.Schedule.Select(x => x.Time).OrderBy(x => x).Select(x => x.ToString(@"hh\:mm"))),
+				RequestLimit = restart.Requests,
+				VirtualMemoryKb = restart.Memory,
+				PrivateMemoryKb = restart.PrivateMemory,
+				DisallowOverlapping = pool.Recycling.DisallowOverlappingRotation,
+				DisallowOnConfigChange = pool.Recycling.DisallowRotationOnConfigChange
+			};
+		}
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			if (ParseTimes(SpecificTimes) == null)
+				yield return new ValidationResult("Enter times as hh:mm between 00:00 and 23:59, separated by commas.", [nameof(SpecificTimes)]);
+		}
+
+		/// <summary>
+		/// Distinct times in order, or null if any entry isn't a valid time of day
+		/// </summary>
+		public static List<TimeSpan>? ParseTimes(string text)
+		{
+			var times = new List<TimeSpan>();
+			foreach (var part in text.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+			{
+				if (!TimeSpan.TryParseExact(part, [@"h\:mm", @"hh\:mm"], CultureInfo.InvariantCulture, out var time) || time >= TimeSpan.FromDays(1))
+					return null;
+				times.Add(time);
+			}
+			return [.. times.Distinct().Order()];
+		}
+
+		public void Apply(ApplicationPool pool)
+		{
+			var times = ParseTimes(SpecificTimes) ?? throw new ArgumentException("Enter times as hh:mm, separated by commas.");
+			var restart = pool.Recycling.PeriodicRestart;
+			restart.Time = TimeSpan.FromMinutes(RegularIntervalMinutes);
+			restart.Requests = RequestLimit;
+			restart.Memory = VirtualMemoryKb;
+			restart.PrivateMemory = PrivateMemoryKb;
+
+			// Only rewrite the schedule when it changed, so an unchanged list isn't cleared and re-added
+			var current = restart.Schedule.Select(x => x.Time).Distinct().Order().ToList();
+			if (!current.SequenceEqual(times))
+			{
+				restart.Schedule.Clear();
+				foreach (var time in times)
+					restart.Schedule.Add(time);
+			}
+
+			pool.Recycling.DisallowOverlappingRotation = DisallowOverlapping;
+			pool.Recycling.DisallowRotationOnConfigChange = DisallowOnConfigChange;
+		}
+	}
+
+	public class CpuModel : ISectionModel
+	{
+		[Range(0.0, 100.0, ErrorMessage = "Enter 0 to 100 percent.")]
+		public decimal LimitPercent { get; set; }
+
+		public ProcessorAction Action { get; set; }
+
+		[Range(0, 1440, ErrorMessage = "Enter 0 to 1,440 minutes.")]
+		public long ResetIntervalMinutes { get; set; }
+
+		public static CpuModel From(ApplicationPool pool) => new()
+		{
+			// Stored in 1/1000ths of a percent
+			LimitPercent = pool.Cpu.Limit / 1000m,
+			Action = pool.Cpu.Action,
+			ResetIntervalMinutes = (long)pool.Cpu.ResetInterval.TotalMinutes
+		};
+
+		public string? Validate() =>
+			decimal.Round(LimitPercent, 3) != LimitPercent ? "The limit can have at most 3 decimal places." : null;
+
+		public void Apply(ApplicationPool pool)
+		{
+			pool.Cpu.Limit = (long)(LimitPercent * 1000);
+			pool.Cpu.Action = Action;
+			pool.Cpu.ResetInterval = TimeSpan.FromMinutes(ResetIntervalMinutes);
+		}
+	}
+
+	public class RapidFailModel : ISectionModel
+	{
+		public bool Enabled { get; set; }
+
+		[Range(1, int.MaxValue, ErrorMessage = "Enter 1 or more.")]
+		public long MaxCrashes { get; set; }
+
+		[Range(1, 144000, ErrorMessage = "Enter 1 to 144,000 minutes.")]
+		public long IntervalMinutes { get; set; }
+
+		public static RapidFailModel From(ApplicationPool pool) => new()
+		{
+			Enabled = pool.Failure.RapidFailProtection,
+			MaxCrashes = pool.Failure.RapidFailProtectionMaxCrashes,
+			IntervalMinutes = (long)pool.Failure.RapidFailProtectionInterval.TotalMinutes
+		};
+
+		public void Apply(ApplicationPool pool)
+		{
+			pool.Failure.RapidFailProtection = Enabled;
+			pool.Failure.RapidFailProtectionMaxCrashes = MaxCrashes;
+			pool.Failure.RapidFailProtectionInterval = TimeSpan.FromMinutes(IntervalMinutes);
+		}
+	}
 }

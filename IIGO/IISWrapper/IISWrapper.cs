@@ -202,6 +202,26 @@ namespace IISManager.Services
         }
 
         /// <summary>
+        /// Loads a fresh copy of the config, applies the change to the application pool and commits it. If anything
+        /// fails the config is reloaded so the uncommitted change doesn't show up in later reads.
+        /// </summary>
+        public void EditAppPool(string name, Action<ApplicationPool> change)
+        {
+            Reload();
+            try
+            {
+                var pool = _manager.ApplicationPools.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)) ?? throw new AppPoolNotFoundException(name);
+                change(pool);
+                _manager.CommitChanges();
+            }
+            catch
+            {
+                Reload();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Alter the application pool limits. Note: This needs to be called on a new instance of IISManager. It won't properly
         /// adjust the CPU limits if called in the same scope as CreateAppPool.
         /// </summary>
