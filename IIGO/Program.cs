@@ -238,6 +238,7 @@ namespace IIGO
             builder.Services.AddScoped<IMessengerService, SNSService>();
             builder.Services.AddScoped<IISService>();
             builder.Services.AddScoped<FirewallService>();
+            builder.Services.AddScoped<WindowsServiceManager>();
             // Singleton so a certificate request keeps running, and its output stays visible, after the page is closed
             builder.Services.AddSingleton<CertificateIssuanceService>();
 
