@@ -61,8 +61,86 @@ else
 			</dd>
 			<dt>Connect as</dt>
 			<dd>@ConnectAsText(RootDirectory(site.Applications.FirstOrDefault(x => x.Path == "/")))</dd>
+			<dt>Enabled protocols</dt>
+			<dd>
+				@(enabledProtocols?.EnabledProtocols ?? "Unknown")
+				@if (canEdit && enabledProtocols != null)
+				{
+					<button @onclick="@(() => EditSettings(SettingsSection.EnabledProtocols))" class="btn btn-sm btn-outline-secondary ms-2"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+				}
+			</dd>
 		</dl>
 	</SectionCard>
+
+	<div class="row g-3 mb-3">
+		<div class="col-xl-4 col-lg-6">
+			<SectionCard Title="Limits" Class="h-100" Actions="@EditSettingsButton(SettingsSection.Limits, limits != null)">
+				@if (limits == null)
+				{
+					<p class="text-muted mb-0">These settings couldn't be read.</p>
+				}
+				else
+				{
+					<dl class="kv-list">
+						<dt>Bandwidth</dt>
+						<dd>@(limits.LimitBandwidth ? $"{limits.MaxBandwidth:N0} bytes/second" : "No limit")</dd>
+						<dt>Connections</dt>
+						<dd>@(limits.LimitConnections ? limits.MaxConnections.ToString("N0") : "No limit")</dd>
+						<dt>Connection time-out</dt>
+						<dd>@limits.ConnectionTimeoutSeconds.ToString("N0") seconds</dd>
+						<dt>Maximum URL segments</dt>
+						<dd>@limits.MaxUrlSegments.ToString("N0")</dd>
+					</dl>
+				}
+			</SectionCard>
+		</div>
+		<div class="col-xl-4 col-lg-6">
+			<SectionCard Title="Failed Request Tracing" Class="h-100" Actions="@EditSettingsButton(SettingsSection.FailedRequestTracing, tracing != null)">
+				@if (tracing == null)
+				{
+					<p class="text-muted mb-0">These settings couldn't be read.</p>
+				}
+				else
+				{
+					<dl class="kv-list">
+						<dt>Enabled</dt>
+						<dd>@YesNo(tracing.Enabled)</dd>
+						<dt>Directory</dt>
+						<dd><div class="cell-truncate cell-truncate-lg" title="@tracing.Directory">@tracing.Directory</div></dd>
+						<dt>Maximum trace files</dt>
+						<dd>@tracing.MaxLogFiles.ToString("N0")</dd>
+					</dl>
+				}
+			</SectionCard>
+		</div>
+		<div class="col-xl-4 col-lg-6">
+			<SectionCard Title="HSTS" Class="h-100" Actions="@EditSettingsButton(SettingsSection.Hsts, hsts != null)">
+				@if (!hstsSupported)
+				{
+					<p class="text-muted mb-0">HSTS needs IIS 10.0 version 1709 (Windows Server 2019) or later.</p>
+				}
+				else if (hsts == null)
+				{
+					<p class="text-muted mb-0">These settings couldn't be read.</p>
+				}
+				else
+				{
+					<dl class="kv-list">
+						<dt>Enabled</dt>
+						<dd>@YesNo(hsts.Enabled)</dd>
+						<dt>Max-age</dt>
+						<dd>@MaxAgeText(hsts.MaxAge)</dd>
+						<dt>Include subdomains</dt>
+						<dd>@YesNo(hsts.IncludeSubDomains)</dd>
+						<dt>Preload</dt>
+						<dd>@YesNo(hsts.Preload)</dd>
+						<dt>Redirect HTTP to HTTPS</dt>
+						<dd>@YesNo(hsts.RedirectHttpToHttps)</dd>
+					</dl>
+				}
+			</SectionCard>
+		</div>
+	</div>
 
 	<SectionCard Title="Bindings" Flush="true" Class="mb-3">
 		<Actions>
@@ -190,6 +268,213 @@ else
 			}
 		</ChildContent>
 	</SectionCard>
+
+	<SectionCard Title="Virtual Directories" Flush="true" Class="mb-3">
+		<Actions>
+			@if (canEdit)
+			{
+				<button @onclick="AddVirtualDirectory" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Virtual Directory</button>
+			}
+		</Actions>
+		<ChildContent>
+			@if (virtualDirectories.Count == 0)
+			{
+				<EmptyState Icon="bi-folder" Title="This site has no virtual directories." />
+			}
+			else
+			{
+				<div class="table-responsive">
+					<table class="table table-hover align-middle iigo-table">
+						<thead>
+							<tr>
+								<th>Virtual Path</th>
+								<th>Physical Path</th>
+								<th>Application</th>
+								<th>Connect As</th>
+								@if (canEdit)
+								{
+									<th class="text-end">Actions</th>
+								}
+							</tr>
+						</thead>
+						<tbody>
+							@foreach (var vdir in virtualDirectories)
+							{
+								<tr>
+									<td>@vdir.Path</td>
+									<td><div class="cell-truncate cell-truncate-lg" title="@vdir.Directory.PhysicalPath">@vdir.Directory.PhysicalPath</div></td>
+									<td>@vdir.Application.Path</td>
+									<td>@ConnectAsText(vdir.Directory)</td>
+									@if (canEdit)
+									{
+										<td class="text-end">
+											<div class="row-actions">
+												<button @onclick="@(e => EditVirtualDirectory(vdir.Path, vdir.Directory))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>
+												<button @onclick="@(e => DeleteVirtualDirectory(vdir.Path))" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+											</div>
+										</td>
+									}
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</ChildContent>
+	</SectionCard>
+
+	<Modal @ref="settingsModal" Title="@($"Edit {SettingsTitle(editingSettings)}")" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="settingsForm" OnValidSubmit="SaveSettings">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				@switch (settingsForm)
+				{
+					case EnabledProtocolsSettings protocols:
+						<div class="form-floating mb-1">
+							<InputText class="form-control" @bind-Value="protocols.EnabledProtocols" id="siteEnabledProtocols" placeholder="Enabled protocols" />
+							<label for="siteEnabledProtocols">Enabled protocols</label>
+							<ValidationMessage For="() => protocols.EnabledProtocols" class="text-danger" />
+						</div>
+						<div class="form-text mb-3">Comma separated. Example: http,net.tcp. "http" covers both http and https bindings.</div>
+						break;
+
+					case SiteLimitsSettings limitsForm:
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="limitsForm.LimitBandwidth" id="siteLimitBandwidth" />
+							<label class="form-check-label" for="siteLimitBandwidth">Limit bandwidth usage</label>
+						</div>
+						@if (limitsForm.LimitBandwidth)
+						{
+							<div class="form-floating mb-3">
+								<InputNumber class="form-control" @bind-Value="limitsForm.MaxBandwidth" id="siteMaxBandwidth" placeholder="Maximum bandwidth" />
+								<label for="siteMaxBandwidth">Maximum bandwidth (bytes per second)</label>
+								<ValidationMessage For="() => limitsForm.MaxBandwidth" class="text-danger" />
+							</div>
+						}
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="limitsForm.LimitConnections" id="siteLimitConnections" />
+							<label class="form-check-label" for="siteLimitConnections">Limit number of connections</label>
+						</div>
+						@if (limitsForm.LimitConnections)
+						{
+							<div class="form-floating mb-3">
+								<InputNumber class="form-control" @bind-Value="limitsForm.MaxConnections" id="siteMaxConnections" placeholder="Maximum connections" />
+								<label for="siteMaxConnections">Maximum connections</label>
+								<ValidationMessage For="() => limitsForm.MaxConnections" class="text-danger" />
+							</div>
+						}
+						<div class="row g-2 mt-1 mb-3">
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="limitsForm.ConnectionTimeoutSeconds" id="siteConnectionTimeout" placeholder="Connection time-out" />
+									<label for="siteConnectionTimeout">Connection time-out (seconds)</label>
+									<ValidationMessage For="() => limitsForm.ConnectionTimeoutSeconds" class="text-danger" />
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-floating">
+									<InputNumber class="form-control" @bind-Value="limitsForm.MaxUrlSegments" id="siteMaxUrlSegments" placeholder="Maximum URL segments" />
+									<label for="siteMaxUrlSegments">Maximum URL segments</label>
+									<ValidationMessage For="() => limitsForm.MaxUrlSegments" class="text-danger" />
+								</div>
+							</div>
+						</div>
+						break;
+
+					case FailedRequestTracingSettings tracingForm:
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="tracingForm.Enabled" id="siteTracingEnabled" />
+							<label class="form-check-label" for="siteTracingEnabled">Enable</label>
+						</div>
+						<div class="form-floating mb-3">
+							<InputText class="form-control" @bind-Value="tracingForm.Directory" id="siteTracingDirectory" placeholder="Directory" />
+							<label for="siteTracingDirectory">Directory</label>
+							<ValidationMessage For="() => tracingForm.Directory" class="text-danger" />
+						</div>
+						<div class="form-floating mb-1">
+							<InputNumber class="form-control" @bind-Value="tracingForm.MaxLogFiles" id="siteTracingMaxFiles" placeholder="Maximum number of trace files" />
+							<label for="siteTracingMaxFiles">Maximum number of trace files</label>
+							<ValidationMessage For="() => tracingForm.MaxLogFiles" class="text-danger" />
+						</div>
+						<div class="form-text mb-3">Requests are traced only when they match a failed request tracing rule. The Tracing role service must be installed.</div>
+						break;
+
+					case HstsSettings hstsForm:
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="hstsForm.Enabled" id="siteHstsEnabled" />
+							<label class="form-check-label" for="siteHstsEnabled">Enable</label>
+						</div>
+						<div class="form-floating mb-1">
+							<InputNumber class="form-control" @bind-Value="hstsForm.MaxAge" id="siteHstsMaxAge" placeholder="Max-age" />
+							<label for="siteHstsMaxAge">Max-age (seconds)</label>
+							<ValidationMessage For="() => hstsForm.MaxAge" class="text-danger" />
+						</div>
+						<div class="form-text mb-3">31536000 is one year.</div>
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="hstsForm.IncludeSubDomains" id="siteHstsSubDomains" />
+							<label class="form-check-label" for="siteHstsSubDomains">Include subdomains</label>
+						</div>
+						<div class="form-check mb-2">
+							<InputCheckbox class="form-check-input" @bind-Value="hstsForm.Preload" id="siteHstsPreload" />
+							<label class="form-check-label" for="siteHstsPreload">Preload</label>
+						</div>
+						@if (hstsForm.Preload && (!hstsForm.IncludeSubDomains || hstsForm.MaxAge < HstsSettings.PreloadMinimumMaxAge))
+						{
+							<div class="form-text text-warning-emphasis mb-2">Browser preload lists need Include subdomains and a max-age of at least 31536000.</div>
+						}
+						<div class="form-check mb-3">
+							<InputCheckbox class="form-check-input" @bind-Value="hstsForm.RedirectHttpToHttps" id="siteHstsRedirect" />
+							<label class="form-check-label" for="siteHstsRedirect">Redirect HTTP to HTTPS</label>
+						</div>
+						@if (!site.Bindings.Any(x => x.Protocol == "https"))
+						{
+							<div class="form-text text-warning-emphasis mb-3">This site has no https binding. Browsers ignore HSTS sent over http.</div>
+						}
+						break;
+				}
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => settingsModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
+
+	<Modal @ref="virtualDirectoryModal" Title="@(editingVirtualDirectoryPath == null ? "Add Virtual Directory" : "Edit Virtual Directory")" Size="ModalSize.Large">
+		<BodyTemplate>
+			<EditForm Model="virtualDirectoryForm" OnValidSubmit="SaveVirtualDirectory">
+				<DataAnnotationsValidator />
+				@if (ModalError != null)
+				{
+					<div class="alert alert-danger">@ModalError</div>
+				}
+				<p class="mb-2"><strong>Site name:</strong> @site.Name</p>
+				<div class="form-floating mb-1">
+					<InputText class="form-control" @bind-Value="virtualDirectoryForm.VirtualPath" id="virtualDirectoryPath" placeholder="Virtual path" disabled="@(editingVirtualDirectoryPath != null)" />
+					<label for="virtualDirectoryPath">Virtual path</label>
+					<ValidationMessage For="() => virtualDirectoryForm.VirtualPath" class="text-danger" />
+				</div>
+				@if (editingVirtualDirectoryPath == null)
+				{
+					<div class="form-text mb-3">Example: images or /sales/images. It's added to the application that contains the path.</div>
+				}
+				<div class="form-floating mb-3 mt-2">
+					<InputText class="form-control" @bind-Value="virtualDirectoryForm.PhysicalPath" id="virtualDirectoryPhysicalPath" placeholder="Physical path" />
+					<label for="virtualDirectoryPhysicalPath">Physical path</label>
+					<ValidationMessage For="() => virtualDirectoryForm.PhysicalPath" class="text-danger" />
+				</div>
+				<ConnectAsFields Model="virtualDirectoryForm.Credentials" Id="virtualDirectoryConnectAs" />
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button type="button" @onclick="@(() => virtualDirectoryModal.HideAsync())" class="btn btn-outline-secondary">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</EditForm>
+		</BodyTemplate>
+	</Modal>
 
 	<Modal @ref="sitePathModal" Title="Edit Physical Path" Size="ModalSize.Large">
 		<BodyTemplate>
@@ -348,6 +633,8 @@ else
 	private Modal sitePathModal = default!;
 	private Modal bindingModal = default!;
 	private Modal applicationModal = default!;
+	private Modal settingsModal = default!;
+	private Modal virtualDirectoryModal = default!;
 
 	[Parameter]
 	public string Id { get; set; } = "";
@@ -370,6 +657,19 @@ else
 	private bool editingBindingUsesCentralStore;
 	private ApplicationModel applicationForm = new();
 	private string? editingApplicationPath;
+
+	// Read from the site on each load. Null when a group couldn't be read
+	private EnabledProtocolsSettings? enabledProtocols;
+	private SiteLimitsSettings? limits;
+	private FailedRequestTracingSettings? tracing;
+	private HstsSettings? hsts;
+	private bool hstsSupported;
+	private List<(string Path, Application Application, VirtualDirectory Directory)> virtualDirectories = [];
+
+	private SettingsSection editingSettings;
+	private IWebsiteSettings settingsForm = new EnabledProtocolsSettings();
+	private VirtualDirectoryModel virtualDirectoryForm = new();
+	private string? editingVirtualDirectoryPath;
 
 	protected override async Task OnInitializedAsync()
 	{
@@ -394,7 +694,7 @@ else
 			localAddresses = GetLocalAddresses();
 		}
 
-		site = IISService.GetSite(SiteId);
+		Load();
 	}
 
 	// Checked again in each handler so only administrators can change the site's state, whatever the UI shows
@@ -450,7 +750,7 @@ else
 		{
 			logger.LogError(ex, "Error updating physical path for site {SiteId}", SiteId);
 			ModalError = ex.Message;
-			site = IISService.GetSite(SiteId);
+			Load();
 		}
 	}
 
@@ -528,7 +828,7 @@ else
 		{
 			logger.LogError(ex, "Error saving binding {BindingInformation} for site {SiteId}", bindingForm.BindingInformation, SiteId);
 			ModalError = ex.Message;
-			site = IISService.GetSite(SiteId);
+			Load();
 		}
 	}
 
@@ -609,7 +909,7 @@ else
 		{
 			logger.LogError(ex, "Error saving application {Alias} for site {SiteId}", applicationForm.Alias, SiteId);
 			ModalError = ex.Message;
-			site = IISService.GetSite(SiteId);
+			Load();
 		}
 	}
 
@@ -642,7 +942,200 @@ else
 	{
 		LastMessage = message;
 		Success = success;
+		Load();
+	}
+
+	/// <summary>
+	/// Reads the site and the settings shown in its cards
+	/// </summary>
+	private void Load()
+	{
 		site = IISService.GetSite(SiteId);
+		enabledProtocols = null;
+		limits = null;
+		tracing = null;
+		hsts = null;
+		hstsSupported = false;
+		virtualDirectories = [];
+		if (site == null)
+			return;
+
+		var current = site;
+		enabledProtocols = ReadSettings("enabled protocols", () => EnabledProtocolsSettings.From(current));
+		limits = ReadSettings("limits", () => SiteLimitsSettings.From(current));
+		tracing = ReadSettings("failed request tracing", () => FailedRequestTracingSettings.From(current));
+		hstsSupported = ReadSettings("HSTS support", () => (bool?)HstsSettings.IsSupported(current)) ?? false;
+		if (hstsSupported)
+			hsts = ReadSettings("HSTS", () => HstsSettings.From(current));
+		virtualDirectories = ReadSettings("virtual directories", () => IISService.GetVirtualDirectories(current)) ?? [];
+	}
+
+	private T? ReadSettings<T>(string name, Func<T> read)
+	{
+		try
+		{
+			return read();
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error reading {Settings} for site {SiteId}", name, SiteId);
+			return default;
+		}
+	}
+
+	private RenderFragment? EditSettingsButton(SettingsSection section, bool readable)
+	{
+		if (!canEdit || !readable)
+			return null;
+
+		return @<button type="button" @onclick="@(() => EditSettings(section))" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</button>;
+	}
+
+	protected async Task EditSettings(SettingsSection section)
+	{
+		if (!canEdit)
+			return;
+
+		// Read the site again so the form starts from what is in IIS now
+		Load();
+		if (site == null)
+			return;
+
+		// A separate copy, so the card behind the dialog doesn't change while the form is edited
+		var current = site;
+		IWebsiteSettings? form = ReadSettings(SettingsTitle(section), () => section switch
+		{
+			SettingsSection.EnabledProtocols => EnabledProtocolsSettings.From(current),
+			SettingsSection.Limits => SiteLimitsSettings.From(current),
+			SettingsSection.FailedRequestTracing => FailedRequestTracingSettings.From(current),
+			_ => (IWebsiteSettings?)HstsSettings.From(current)
+		});
+		if (form == null)
+		{
+			ShowMessage($"The {SettingsTitle(section)} settings couldn't be read.", false);
+			return;
+		}
+
+		editingSettings = section;
+		settingsForm = form;
+		ModalError = null;
+		await settingsModal.ShowAsync();
+	}
+
+	protected async Task SaveSettings()
+	{
+		if (!canEdit)
+			return;
+
+		var title = SettingsTitle(editingSettings);
+		try
+		{
+			IISService.UpdateSite(SiteId, settingsForm.Apply);
+			logger.LogInformation("{Actor} changed {Settings} settings on site {SiteId}", actor, title, SiteId);
+			await settingsModal.HideAsync();
+			ShowMessage($"{title} settings saved.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error saving {Settings} settings for site {SiteId}", title, SiteId);
+			ModalError = ex.Message.Trim();
+		}
+	}
+
+	protected async Task AddVirtualDirectory()
+	{
+		editingVirtualDirectoryPath = null;
+		virtualDirectoryForm = new VirtualDirectoryModel();
+		ModalError = null;
+		await virtualDirectoryModal.ShowAsync();
+	}
+
+	protected async Task EditVirtualDirectory(string path, VirtualDirectory dir)
+	{
+		editingVirtualDirectoryPath = path;
+		virtualDirectoryForm = new VirtualDirectoryModel
+		{
+			VirtualPath = path,
+			PhysicalPath = dir.PhysicalPath ?? "",
+			Credentials = ConnectAsFields.PathCredentials.From(dir)
+		};
+		ModalError = null;
+		await virtualDirectoryModal.ShowAsync();
+	}
+
+	protected async Task SaveVirtualDirectory()
+	{
+		if (!canEdit)
+			return;
+
+		ModalError = virtualDirectoryForm.Credentials.Validate();
+		if (ModalError != null)
+			return;
+
+		var credentials = virtualDirectoryForm.Credentials;
+		string? userName = credentials.SpecificUser ? credentials.UserName.Trim() : null;
+		string? password = credentials.SpecificUser ? credentials.Password : null;
+		var path = editingVirtualDirectoryPath ?? virtualDirectoryForm.VirtualPath;
+		try
+		{
+			if (editingVirtualDirectoryPath == null)
+				IISService.AddVirtualDirectory(SiteId, path, virtualDirectoryForm.PhysicalPath.Trim(), userName, password);
+			else
+				IISService.UpdateVirtualDirectory(SiteId, path, virtualDirectoryForm.PhysicalPath.Trim(), userName, password);
+
+			var shown = "/" + path.Trim().Replace('\\', '/').Trim('/');
+			logger.LogInformation("{Actor} {Change} virtual directory {Path} on site {SiteId}", actor, editingVirtualDirectoryPath == null ? "added" : "changed", shown, SiteId);
+			await virtualDirectoryModal.HideAsync();
+			ShowMessage($"Virtual directory {shown} saved.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error saving virtual directory {Path} for site {SiteId}", path, SiteId);
+			ModalError = ex.Message;
+			Load();
+		}
+	}
+
+	protected async Task DeleteVirtualDirectory(string path)
+	{
+		if (!canEdit)
+			return;
+
+		var confirmation = await dialog.ShowAsync(
+			title: "Are you sure you want to delete this virtual directory?",
+			message1: $"{path} will be removed from {site!.Name}. Its files will not be deleted.",
+			message2: "Do you want to proceed?");
+
+		if (!confirmation)
+			return;
+
+		try
+		{
+			IISService.DeleteVirtualDirectory(SiteId, path);
+			logger.LogInformation("{Actor} deleted virtual directory {Path} on site {SiteId}", actor, path, SiteId);
+			ShowMessage($"Virtual directory {path} deleted.", true);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error deleting virtual directory {Path} for site {SiteId}", path, SiteId);
+			ShowMessage($"Delete virtual directory failure: {ex.Message}", false);
+		}
+	}
+
+	private static string SettingsTitle(SettingsSection section) => section switch
+	{
+		SettingsSection.EnabledProtocols => "Enabled Protocols",
+		SettingsSection.Limits => "Limits",
+		SettingsSection.FailedRequestTracing => "Failed Request Tracing",
+		_ => "HSTS"
+	};
+
+	private static string YesNo(bool value) => value ? "Yes" : "No";
+
+	private static string MaxAgeText(long seconds)
+	{
+		double days = seconds / 86400.0;
+		return days >= 1 ? $"{seconds:N0} seconds ({days:0.##} days)" : $"{seconds:N0} seconds";
 	}
 
 	private static VirtualDirectory? RootDirectory(Application? app) =>
@@ -750,6 +1243,19 @@ else
 		public string Certificate { get; set; } = "";
 
 		public string BindingInformation => $"{IPAddress}:{Port}:{HostName.Trim()}";
+	}
+
+	public enum SettingsSection { EnabledProtocols, Limits, FailedRequestTracing, Hsts }
+
+	public class VirtualDirectoryModel
+	{
+		[Required(ErrorMessage = "Enter a virtual path.")]
+		public string VirtualPath { get; set; } = "";
+
+		[Required(ErrorMessage = "Enter a physical path.")]
+		public string PhysicalPath { get; set; } = "";
+
+		public ConnectAsFields.PathCredentials Credentials { get; set; } = new();
 	}
 
 	public class ApplicationModel

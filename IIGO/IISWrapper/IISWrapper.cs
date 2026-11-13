@@ -361,6 +361,63 @@ namespace IISManager.Services
         }
 
         /// <summary>
+        /// Loads a fresh copy of the config, applies the change to the site and commits it
+        /// </summary>
+        public void UpdateSite(long siteId, Action<Site> change) => EditSite(siteId, change);
+
+        /// <summary>
+        /// Adds a virtual directory. It goes under the deepest application that contains the path, the same place IIS
+        /// would serve it from.
+        /// </summary>
+        /// <param name="virtualPath">Path from the site root, e.g. "images" or "/sales/images"</param>
+        public void AddVirtualDirectory(long siteId, string virtualPath, string physicalPath, string? userName, string? password)
+        {
+            virtualPath = NormalizeVirtualPath(virtualPath);
+            EditSite(siteId, site =>
+            {
+                if (site.Applications.Any(x => string.Equals(x.Path, virtualPath, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"An application already exists at {virtualPath}");
+
+                var app = site.Applications
+                    .Where(x => x.Path == "/" || virtualPath.StartsWith(x.Path + "/", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.Path.Length)
+                    .FirstOrDefault() ?? throw new InvalidOperationException("Root application not found");
+
+                string path = app.Path == "/" ? virtualPath : virtualPath[app.Path.Length..];
+                if (app.VirtualDirectories.Any(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"A virtual directory already exists at {virtualPath}");
+
+                var dir = app.VirtualDirectories.Add(path, physicalPath);
+                SetDirectory(dir, physicalPath, userName, password);
+            });
+        }
+
+        /// <param name="virtualPath">Full path from the site root, e.g. "/sales/images"</param>
+        public void UpdateVirtualDirectory(long siteId, string virtualPath, string physicalPath, string? userName, string? password)
+        {
+            EditSite(siteId, site => SetDirectory(FindVirtualDirectory(site, virtualPath).Directory, physicalPath, userName, password));
+        }
+
+        /// <summary>
+        /// Removes a virtual directory. Its files are not deleted.
+        /// </summary>
+        /// <param name="virtualPath">Full path from the site root, e.g. "/sales/images"</param>
+        public void DeleteVirtualDirectory(long siteId, string virtualPath)
+        {
+            EditSite(siteId, site =>
+            {
+                var (app, dir) = FindVirtualDirectory(site, virtualPath);
+                app.VirtualDirectories.Remove(dir);
+            });
+        }
+
+        /// <summary>
+        /// Path of a virtual directory from the site root
+        /// </summary>
+        public static string VirtualDirectoryPath(Application app, VirtualDirectory dir) =>
+            app.Path == "/" ? dir.Path : dir.Path == "/" ? app.Path : app.Path + dir.Path;
+
+        /// <summary>
         /// Adds a binding to a site. For https bindings the certificate is also registered with HTTP.sys
         /// </summary>
         /// <param name="bindingInformation">IP:Port:Host</param>
@@ -529,9 +586,53 @@ namespace IISManager.Services
             return path;
         }
 
-        private static void SetRootDirectory(Application app, string physicalPath, string? userName, string? password)
+        /// <summary>
+        /// Turns "images", "/sales/images/" or "sales\images" into "/sales/images"
+        /// </summary>
+        private static string NormalizeVirtualPath(string path)
         {
-            var dir = app.VirtualDirectories.FirstOrDefault(x => x.Path == "/") ?? throw new InvalidOperationException("Root virtual directory not found");
+            path = "/" + path.Trim().Replace('\\', '/').Trim('/');
+            if (path == "/")
+                throw new ArgumentException("A virtual path is required");
+            if (path.Split('/').Skip(1).Any(x => x == "" || x == "." || x == ".."))
+                throw new ArgumentException("The virtual path can't contain empty, \".\" or \"..\" segments");
+            if (path.IndexOfAny(VirtualDirectoryCollection.InvalidVirtualDirectoryPathCharacters()) >= 0)
+                throw new ArgumentException($"The virtual path contains invalid characters: {string.Join(" ", VirtualDirectoryCollection.InvalidVirtualDirectoryPathCharacters())}");
+
+            return path;
+        }
+
+        /// <summary>
+        /// Finds a virtual directory, other than an application's root, by its path from the site root. If two
+        /// match, the one in the deepest application wins, as it does when IIS serves the path.
+        /// </summary>
+        private static (Application Application, VirtualDirectory Directory) FindVirtualDirectory(Site site, string virtualPath)
+        {
+            virtualPath = "/" + (virtualPath ?? "").Trim().Replace('\\', '/').Trim('/');
+            foreach (var app in site.Applications.OrderByDescending(x => x.Path.Length))
+            {
+                foreach (VirtualDirectory dir in app.VirtualDirectories)
+                {
+                    if (dir.Path != "/" && string.Equals(VirtualDirectoryPath(app, dir), virtualPath, StringComparison.OrdinalIgnoreCase))
+                        return (app, dir);
+                }
+            }
+
+            throw new InvalidOperationException($"Virtual directory {virtualPath} not found");
+        }
+
+        private static void SetRootDirectory(Application app, string physicalPath, string? userName, string? password) =>
+            SetDirectory(app.VirtualDirectories.FirstOrDefault(x => x.Path == "/") ?? throw new InvalidOperationException("Root virtual directory not found"), physicalPath, userName, password);
+
+        /// <summary>
+        /// Sets a virtual directory's physical path and connect-as user
+        /// </summary>
+        /// <param name="userName">Specific user to connect as. Null or empty uses pass-through authentication</param>
+        /// <param name="password">Password for the specific user. Null or empty keeps the existing password</param>
+        private static void SetDirectory(VirtualDirectory dir, string physicalPath, string? userName, string? password)
+        {
+            if (string.IsNullOrWhiteSpace(physicalPath))
+                throw new ArgumentException("A physical path is required");
             dir.PhysicalPath = physicalPath;
 
             if (string.IsNullOrWhiteSpace(userName))

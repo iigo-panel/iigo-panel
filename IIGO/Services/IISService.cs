@@ -48,6 +48,37 @@ namespace IIGO.Services
             _iisWrapper.DeleteApplication(siteId, path);
         }
 
+        /// <summary>
+        /// Applies a change to a fresh copy of the site and commits it
+        /// </summary>
+        public void UpdateSite(long siteId, Action<Site> change)
+        {
+            _iisWrapper.UpdateSite(siteId, change);
+        }
+
+        public void AddVirtualDirectory(long siteId, string virtualPath, string physicalPath, string? userName, string? password)
+        {
+            _iisWrapper.AddVirtualDirectory(siteId, virtualPath, physicalPath, userName, password);
+        }
+
+        public void UpdateVirtualDirectory(long siteId, string virtualPath, string physicalPath, string? userName, string? password)
+        {
+            _iisWrapper.UpdateVirtualDirectory(siteId, virtualPath, physicalPath, userName, password);
+        }
+
+        public void DeleteVirtualDirectory(long siteId, string virtualPath)
+        {
+            _iisWrapper.DeleteVirtualDirectory(siteId, virtualPath);
+        }
+
+        /// <summary>
+        /// Virtual directories on the site, other than each application's root, with their path from the site root
+        /// </summary>
+        public static List<(string Path, Application Application, VirtualDirectory Directory)> GetVirtualDirectories(Site site) =>
+            [.. site.Applications
+                .SelectMany(app => app.VirtualDirectories.Where(dir => dir.Path != "/").Select(dir => (IISWrapper.VirtualDirectoryPath(app, dir), app, dir)))
+                .OrderBy(x => x.Item1, StringComparer.OrdinalIgnoreCase)];
+
         public void AddBinding(long siteId, string protocol, string bindingInformation, string? certificateHash, string? certificateStore, bool requireSni)
         {
             _iisWrapper.AddBinding(siteId, protocol, bindingInformation, certificateHash, certificateStore, requireSni);
