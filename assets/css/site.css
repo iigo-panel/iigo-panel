@@ -1109,6 +1109,27 @@ code {
     font-size: .9375rem;
 }
 
+.plan-label {
+    margin-top: .5rem;
+    color: var(--navy-heading);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.plan .plan-label + .check-list {
+    margin-top: .625rem;
+}
+
+.plan .check-list:has(+ .plan-label) {
+    margin-bottom: 1rem;
+}
+
+.plan .check-list strong {
+    color: #fff;
+}
+
 .plan-pro .check-list .bi {
     color: #c39bf5;
 }
