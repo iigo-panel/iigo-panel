@@ -32,6 +32,8 @@ namespace IIGO.Plugins
         /// <summary>
         /// Called after the panel's middleware is set up and before its endpoints are mapped.
         /// Map extra endpoints or run database migrations here.
+        /// If this throws, the panel turns the plugin off (its pages, menu links and permissions) and keeps running.
+        /// Services it registered stay registered, so don't leave anything there that breaks requests until this has run.
         /// </summary>
         void Configure(WebApplication app, PluginContext context) { }
 

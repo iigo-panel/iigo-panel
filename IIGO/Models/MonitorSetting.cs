@@ -17,8 +17,19 @@ namespace IIGO.Models
         Choice
     }
 
+    /// <remarks>
+    /// Plugins use this type, so its constructors are part of the plugin API. Adding a parameter changes the compiled
+    /// signature and breaks plugins built against the old one (MissingMethodException at startup). Add an overload
+    /// with the old parameters instead, like the one below.
+    /// </remarks>
     public record MonitorSetting(string Name, string Label, MonitorSettingType Type, string DefaultValue, string? Help = null, IReadOnlyList<string>? Options = null, IReadOnlyList<string>? PartLabels = null)
     {
+        /// <summary>The constructor from before <see cref="PartLabels"/>, kept for plugins built against it</summary>
+        public MonitorSetting(string Name, string Label, MonitorSettingType Type, string DefaultValue, string? Help, IReadOnlyList<string>? Options)
+            : this(Name, Label, Type, DefaultValue, Help, Options, null)
+        {
+        }
+
         /// <summary>
         /// Returns why <paramref name="value"/> (already trimmed) can't be saved, or null if it can.
         /// Shared by the settings form and the API.

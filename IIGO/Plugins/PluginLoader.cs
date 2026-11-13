@@ -141,7 +141,7 @@ namespace IIGO.Plugins
                             services.Add(descriptor);
                     }
 
-                    plugins.Add(new LoadedPlugin(plugin, assembly, context));
+                    plugins.Add(new LoadedPlugin(plugin, assembly, context) { MenuItems = pluginMenu, Stylesheets = pluginStylesheets });
                     menuItems.AddRange(pluginMenu);
                     if (pluginFeatures.Count > 0)
                         featureGroups.Add(new FeatureGroup(name, pluginFeatures));

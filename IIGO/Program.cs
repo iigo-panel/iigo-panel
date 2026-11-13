@@ -352,9 +352,21 @@ namespace IIGO
                 }
             });
 
-            foreach (var plugin in plugins.Plugins)
+            // A plugin that fails here is turned off rather than stopping the panel. A plugin built against an older
+            // panel typically fails this way, with MissingMethodException or TypeLoadException.
+            foreach (var plugin in plugins.Plugins.ToList())
             {
-                plugin.Plugin.Configure(app, plugin.Context);
+                try
+                {
+                    plugin.Plugin.Configure(app, plugin.Context);
+                }
+                catch (Exception ex)
+                {
+                    var reason = ex is TypeInitializationException && ex.InnerException != null ? ex.InnerException : ex;
+                    plugins.Disable(plugin, $"Plugin {plugin.Name} failed while starting and was turned off: {reason.Message}", ex);
+                    app.Logger.LogError(new EventId(2007), ex, "Plugin {Plugin} failed while starting and was turned off. " +
+                        "If the panel was updated, the plugin may need a version built for this panel.", plugin.Name);
+                }
             }
 
             app.MapControllers();

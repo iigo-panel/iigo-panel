@@ -16,6 +16,10 @@ namespace IIGO.Plugins
             assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? assembly.GetName().Version?.ToString()
             ?? "";
+
+        // What the plugin added, so it can be taken out again if the plugin fails to start
+        internal IReadOnlyList<NavMenuItem> MenuItems { get; init; } = [];
+        internal IReadOnlyList<string> Stylesheets { get; init; } = [];
     }
 
     /// <summary>
@@ -40,6 +44,12 @@ namespace IIGO.Plugins
     {
         public const string CoreFeatureGroup = "IIGO";
 
+        readonly List<LoadedPlugin> plugins;
+        readonly List<PluginLoadMessage> messages;
+        readonly List<NavMenuItem> menuItems;
+        readonly List<FeatureGroup> featureGroups;
+        readonly List<string> stylesheets;
+
         internal PluginRegistry(
             IReadOnlyList<LoadedPlugin> plugins,
             IReadOnlyList<PluginLoadMessage> messages,
@@ -48,40 +58,62 @@ namespace IIGO.Plugins
             IReadOnlyList<string> stylesheets,
             IReadOnlyList<PluginStaticFiles> staticFileRoots)
         {
-            Plugins = plugins;
-            Messages = messages;
-            MenuItems = menuItems;
-            FeatureGroups = featureGroups;
-            Stylesheets = stylesheets;
+            this.plugins = [.. plugins];
+            this.messages = [.. messages];
+            this.menuItems = [.. menuItems];
+            this.featureGroups = [.. featureGroups];
+            this.stylesheets = [.. stylesheets];
             StaticFileRoots = staticFileRoots;
-            Assemblies = plugins.Select(p => p.Assembly).Distinct().ToList();
             AllFeatures = featureGroups.SelectMany(g => g.Features).ToList();
         }
 
         /// <summary>A registry with no plugins, holding only the panel's own features</summary>
         public static PluginRegistry Empty { get; } = new([], [], [], [new FeatureGroup(CoreFeatureGroup, Feature.All)], [], []);
 
-        public IReadOnlyList<LoadedPlugin> Plugins { get; }
+        public IReadOnlyList<LoadedPlugin> Plugins => plugins;
 
         /// <summary>What happened while loading, including plugins that were skipped and why</summary>
-        public IReadOnlyList<PluginLoadMessage> Messages { get; }
+        public IReadOnlyList<PluginLoadMessage> Messages => messages;
 
         /// <summary>Plugin assemblies, for the router and endpoint mapping to find their pages</summary>
-        public IReadOnlyList<Assembly> Assemblies { get; }
+        public IReadOnlyList<Assembly> Assemblies => plugins.Select(p => p.Assembly).Distinct().ToList();
 
-        public IReadOnlyList<NavMenuItem> MenuItems { get; }
+        public IReadOnlyList<NavMenuItem> MenuItems => menuItems;
 
         /// <summary>The panel's own features first, then each plugin's</summary>
-        public IReadOnlyList<FeatureGroup> FeatureGroups { get; }
+        public IReadOnlyList<FeatureGroup> FeatureGroups => featureGroups;
 
-        /// <summary>Every feature name, each of which has an authorization policy of the same name</summary>
+        /// <summary>
+        /// Every feature name, each of which has an authorization policy of the same name.
+        /// Fixed at startup, since the policies are registered from it.
+        /// </summary>
         public IReadOnlyList<string> AllFeatures { get; }
 
         /// <summary>Stylesheet addresses added to every page</summary>
-        public IReadOnlyList<string> Stylesheets { get; }
+        public IReadOnlyList<string> Stylesheets => stylesheets;
 
         /// <summary>Plugin wwwroot folders, each served at _content/{assembly name}</summary>
         public IReadOnlyList<PluginStaticFiles> StaticFileRoots { get; }
+
+        /// <summary>
+        /// Takes a plugin that failed to start out of the panel: its pages, menu links, permissions and stylesheets.
+        /// Only for use during startup, before the app runs. Services it registered stay registered.
+        /// </summary>
+        internal void Disable(LoadedPlugin plugin, string message, Exception exception)
+        {
+            plugins.Remove(plugin);
+            messages.Add(new PluginLoadMessage(LogLevel.Error, message, exception));
+            menuItems.RemoveAll(item => plugin.MenuItems.Contains(item));
+            featureGroups.RemoveAll(group => group.Name == plugin.Name);
+            stylesheets.RemoveAll(sheet => plugin.Stylesheets.Contains(sheet));
+
+            // The assembly's own scoped CSS, unless another plugin from the same assembly still runs
+            if (!plugins.Any(p => p.Assembly == plugin.Assembly))
+            {
+                var prefix = "_content/" + plugin.Assembly.GetName().Name + "/";
+                stylesheets.RemoveAll(sheet => sheet.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            }
+        }
 
         public IEnumerable<NavMenuItem> MenuItemsFor(string section) =>
             MenuItems.Where(i => string.Equals(i.Section, section, StringComparison.OrdinalIgnoreCase))
