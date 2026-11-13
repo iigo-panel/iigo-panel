@@ -186,6 +186,44 @@ namespace IIGO.Api
         public ActionResult<WebsiteDetail> DeleteApplication(long id, [FromQuery, Required] string path) =>
             EditSite(id, $"deleted application {path} from", () => IISService.DeleteApplication(id, path));
 
+        /// <summary>Sets the protocols the root application accepts, e.g. "http" or "http,net.tcp".</summary>
+        [HttpPut("{id:long}/enabled-protocols")]
+        public ActionResult<WebsiteDetail> UpdateEnabledProtocols(long id, [FromBody] EnabledProtocolsSettings request) =>
+            EditSite(id, "changed the enabled protocols of", () => IISService.UpdateSite(id, request.Apply));
+
+        /// <summary>Sets bandwidth, connection and URL segment limits. Turn a limit off with LimitBandwidth or LimitConnections.</summary>
+        [HttpPut("{id:long}/limits")]
+        public ActionResult<WebsiteDetail> UpdateLimits(long id, [FromBody] SiteLimitsSettings request) =>
+            EditSite(id, "changed the limits of", () => IISService.UpdateSite(id, request.Apply));
+
+        [HttpPut("{id:long}/failed-request-tracing")]
+        public ActionResult<WebsiteDetail> UpdateFailedRequestTracing(long id, [FromBody] FailedRequestTracingSettings request) =>
+            EditSite(id, "changed failed request tracing on", () => IISService.UpdateSite(id, request.Apply));
+
+        /// <summary>Sets HTTP Strict Transport Security. Returns 409 when this server's IIS doesn't support HSTS.</summary>
+        [HttpPut("{id:long}/hsts")]
+        public ActionResult<WebsiteDetail> UpdateHsts(long id, [FromBody] HstsSettings request) =>
+            EditSite(id, "changed HSTS on", () => IISService.UpdateSite(id, request.Apply));
+
+        /// <summary>
+        /// Adds a virtual directory at VirtualPath, e.g. "/images". It goes under the application that contains the path.
+        /// </summary>
+        [HttpPost("{id:long}/virtual-directories")]
+        public ActionResult<WebsiteDetail> AddVirtualDirectory(long id, [FromBody] AddVirtualDirectoryRequest request) =>
+            EditSite(id, $"added virtual directory {request.VirtualPath} to", () =>
+                IISService.AddVirtualDirectory(id, request.VirtualPath, request.PhysicalPath.Trim(), NullIfBlank(request.UserName), NullIfBlank(request.UserName) == null ? null : request.Password));
+
+        /// <summary>Changes the virtual directory at <paramref name="path"/>, its path from the site root, e.g. "/sales/images".</summary>
+        [HttpPut("{id:long}/virtual-directories")]
+        public ActionResult<WebsiteDetail> UpdateVirtualDirectory(long id, [FromQuery, Required] string path, [FromBody] PathRequest request) =>
+            EditSite(id, $"changed virtual directory {path} on", () =>
+                IISService.UpdateVirtualDirectory(id, path, request.PhysicalPath.Trim(), NullIfBlank(request.UserName), NullIfBlank(request.UserName) == null ? null : request.Password));
+
+        /// <summary>Removes the virtual directory at <paramref name="path"/>. Its files are not deleted.</summary>
+        [HttpDelete("{id:long}/virtual-directories")]
+        public ActionResult<WebsiteDetail> DeleteVirtualDirectory(long id, [FromQuery, Required] string path) =>
+            EditSite(id, $"deleted virtual directory {path} from", () => IISService.DeleteVirtualDirectory(id, path));
+
         /// <summary>
         /// Runs a change to a site and returns the site as it is afterwards
         /// </summary>
@@ -253,7 +291,12 @@ namespace IIGO.Api
             site.State.ToString(),
             site.ServerAutoStart,
             [.. site.Bindings.Select(ToBindingDetail)],
-            [.. site.Applications.Select(ToApplicationDetail)]);
+            [.. site.Applications.Select(ToApplicationDetail)],
+            [.. IISService.GetVirtualDirectories(site).Select(x => new VirtualDirectoryDetail(x.Path, x.Application.Path, x.Directory.PhysicalPath, string.IsNullOrEmpty(x.Directory.UserName) ? null : x.Directory.UserName))],
+            EnabledProtocolsSettings.From(site).EnabledProtocols,
+            SiteLimitsSettings.From(site),
+            FailedRequestTracingSettings.From(site),
+            HstsSettings.From(site));
 
         private static BindingDetail ToBindingDetail(Binding binding)
         {
@@ -280,12 +323,27 @@ namespace IIGO.Api
                 string.IsNullOrEmpty(dir?.UserName) ? null : dir.UserName);
         }
 
-        public record WebsiteDetail(long Id, string Name, string State, bool ServerAutoStart, List<BindingDetail> Bindings, List<ApplicationDetail> Applications);
+        // Hsts is null when this server's IIS doesn't support HSTS
+        public record WebsiteDetail(
+            long Id,
+            string Name,
+            string State,
+            bool ServerAutoStart,
+            List<BindingDetail> Bindings,
+            List<ApplicationDetail> Applications,
+            List<VirtualDirectoryDetail> VirtualDirectories,
+            string EnabledProtocols,
+            SiteLimitsSettings Limits,
+            FailedRequestTracingSettings FailedRequestTracing,
+            HstsSettings? Hsts);
 
         public record BindingDetail(string Protocol, string BindingInformation, string Host, bool RequireSni, bool CentralCertStore, string? CertificateThumbprint, string? CertificateStore);
 
         // ConnectAsUser is null for pass-through authentication. Passwords are never returned.
         public record ApplicationDetail(string Path, string PhysicalPath, string ApplicationPool, bool PreloadEnabled, string? ConnectAsUser);
+
+        // Path is from the site root, e.g. "/sales/images". Application is the path of the application it belongs to.
+        public record VirtualDirectoryDetail(string Path, string Application, string PhysicalPath, string? ConnectAsUser);
 
         public class CreateWebsiteRequest : IValidatableObject
         {
@@ -388,6 +446,13 @@ namespace IIGO.Api
 
             // Blank keeps the saved password when UserName is unchanged
             public string? Password { get; set; }
+        }
+
+        public class AddVirtualDirectoryRequest : PathRequest
+        {
+            // e.g. "images" or "/sales/images"
+            [Required]
+            public string VirtualPath { get; set; } = "";
         }
 
         public class AddApplicationRequest : ApplicationRequest
