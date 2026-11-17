@@ -42,7 +42,22 @@ namespace Microsoft.AspNetCore.Routing
                     QueryString.Create(query));
 
                 var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
-                return TypedResults.Challenge(properties, [provider]);
+
+                // Challenging here rather than returning a result, so a provider that can't be reached (a mistyped
+                // address, or its metadata failing to load) shows a message instead of the error page
+                try
+                {
+                    await context.ChallengeAsync(provider, properties);
+                    return TypedResults.Empty;
+                }
+                catch (Exception ex) when (!context.Response.HasStarted)
+                {
+                    context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(ExternalLogins))
+                        .LogError(ex, "Could not start a sign-in through {Provider}", provider);
+                    var display = schemes.First(s => s.Name == provider).DisplayName ?? provider;
+                    var message = $"{display} sign-in could not be started. Ask an administrator to check its settings.";
+                    return TypedResults.LocalRedirect($"~{ExternalLogins.CallbackPath}?RemoteError={Uri.EscapeDataString(message)}");
+                }
             }).AllowAnonymous();
 
             accountGroup.MapPost("/Logout", async (
