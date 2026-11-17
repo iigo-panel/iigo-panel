@@ -26,7 +26,31 @@ else
                 <dt>Date</dt><dd>@licenseData.LicenseDate</dd>
                 <dt>Term</dt><dd>@licenseData.LicenseTerm</dd>
                 <dt>Type</dt><dd>@licenseData.LicenseType</dd>
+                @if (licenseData.LicenseType != LicenseType.Community)
+                {
+                    <dt>Servers</dt>
+                    <dd>@(licenseData.MaxServers is int max ? $"{licenseData.ServerIds?.Length ?? 0} of {max} assigned" : "Unlimited")</dd>
+                }
+                <dt>This server's ID</dt>
+                <dd>
+                    @if (ServerIdentity.Id is string serverId)
+                    {
+                        <code class="user-select-all">@serverId</code>
+                        @if (licenseData.MaxServers != null)
+                        {
+                            <span class="ms-2"><StatusBadge Status="@(licenseData.CoversThisServer ? "Licensed" : "Not licensed")" Variant="@(licenseData.CoversThisServer ? "success" : "warning")" /></span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-body-secondary">Not available</span>
+                    }
+                </dd>
             </dl>
+            @if (!licenseData.CoversThisServer)
+            {
+                <div class="alert alert-warning mt-3 mb-0">This license doesn't list this server. Send the server ID above to add it to your license.</div>
+            }
         </ChildContent>
     </SectionCard>
 }

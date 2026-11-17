@@ -67,6 +67,20 @@ namespace IIGO.Services
         public string LicenseDate { get; init; } = "";
         public string[]? Entitlements { get; init; }
 
+        /// <summary>Identifies the license, so a reissued license can replace the one it updates</summary>
+        public string? LicenseId { get; init; }
+
+        /// <summary>How many servers the license covers. Null means no limit.</summary>
+        public int? MaxServers { get; init; }
+
+        /// <summary>The <see cref="ServerIdentity.Id"/> of each server the license covers, when <see cref="MaxServers"/> is set</summary>
+        public string[]? ServerIds { get; init; }
+
+        /// <summary>True when the license has no server limit, or lists this server</summary>
+        public bool CoversThisServer =>
+            MaxServers == null
+            || (ServerIdentity.Id != null && ServerIds?.Contains(ServerIdentity.Id, StringComparer.OrdinalIgnoreCase) == true);
+
         public override string ToString()
         {
             return $"Company Name: {CompanyName}; License Type: {LicenseType}; License Term: {LicenseTerm}";
