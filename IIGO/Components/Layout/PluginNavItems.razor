@@ -6,7 +6,7 @@
 {
     <AuthorizeView Policy="@item.Policy" Roles="@item.Roles">
         <Authorized>
-            <NavLink class="nav-link" href="@item.Href" title="@item.Title">
+            <NavLink class="nav-link" href="@item.Href" title="@item.Title" Match="@MatchFor(item)">
                 <i class="@item.Icon" aria-hidden="true"></i><span class="nav-label">@item.Title</span>
             </NavLink>
         </Authorized>
@@ -16,4 +16,20 @@
 @code {
     [Parameter, EditorRequired]
     public string Section { get; set; } = "";
+
+    // A link normally stays highlighted on the pages below it ("/pro" on "/pro/settings"). When another plugin link
+    // points below it, that page has its own link, so this one only highlights on its exact address.
+    NavLinkMatch MatchFor(NavMenuItem item)
+    {
+        var path = Normalize(item.Href);
+        return Plugins.MenuItems.Any(other => !ReferenceEquals(other, item) && Normalize(other.Href).StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))
+            ? NavLinkMatch.All
+            : NavLinkMatch.Prefix;
+    }
+
+    static string Normalize(string href)
+    {
+        var path = href.Split('?', '#')[0].TrimEnd('/');
+        return path.StartsWith('/') ? path : "/" + path;
+    }
 }
