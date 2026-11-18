@@ -6,6 +6,7 @@ namespace IIGO.Api
     /// <summary>
     /// Available Windows updates. Read-only: updates can only be installed from the Check Updates page.
     /// </summary>
+    [ApiArea(ApiScopes.Updates)]
     [Route("api/updates")]
     public class UpdatesController(ILogger<UpdatesController> logger, WindowsUpdateService updateService) : ApiControllerBase(logger)
     {
@@ -19,7 +20,7 @@ namespace IIGO.Api
         /// Starts a search, or joins the one already running, and returns at once with 202 Accepted.
         /// Poll GET /api/updates until IsChecking is false.
         /// </summary>
-        [HttpPost("check")]
+        [HttpPost("check"), ApiAccessLevel(ApiAccess.Operate)]
         public ActionResult<UpdateStatus> CheckForUpdates()
         {
             Logger.LogInformation("API key {KeyName} started a Windows Update search", KeyName);

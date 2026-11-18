@@ -16,7 +16,7 @@ namespace IIGO.Services
         /// <summary>
         /// Creates a key and returns its full value. The value can't be retrieved again later.
         /// </summary>
-        public async Task<string> CreateKeyAsync(string name, DateTime? expiresAt, string createdBy)
+        public async Task<string> CreateKeyAsync(string name, DateTime? expiresAt, string scopes, string createdBy)
         {
             // 32 random bytes, URL-safe, so the key works in headers and query strings
             var key = KeyStart + Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
@@ -27,6 +27,7 @@ namespace IIGO.Services
                 Name = name,
                 KeyPrefix = key[..PrefixLength],
                 KeyHash = Hash(key),
+                Scopes = scopes,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy,
                 ExpiresAt = expiresAt
@@ -39,6 +40,11 @@ namespace IIGO.Services
         public async Task SetEnabledAsync(int id, bool enabled)
         {
             await context.ApiKey.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, enabled));
+        }
+
+        public async Task SetScopesAsync(int id, string scopes)
+        {
+            await context.ApiKey.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.Scopes, scopes));
         }
 
         public async Task DeleteKeyAsync(int id)

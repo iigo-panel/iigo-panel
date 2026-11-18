@@ -11,6 +11,7 @@ namespace IIGO.Api
     /// Server-wide IP address rules (system.webServer/security/ipSecurity in applicationHost.config).
     /// Ported from mws-utilities/IISManager, with the same routes and request bodies.
     /// </summary>
+    [ApiArea(ApiScopes.IPSecurity)]
     [Route("api/[controller]")]
     public class IPSecurityRulesController(ILogger<IPSecurityRulesController> logger, IISService IISService) : ApiControllerBase(logger)
     {

@@ -9,6 +9,7 @@ namespace IIGO.Api
     /// <summary>
     /// IIS websites: the same actions as the Websites and website details pages.
     /// </summary>
+    [ApiArea(ApiScopes.Websites)]
     [Route("api/websites")]
     public class WebsitesController(ILogger<WebsitesController> logger, IISService IISService) : ApiControllerBase(logger)
     {
@@ -100,13 +101,13 @@ namespace IIGO.Api
             }
         }
 
-        [HttpPost("{id:long}/start")]
+        [HttpPost("{id:long}/start"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult StartWebsite(long id) => ChangeState(id, "started", IISService.StartSite);
 
-        [HttpPost("{id:long}/stop")]
+        [HttpPost("{id:long}/stop"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult StopWebsite(long id) => ChangeState(id, "stopped", IISService.StopSite);
 
-        [HttpPost("{id:long}/restart")]
+        [HttpPost("{id:long}/restart"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult RestartWebsite(long id) => ChangeState(id, "restarted", IISService.RestartSite);
 
         private IActionResult ChangeState(long id, string done, Action<long> action)
