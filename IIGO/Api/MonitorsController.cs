@@ -8,6 +8,7 @@ namespace IIGO.Api
     /// <summary>
     /// The App Pool and HTTPS monitors: status, logged events, and settings, like the two monitor pages.
     /// </summary>
+    [ApiArea(ApiScopes.Monitors)]
     [Route("api/monitors")]
     public class MonitorsController(
         ILogger<MonitorsController> logger,

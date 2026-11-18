@@ -26,6 +26,10 @@ namespace IIGO.Data
         [Column, Required, MaxLength(64)]
         public string KeyHash { get; set; } = "";
 
+        // What the key may call, as parsed by ApiScopes: "*" for everything, or "websites:read apppools:write"
+        [Column, Required, MaxLength(1000)]
+        public string Scopes { get; set; } = "";
+
         [Column]
         public bool Enabled { get; set; } = true;
 

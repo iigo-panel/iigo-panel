@@ -8,6 +8,7 @@ namespace IIGO.Api
     /// <summary>
     /// IIS application pools: the same actions as the App Pools and application pool pages.
     /// </summary>
+    [ApiArea(ApiScopes.AppPools)]
     [Route("api/apppools")]
     public class AppPoolsController(ILogger<AppPoolsController> logger, IISService IISService) : ApiControllerBase(logger)
     {
@@ -94,13 +95,13 @@ namespace IIGO.Api
             }
         }
 
-        [HttpPost("{name}/start")]
+        [HttpPost("{name}/start"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult StartAppPool(string name) => ChangeState(name, "started", IISService.StartPool);
 
-        [HttpPost("{name}/stop")]
+        [HttpPost("{name}/stop"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult StopAppPool(string name) => ChangeState(name, "stopped", IISService.StopPool);
 
-        [HttpPost("{name}/recycle")]
+        [HttpPost("{name}/recycle"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult RecycleAppPool(string name) => ChangeState(name, "recycled", IISService.Recycle);
 
         private IActionResult ChangeState(string name, string done, Action<string> action)
