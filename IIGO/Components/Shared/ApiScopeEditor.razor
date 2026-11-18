@@ -1,0 +1,58 @@
+@using IIGO.Services
+
+@* Edits an ApiScopeSelection in place. IdPrefix keeps radio names and ids unique when the editor appears twice on a page. *@
+
+<fieldset>
+    <legend class="fs-6 fw-semibold mb-2">Permissions</legend>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="@($"{IdPrefix}-mode")" id="@($"{IdPrefix}-limited")"
+               checked="@(!Selection.FullAccess)" @onchange="() => Selection.FullAccess = false" />
+        <label class="form-check-label" for="@($"{IdPrefix}-limited")">Only the areas chosen below</label>
+    </div>
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="radio" name="@($"{IdPrefix}-mode")" id="@($"{IdPrefix}-full")"
+               checked="@Selection.FullAccess" @onchange="() => Selection.FullAccess = true" />
+        <label class="form-check-label" for="@($"{IdPrefix}-full")">
+            Full access
+            <small class="d-block text-body-secondary">Everything the API offers, including endpoints added later or by plugins. Treat the key like an administrator password.</small>
+        </label>
+    </div>
+
+    @if (!Selection.FullAccess)
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                    @foreach (var area in ApiScopes.Areas)
+                    {
+                        var selectId = $"{IdPrefix}-{area.Name}";
+                        <tr>
+                            <td>
+                                <label for="@selectId" class="fw-semibold">@area.Label</label>
+                                <small class="d-block text-body-secondary">@area.Description</small>
+                            </td>
+                            <td style="width: 15rem">
+                                <select class="form-select form-select-sm" id="@selectId"
+                                        value="@Selection.Access[area.Name].ToString()"
+                                        @onchange="e => Selection.Access[area.Name] = Enum.Parse<ApiAccess>((string)e.Value!)">
+                                    @foreach (var level in area.Levels)
+                                    {
+                                        <option value="@level">@area.LevelLabel(level)</option>
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApiScopeSelection Selection { get; set; } = new();
+
+    [Parameter]
+    public string IdPrefix { get; set; } = "scopes";
+}

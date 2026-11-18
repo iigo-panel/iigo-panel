@@ -12,6 +12,7 @@ namespace IIGO.Api
     /// Windows doesn't give rules a stable ID, so a rule is picked by name and, when several share a name,
     /// by direction too. A name that still matches more than one rule gets 409 Conflict.
     /// </remarks>
+    [ApiArea(ApiScopes.Firewall)]
     [Route("api/firewall/rules")]
     public class FirewallController(ILogger<FirewallController> logger, FirewallService firewallService) : ApiControllerBase(logger)
     {

@@ -13,6 +13,7 @@ namespace IIGO.Api
     /// "daily at 02:00" follows the server's clock. A time sent with an offset or Z is converted to the server's time.
     /// Last and next run times are UTC, like the rest of the API.
     /// </remarks>
+    [ApiArea(ApiScopes.ScheduledTasks)]
     [Route("api/tasks")]
     public class ScheduledTasksController(ILogger<ScheduledTasksController> logger, ScheduledTaskService taskService) : ApiControllerBase(logger)
     {
@@ -100,7 +101,7 @@ namespace IIGO.Api
         public IActionResult DeleteTask(string name) => Change(name, "deleted", taskService.Delete, returnTask: false);
 
         /// <summary>Starts the task now. A disabled task gets 409 Conflict.</summary>
-        [HttpPost("{name}/run")]
+        [HttpPost("{name}/run"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult RunTask(string name) => Change(name, "ran", task =>
         {
             if (!task.Enabled)
@@ -109,7 +110,7 @@ namespace IIGO.Api
         });
 
         /// <summary>Ends the running instances of the task.</summary>
-        [HttpPost("{name}/stop")]
+        [HttpPost("{name}/stop"), ApiAccessLevel(ApiAccess.Operate)]
         public IActionResult StopTask(string name) => Change(name, "stopped", taskService.Stop);
 
         [HttpPost("{name}/enable")]

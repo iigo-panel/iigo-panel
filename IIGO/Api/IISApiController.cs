@@ -10,6 +10,7 @@ namespace IIGO.Api
     /// <summary>
     /// Kept for existing callers. New code should use GET /api/websites, which returns the same list.
     /// </summary>
+    [ApiArea(ApiScopes.Websites)]
     [Route("api/[controller]")]
     public class IISApiController(ILogger<IISApiController> logger, IISService IISService) : ApiControllerBase(logger)
     {

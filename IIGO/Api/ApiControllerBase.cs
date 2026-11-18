@@ -30,6 +30,10 @@ namespace IIGO.Api
                 // IISWrapper's "Application /x not found" and "Binding ... not found"
                 case InvalidOperationException when ex.InnerException is null && ex.Message.EndsWith("not found", StringComparison.OrdinalIgnoreCase):
                     return Problem(statusCode: StatusCodes.Status404NotFound, detail: ex.Message);
+                // The panel's account can't change scheduled tasks; the message names the account
+                case IIGO.Services.TaskSchedulerAccessException:
+                    Logger.LogError(ex, "API error: {Action}", action);
+                    return Problem(statusCode: StatusCodes.Status500InternalServerError, detail: ex.Message);
                 case ArgumentException:
                 case FormatException:
                     return Problem(statusCode: StatusCodes.Status400BadRequest, detail: ex.Message);

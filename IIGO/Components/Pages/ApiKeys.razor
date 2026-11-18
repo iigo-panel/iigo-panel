@@ -15,7 +15,7 @@
 <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="3000" Placement="ToastsPlacement.TopRight" />
 <ConfirmDialog @ref="dialog" />
 
-<p class="text-body-secondary">Keys are sent in the <code>X-API-KEY</code> header. Only a hash of each key is stored, so a key can't be shown again after it's created.</p>
+<p class="text-body-secondary">Keys are sent in the <code>X-API-KEY</code> header. Only a hash of each key is stored, so a key can't be shown again after it's created. Give each key only what it needs. Read allows GET requests. Where an area offers it, a level such as "Read, start, stop &amp; recycle" allows those actions without creating, changing or deleting anything.</p>
 
 @if (isAdmin)
 {
@@ -49,12 +49,32 @@
                     </div>
                     <ValidationMessage For="() => NewKey.ExpiresOn" class="text-danger" />
                 </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Key</button>
-                </div>
             </div>
+            <div class="mt-3">
+                <ApiScopeEditor Selection="NewKey.Scopes" IdPrefix="new-key" />
+                <ValidationMessage For="() => NewKey.Scopes" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Key</button>
         </EditForm>
     </SectionCard>
+
+    <Modal @ref="scopesModal" Title="@($"Permissions for {editingKey?.Name}")" Size="ModalSize.Large">
+        <BodyTemplate>
+            @if (editingKey != null)
+            {
+                @if (scopesError != null)
+                {
+                    <div class="alert alert-danger">@scopesError</div>
+                }
+                <p class="text-body-secondary">Changes apply to the key's next request.</p>
+                <ApiScopeEditor Selection="editingScopes" IdPrefix="edit-key" />
+            }
+        </BodyTemplate>
+        <FooterTemplate>
+            <button type="button" class="btn btn-outline-secondary" @onclick="() => scopesModal.HideAsync()">Cancel</button>
+            <button type="button" class="btn btn-primary" @onclick="SaveScopes">Save</button>
+        </FooterTemplate>
+    </Modal>
 }
 
 @if (keys == null)
@@ -76,6 +96,7 @@ else
                     <tr>
                         <th>Name</th>
                         <th>Key</th>
+                        <th>Permissions</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th>Expires</th>
@@ -92,6 +113,16 @@ else
                         <tr>
                             <td class="fw-semibold">@key.Name</td>
                             <td class="font-monospace">@key.KeyPrefix…</td>
+                            <td>
+                                @if (ApiScopes.IsFullAccess(key.Scopes))
+                                {
+                                    <span class="badge text-bg-warning">Full access</span>
+                                }
+                                else
+                                {
+                                    <small>@ApiScopes.Describe(key.Scopes)</small>
+                                }
+                            </td>
                             <td><StatusBadge Status="@Status(key)" /></td>
                             <td>@key.CreatedAt.ToLocalTime().ToString("g")<br /><small class="text-body-secondary">@key.CreatedBy</small></td>
                             <td>@(key.ExpiresAt?.ToLocalTime().ToString("d") ?? "Never")</td>
@@ -100,6 +131,7 @@ else
                             {
                                 <td class="text-end">
                                     <div class="row-actions">
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditScopes(key)"><i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Permissions</button>
                                         @if (key.Enabled)
                                         {
                                             <button class="btn btn-sm btn-outline-warning" @onclick="() => SetEnabled(key, false)"><i class="bi bi-toggle-off me-1" aria-hidden="true"></i>Disable</button>
@@ -125,6 +157,10 @@ else
     private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     private ConfirmDialog dialog = default!;
+    private Modal scopesModal = default!;
+    ApiKey? editingKey;
+    ApiScopeSelection editingScopes = new();
+    string? scopesError;
     List<ApiKey>? keys;
     NewKeyModel NewKey = new();
     string? newKey;
@@ -147,8 +183,10 @@ else
 
         // The date picker gives a local date; the key works through the last moment of that day
         DateTime? expiresAt = NewKey.ExpiresOn?.Date.AddDays(1).AddTicks(-1).ToUniversalTime();
-        newKey = await apiKeyService.CreateKeyAsync(NewKey.Name.Trim(), expiresAt, userName);
-        logger.LogWarning("{Actor} created API key {KeyName} (expires {ExpiresAt})", userName, NewKey.Name.Trim(), expiresAt?.ToString("u") ?? "never");
+        var scopes = NewKey.Scopes.ToScopes();
+        newKey = await apiKeyService.CreateKeyAsync(NewKey.Name.Trim(), expiresAt, scopes, userName);
+        logger.LogWarning("{Actor} created API key {KeyName} (expires {ExpiresAt}) with permissions: {Scopes}",
+            userName, NewKey.Name.Trim(), expiresAt?.ToString("u") ?? "never", ApiScopes.Describe(scopes));
         ShowMessage($"{NewKey.Name.Trim()} created!", "Success", ToastType.Success);
         NewKey = new();
         keys = await apiKeyService.GetKeysAsync();
@@ -175,6 +213,39 @@ else
         await apiKeyService.SetEnabledAsync(key.Id, enabled);
         logger.LogWarning("{Actor} {Action} API key {KeyName}", userName, enabled ? "enabled" : "disabled", key.Name);
         ShowMessage($"{key.Name} {(enabled ? "enabled" : "disabled")}!", "Success", ToastType.Success);
+        keys = await apiKeyService.GetKeysAsync();
+    }
+
+    async Task EditScopes(ApiKey key)
+    {
+        if (!isAdmin)
+            return;
+
+        editingKey = key;
+        editingScopes = ApiScopeSelection.FromScopes(key.Scopes);
+        scopesError = null;
+        await scopesModal.ShowAsync();
+    }
+
+    async Task SaveScopes()
+    {
+        if (!isAdmin || editingKey == null)
+            return;
+
+        if (editingScopes.IsEmpty)
+        {
+            scopesError = "Choose at least one area, or full access. To stop the key working, disable it instead.";
+            return;
+        }
+
+        var before = ApiScopes.Describe(editingKey.Scopes);
+        var scopes = editingScopes.ToScopes();
+        await apiKeyService.SetScopesAsync(editingKey.Id, scopes);
+        logger.LogWarning("{Actor} changed the permissions of API key {KeyName} from {Before} to {After}",
+            userName, editingKey.Name, before, ApiScopes.Describe(scopes));
+        ShowMessage($"{editingKey.Name} permissions saved!", "Success", ToastType.Success);
+        await scopesModal.HideAsync();
+        editingKey = null;
         keys = await apiKeyService.GetKeysAsync();
     }
 
@@ -228,10 +299,14 @@ else
 
         public DateTime? ExpiresOn { get; set; }
 
+        public ApiScopeSelection Scopes { get; set; } = new();
+
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             if (ExpiresOn.HasValue && ExpiresOn.Value.Date < DateTime.Today)
                 yield return new ValidationResult("The expiry date can't be in the past.", [nameof(ExpiresOn)]);
+            if (Scopes.IsEmpty)
+                yield return new ValidationResult("Choose at least one area, or full access.", [nameof(Scopes)]);
         }
     }
 }

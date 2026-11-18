@@ -7,6 +7,7 @@ namespace IIGO.Api
     /// <summary>
     /// Windows services: view, start and restart. Stopping, adding, changing and deleting services are only on the Services page.
     /// </summary>
+    [ApiArea(ApiScopes.Services)]
     [Route("api/services")]
     public class ServicesController(ILogger<ServicesController> logger, WindowsServiceManager serviceManager) : ApiControllerBase(logger)
     {
@@ -42,7 +43,7 @@ namespace IIGO.Api
         }
 
         /// <summary>Starts the service and waits up to 30 seconds for it to be running. A running service is returned unchanged.</summary>
-        [HttpPost("{name}/start")]
+        [HttpPost("{name}/start"), ApiAccessLevel(ApiAccess.Operate)]
         public async Task<ActionResult<ServiceDto>> StartService(string name)
         {
             var service = serviceManager.GetService(name);
@@ -59,7 +60,7 @@ namespace IIGO.Api
         /// Stops the service and the services that depend on it, then starts it and the dependents that were running.
         /// The panel's own service can't be restarted here.
         /// </summary>
-        [HttpPost("{name}/restart")]
+        [HttpPost("{name}/restart"), ApiAccessLevel(ApiAccess.Operate)]
         public async Task<ActionResult<ServiceDto>> RestartService(string name)
         {
             var service = serviceManager.GetService(name);

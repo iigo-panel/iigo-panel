@@ -88,21 +88,27 @@ Pages are only available to users whose role has the matching feature, except th
 
 ## API
 
-Create a key on the API Keys page and send it in the `X-API-KEY` header. A key can do everything the API offers, so treat it like an administrator password. Each address can make 60 calls a minute. Errors come back as JSON problem details with a `detail` or `errors` message. Times are UTC, and enums are names such as `Started` or `Inbound`.
+Create a key on the API Keys page and send it in the `X-API-KEY` header. Each key is limited to the areas it's given, at one of these levels:
 
-| Area | Endpoints |
-| --- | --- |
-| Websites | `GET /api/websites`, `GET /api/websites/{id}`, `POST /api/websites`, `DELETE /api/websites/{id}`, `POST /api/websites/{id}/start` · `stop` · `restart`, `PUT /api/websites/{id}/path` |
-| Bindings | `POST` · `PUT /api/websites/{id}/bindings`, `DELETE /api/websites/{id}/bindings?protocol=&bindingInformation=`, `GET /api/websites/certificates` |
-| Applications | `POST /api/websites/{id}/applications`, `PUT` · `DELETE /api/websites/{id}/applications?path=/alias` |
-| App pools | `GET /api/apppools`, `GET /api/apppools/{name}`, `GET /api/apppools/{name}/applications`, `POST /api/apppools`, `DELETE /api/apppools/{name}`, `POST /api/apppools/{name}/start` · `stop` · `recycle` |
-| Firewall | `GET /api/firewall/rules?search=`, `POST /api/firewall/rules`, `PUT` · `DELETE /api/firewall/rules?name=&direction=` |
-| Scheduled tasks | `GET /api/tasks?search=`, `GET /api/tasks/{name}`, `POST /api/tasks`, `PUT` · `DELETE /api/tasks/{name}`, `POST /api/tasks/{name}/run` · `stop` · `enable` · `disable` |
-| Windows updates | `GET /api/updates`, `POST /api/updates/check` (starts a search; installing is only on the Check Updates page) |
-| Services | `GET /api/services?search=`, `GET /api/services/{name}`, `POST /api/services/{name}/start` · `restart` (stopping, adding, changing and deleting are only on the Services page) |
-| App Pool monitor | `GET /api/monitors/apppool`, `GET /api/monitors/apppool/events?days=30`, `GET` · `PUT /api/monitors/apppool/settings` |
-| HTTPS monitor | `GET /api/monitors/https`, `GET /api/monitors/https/events?days=30`, `GET` · `PUT /api/monitors/https/settings` |
-| IP restrictions | `GET` · `POST` · `DELETE /api/IPSecurityRules` |
+- `read` allows `GET` requests.
+- `operate` also allows starting, stopping, restarting and recycling websites and app pools, running and stopping scheduled tasks, starting and restarting services, and checking for Windows updates. It can't create, change or delete anything.
+- `write` allows every request in the area.
+
+Services and Windows updates go up to `operate`; firewall, IP restrictions and monitors have no `operate` level. A request outside the key's permissions gets 403 with a `detail` naming the access it needs, such as `websites:write`. Administrators can change a key's permissions at any time on the API Keys page. A full-access key can call everything, including endpoints added later or by plugins, so treat it like an administrator password. Keys created before permissions existed have full access. Each address can make 60 calls a minute. Errors come back as JSON problem details with a `detail` or `errors` message. Times are UTC, and enums are names such as `Started` or `Inbound`.
+
+| Area | Permission | Endpoints |
+| --- | --- | --- |
+| Websites | `websites` | `GET /api/websites`, `GET /api/websites/{id}`, `POST /api/websites`, `DELETE /api/websites/{id}`, `POST /api/websites/{id}/start` · `stop` · `restart`, `PUT /api/websites/{id}/path` |
+| Bindings | `websites` | `POST` · `PUT /api/websites/{id}/bindings`, `DELETE /api/websites/{id}/bindings?protocol=&bindingInformation=`, `GET /api/websites/certificates` |
+| Applications | `websites` | `POST /api/websites/{id}/applications`, `PUT` · `DELETE /api/websites/{id}/applications?path=/alias` |
+| App pools | `apppools` | `GET /api/apppools`, `GET /api/apppools/{name}`, `GET /api/apppools/{name}/applications`, `POST /api/apppools`, `DELETE /api/apppools/{name}`, `POST /api/apppools/{name}/start` · `stop` · `recycle` |
+| Firewall | `firewall` | `GET /api/firewall/rules?search=`, `POST /api/firewall/rules`, `PUT` · `DELETE /api/firewall/rules?name=&direction=` |
+| Scheduled tasks | `tasks` | `GET /api/tasks?search=`, `GET /api/tasks/{name}`, `POST /api/tasks`, `PUT` · `DELETE /api/tasks/{name}`, `POST /api/tasks/{name}/run` · `stop` · `enable` · `disable` |
+| Windows updates | `updates` | `GET /api/updates`, `POST /api/updates/check` (starts a search; installing is only on the Check Updates page) |
+| Services | `services` | `GET /api/services?search=`, `GET /api/services/{name}`, `POST /api/services/{name}/start` · `restart` (stopping, adding, changing and deleting are only on the Services page) |
+| App Pool monitor | `monitors` | `GET /api/monitors/apppool`, `GET /api/monitors/apppool/events?days=30`, `GET` · `PUT /api/monitors/apppool/settings` |
+| HTTPS monitor | `monitors` | `GET /api/monitors/https`, `GET /api/monitors/https/events?days=30`, `GET` · `PUT /api/monitors/https/settings` |
+| IP restrictions | `ipsecurity` | `GET` · `POST` · `DELETE /api/IPSecurityRules` |
 
 Notes:
 
@@ -110,4 +116,4 @@ Notes:
 - Firewall rules have no ID. A rule is picked by `name`, plus `direction` when several rules share a name. A name that still matches more than one rule returns 409.
 - Scheduled tasks are the ones in Task Scheduler's root folder, picked by name. `PUT` replaces the whole task, so send back what `GET` returned with your changes; a new `name` renames it. Tasks that run as a user with a stored password need `password` on every save. Trigger `start` and `expires` are the server's local time, since schedules follow its clock; a time sent with `Z` or an offset is converted. Tasks with `"editable": false` can only be run, stopped, enabled, disabled or deleted.
 - `PUT .../settings` changes only the settings you send, as `{"settings": {"Name": "value"}, "notificationServices": ["Email"]}`. Leave out `notificationServices` to keep them. `GET .../settings` lists the setting names and the notification services you can use.
-- `GET /api/IISApi/sites` still works for existing callers. It returns the same list as `GET /api/websites`.
+- `GET /api/IISApi/sites` still works for existing callers. It returns the same list as `GET /api/websites` and needs `websites` read access.
