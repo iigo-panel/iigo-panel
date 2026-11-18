@@ -10,22 +10,71 @@ namespace IIGO.Services
     /// <summary>
     /// Tasks in the root folder of Task Scheduler. Windows' own tasks live in subfolders and are left alone
     /// </summary>
-    public class ScheduledTaskService
+    public class ScheduledTaskService(ILogger<ScheduledTaskService> logger) : IDisposable
     {
-        private static TaskFolder Root => TaskService.Instance.RootFolder;
+        // A connection for each scope (a page's circuit or an API request), not the library's shared
+        // instance, which would stay open for as long as the service runs
+        private readonly TaskService taskService = new();
+
+        private TaskFolder Root => taskService.RootFolder;
+
+        public void Dispose() => taskService.Dispose();
+
+        /// <summary>True when the panel runs as LocalSystem, as the installed service does</summary>
+        public static bool RunsAsSystem { get; } = IsSystem();
+
+        private static bool IsSystem()
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return identity.IsSystem;
+        }
+
+        // Windows refuses these from SYSTEM whichever way they're registered. An administrator account can create them
+        public const string S4UFromSystemMessage =
+            "Windows doesn't let the panel create a task that runs as another user without a stored password, because the panel runs as SYSTEM. Store the user's password, run it only when the user is signed in, or create it in Task Scheduler.";
 
         public List<Task> GetTasks() => [.. Root.Tasks.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)];
 
         public Task? GetTask(string name) =>
             Root.Tasks.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
-        public void Run(Task task) => task.Run();
+        public void Run(Task task) => Guard(() => task.Run());
 
-        public void Stop(Task task) => task.Stop();
+        public void Stop(Task task) => Guard(task.Stop);
 
-        public void SetEnabled(Task task, bool enabled) => task.Enabled = enabled;
+        public void SetEnabled(Task task, bool enabled) => Guard(() => task.Enabled = enabled);
 
-        public void Delete(Task task) => Root.DeleteTask(task.Name);
+        public void Delete(Task task) => Guard(() => Root.DeleteTask(task.Name));
+
+        private const int AccessDenied = unchecked((int)0x80070005);
+
+        /// <summary>
+        /// Windows only says "Access is denied". Say which account the panel runs as, since that's usually the cause,
+        /// and include what else affects the call: thread impersonation, COM apartment and the connection's account
+        /// </summary>
+        private T Guard<T>(Func<T> change)
+        {
+            try
+            {
+                return change();
+            }
+            catch (Exception ex) when (ex.HResult == AccessDenied)
+            {
+                using var identity = WindowsIdentity.GetCurrent();
+                var isAdmin = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+                using var threadIdentity = WindowsIdentity.GetCurrent(ifImpersonating: true);
+                var details = $"process account {identity.Name}, administrator {isAdmin}; " +
+                    $"thread {(threadIdentity == null ? "not impersonating" : $"impersonating {threadIdentity.Name} ({threadIdentity.ImpersonationLevel})")}; " +
+                    $"apartment {Thread.CurrentThread.GetApartmentState()}; " +
+                    $"connection {(taskService.Connected ? "open" : "closed")} as {taskService.UserAccountDomain}\\{taskService.UserName}, Task Scheduler {taskService.HighestSupportedVersion}";
+                logger.LogError(ex, "Task Scheduler refused a change: {Details}", details);
+                throw new TaskSchedulerAccessException(isAdmin
+                    ? $"Task Scheduler refused the change (access denied). The panel runs as {identity.Name} with administrator rights, so the task's own permissions or security software may be blocking it. Details: {details}"
+                    : $"Task Scheduler refused the change (access denied). The panel runs as {identity.Name} without administrator rights. Run it as administrator, or as the IIGO Panel service, to create or change tasks.", ex);
+            }
+        }
+
+        private void Guard(System.Action change) => Guard(() => { change(); return true; });
 
         /// <summary>
         /// Why the form can't edit this task, or null when it can. The form covers the common triggers, program
@@ -59,10 +108,13 @@ namespace IIGO.Services
             if (existing != null && NotEditableReason(existing) is string reason)
                 throw new InvalidOperationException(reason);
 
+            if (model.RunAs == TaskRunAs.User && model.UserLogon == TaskUserLogon.S4U && RunsAsSystem)
+                throw new ArgumentException(S4UFromSystemMessage);
+
             TaskDefinition definition;
             if (existing == null)
             {
-                definition = TaskService.Instance.NewTask();
+                definition = taskService.NewTask();
                 definition.RegistrationInfo.Author = author;
                 // Servers have no battery, but the defaults would still skip runs on a UPS
                 definition.Settings.DisallowStartIfOnBatteries = false;
@@ -102,7 +154,7 @@ namespace IIGO.Services
             Task saved;
             try
             {
-                saved = Root.RegisterTaskDefinition(name, definition, TaskCreation.CreateOrUpdate, userId, password, logonType);
+                saved = Guard(() => Root.RegisterTaskDefinition(name, definition, TaskCreation.CreateOrUpdate, userId, password, logonType));
             }
             // Windows' messages for these name the problem but not the field
             catch (COMException ex) when ((uint)ex.HResult is 0x8007052E or 0x80070534)
@@ -111,8 +163,15 @@ namespace IIGO.Services
                     ? $"Run as: the user name or password for {userId} is wrong."
                     : $"Run as: no account named {userId} was found.", ex);
             }
+            // What was sent, so a refusal can be compared with a task Task Scheduler accepts. No password is in the XML
+            catch (TaskSchedulerAccessException)
+            {
+                logger.LogError("Task Scheduler refused task {Name}, run as {UserId} ({LogonType}). Task XML: {Xml}",
+                    name, userId, logonType, definition.XmlText);
+                throw;
+            }
             if (renamed)
-                Root.DeleteTask(existing!.Name, false);
+                Guard(() => Root.DeleteTask(existing!.Name, false));
             return saved;
         }
 
@@ -279,6 +338,9 @@ namespace IIGO.Services
         // Tasks that never ran report 30 Nov 1999 or DateTime.MinValue
         public static string RunTimeText(DateTime value, string none) => value.Year < 2000 ? none : value.ToString("g");
     }
+
+    /// <summary>Task Scheduler refused a change. The message says which account the panel runs as</summary>
+    public class TaskSchedulerAccessException(string message, Exception inner) : UnauthorizedAccessException(message, inner);
 
     public enum TaskTriggerKind { Once, Daily, Weekly, Monthly, AtStartup, AtLogon }
 

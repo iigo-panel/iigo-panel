@@ -245,7 +245,7 @@
                         <div class="form-floating">
                             <InputSelect class="form-select" @bind-Value="model.UserLogon" id="taskLogon">
                                 <option value="@TaskUserLogon.Password">Whether the user is signed in or not (store password)</option>
-                                <option value="@TaskUserLogon.S4U">Whether the user is signed in or not (no password, no network access)</option>
+                                <option value="@TaskUserLogon.S4U" disabled="@ScheduledTaskService.RunsAsSystem">Whether the user is signed in or not (no password, no network access)@(ScheduledTaskService.RunsAsSystem ? " – not available" : "")</option>
                                 <option value="@TaskUserLogon.InteractiveToken">Only when the user is signed in</option>
                             </InputSelect>
                             <label for="taskLogon">Run</label>
@@ -278,6 +278,10 @@
                         </div>
                     }
                 </div>
+                @if (model.UserLogon == TaskUserLogon.S4U && ScheduledTaskService.RunsAsSystem)
+                {
+                    <div class="alert alert-warning py-2 mt-2 mb-1">@ScheduledTaskService.S4UFromSystemMessage</div>
+                }
                 <div class="form-text mb-3">
                     Example: DOMAIN\user or .\user.
                     @if (model.UserLogon == TaskUserLogon.Password)
