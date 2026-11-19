@@ -81,15 +81,16 @@
                 var total = d.TotalSize;
                 var free = d.TotalFreeSpace;
                 var usedPercent = total > 0 ? (int)Math.Round((double)(total - free) / total * 100) : 0;
+                var freePercent = total > 0 ? (double)free / total * 100 : 0;
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
                         <span class="fw-semibold"><i class="bi bi-hdd me-1" aria-hidden="true"></i>@d.Name @volume</span>
-                        <span class="small text-body-secondary tabular-nums">@(((double)(total - free) / 1073741824).ToString("#,###.##")) GB used of @((total / 1073741824).ToString("#,###.##")) GB</span>
+                        <span class="small text-body-secondary tabular-nums">@FormatBytes(total - free) used of @FormatBytes(total)</span>
                     </div>
                     <div class="progress" role="progressbar" aria-label="@d.Name used space" aria-valuenow="@usedPercent" aria-valuemin="0" aria-valuemax="100">
                         <div class="progress-bar @(usedPercent >= 90 ? "bg-danger" : usedPercent >= 80 ? "bg-warning" : "")" style="width: @(usedPercent)%"></div>
                     </div>
-                    <div class="small text-body-secondary tabular-nums mt-1">@((free / 1073741824).ToString("#,###.##")) GB free (@(Convert.ToDecimal(((double)free / ((double)total)) * 100).ToString("###.##"))%)</div>
+                    <div class="small text-body-secondary tabular-nums mt-1">@FormatBytes(free) free (@freePercent.ToString("0.##")%)</div>
                 </div>
             }
         </SectionCard>
@@ -229,6 +230,21 @@
         }
 
         return size.ToString("N") + " MB";
+    }
+
+    // Picks the largest unit that keeps the value at 1 or more, so small volumes show MB and large ones show TB
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB", "PB"];
+        double value = bytes;
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return $"{value.ToString(unit == 0 ? "N0" : "#,##0.##")} {units[unit]}";
     }
 
     class InterfaceStats
