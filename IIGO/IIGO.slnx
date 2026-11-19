@@ -2,6 +2,7 @@
   <Project Path="../Microsoft.Web.Administration/Microsoft.Web.Administration.csproj" />
   <Project Path="../Microsoft.Web.Configuration.AppHostFileProvider/Microsoft.Web.Configuration.AppHostFileProvider.csproj" />
   <Project Path="IIGO.csproj" />
+  <Project Path="../IIGO.Config/IIGO.Config.csproj" />
   <!-- Publishing the panel for the MSI is slow, so the installer only builds in Release.
        WiX projects have no Any CPU platform, and the MSI is x64 only. -->
   <Project Path="../IIGO.Installer/IIGO.Installer.wixproj">

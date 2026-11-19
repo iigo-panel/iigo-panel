@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    IIGO Panel Configuration: sets the panel's Kestrel HTTPS endpoint and certificate in appsettings.json and
+    starts, stops or restarts the IIGOPanel service. It runs elevated (see app.manifest) because appsettings.json
+    is under Program Files and controlling a service needs administrator rights.
+
+    The installer publishes it as one self-contained file next to IIGO.exe. A single file keeps its runtime and
+    libraries (Newtonsoft.Json among them) out of the panel's folder, so they never replace the panel's own copies.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>IIGO.Config</AssemblyName>
+    <RootNamespace>IIGO.Config</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\IIGO\wwwroot\favicon.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Product>IIGO Panel</Product>
+    <AssemblyTitle>IIGO Panel Configuration</AssemblyTitle>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!-- Used when the installer publishes it -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="[10.0.15, 10.999.0)" />
+  </ItemGroup>
+
+</Project>

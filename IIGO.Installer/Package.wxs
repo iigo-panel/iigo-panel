@@ -38,11 +38,13 @@
         <Directory Id="PLUGINSFOLDER" Name="Plugins" />
       </Directory>
     </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
 
     <Feature Id="Panel" Title="IIGO Panel">
       <ComponentGroupRef Id="PanelFiles" />
       <ComponentRef Id="PanelService" />
       <ComponentRef Id="PanelSettings" />
+      <ComponentRef Id="ConfigTool" />
       <ComponentRef Id="DataFolder" />
       <ComponentRef Id="PluginsFolder" />
       <ComponentRef Id="InstallFolderRegistry" />
@@ -87,6 +89,21 @@
     </Component>
 
     <!--
+      IIGO.Config.exe sets the HTTPS endpoint and certificate in appsettings.json and restarts the service. It asks
+      for elevation itself. It looks for appsettings.json next to itself, so it goes in the panel's folder.
+    -->
+    <Component Id="ConfigTool" Directory="INSTALLFOLDER">
+      <File Id="ConfigExe" Source="$(var.ConfigPublishDir)IIGO.Config.exe" KeyPath="yes">
+        <Shortcut Id="ConfigStartMenuShortcut"
+                  Directory="ProgramMenuFolder"
+                  Name="IIGO Panel Configuration"
+                  Description="Set the IIGO Panel HTTPS endpoint and certificate, and restart the service."
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="no" />
+      </File>
+    </Component>
+
+    <!--
       The database and the key ring live in Data. The keys are protected for the machine, so any local account
       that can read them can decrypt stored secrets and forge sign-in cookies. Only SYSTEM and Administrators get access.
     -->
@@ -117,7 +134,21 @@
       <Custom Action="CreateEventLog" After="InstallFiles" Condition="NOT REMOVE~=&quot;ALL&quot;" />
     </InstallExecuteSequence>
 
-    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <!--
+      The last page offers to open the configuration program, since the panel needs an HTTPS endpoint before anyone
+      can sign in. It is ticked for new installs; upgrades keep their appsettings.json, so it starts unticked there.
+      ShellExecute shows the UAC prompt the program's manifest asks for. Silent installs show no pages and never run it.
+    -->
+    <UI>
+      <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchConfig"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Set the HTTPS endpoint and certificate now" />
+    <SetProperty Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" After="FindRelatedProducts" Sequence="ui" Condition="NOT WIX_UPGRADE_DETECTED" />
+    <Property Id="WixShellExecTarget" Value="[#ConfigExe]" />
+    <CustomAction Id="LaunchConfig" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
 
   </Package>

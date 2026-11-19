@@ -30,6 +30,7 @@ The solution has three projects:
 - **`IIGO/`** – Main Blazor Server app (services, pages, auth, data layer)
 - **`Microsoft.Web.Administration/`** – Bundled custom fork of the Microsoft.Web.Administration library used to interact with IIS
 - **`Microsoft.Web.Configuration.AppHostFileProvider/`** – Companion config provider for the above
+- **`IIGO.Config/`** – Windows Forms tool that sets the Kestrel HTTPS endpoint and certificate in `appsettings.json` and starts/stops/restarts the `IIGOPanel` service. Runs elevated; the installer publishes it as a single self-contained exe next to `IIGO.exe`.
 
 ### Key Subsystems
 
