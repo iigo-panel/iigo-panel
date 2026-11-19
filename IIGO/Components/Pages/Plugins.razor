@@ -1,0 +1,53 @@
+@page "/plugins"
+@inject IIGO.Plugins.PluginRegistry Registry
+@attribute [Authorize(Roles = "Administrator")]
+
+<PageTitle>Plugins</PageTitle>
+
+<PageHeader Title="Plugins" Subtitle="Loaded at startup. Restart the service after adding, updating or removing one." />
+
+@foreach (var message in Registry.Messages.Where(m => m.Level >= LogLevel.Warning))
+{
+    <div class="alert @(message.Level >= LogLevel.Error ? "alert-danger" : "alert-warning")">@message.Message</div>
+}
+
+@if (Registry.Plugins.Count == 0)
+{
+    <SectionCard>
+        <EmptyState Icon="bi-puzzle" Title="No plugins are loaded." />
+    </SectionCard>
+}
+else
+{
+    <SectionCard Flush="true">
+        <div class="table-responsive">
+            <table class="table align-middle iigo-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Version</th>
+                        <th>Licensing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var plugin in Registry.Plugins)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@plugin.Name</td>
+                            <td>@plugin.Version</td>
+                            <td>@Licensing(plugin.Plugin)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </SectionCard>
+}
+
+@code {
+    // The plugin's own note wins, so community plugins can describe their own licensing
+    static string Licensing(IIGO.Plugins.IIgoPlugin plugin) =>
+        !string.IsNullOrWhiteSpace(plugin.Licensing) ? plugin.Licensing
+        : !string.IsNullOrEmpty(plugin.RequiredEntitlement) ? $"IIGO license ({plugin.RequiredEntitlement})"
+        : "None required";
+}

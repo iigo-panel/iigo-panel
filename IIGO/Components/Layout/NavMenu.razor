@@ -107,6 +107,9 @@
                 </AuthorizeView>
                 @if (context.User.IsInRole("Administrator"))
                 {
+                    <NavLink class="nav-link" href="/plugins" title="Plugins">
+                        <i class="bi bi-puzzle" aria-hidden="true"></i><span class="nav-label">Plugins</span>
+                    </NavLink>
                     <NavLink class="nav-link" href="/license" title="License Status">
                         <i class="bi bi-patch-check" aria-hidden="true"></i><span class="nav-label">License Status</span>
                     </NavLink>

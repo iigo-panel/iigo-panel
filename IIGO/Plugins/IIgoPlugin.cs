@@ -24,6 +24,12 @@ namespace IIGO.Plugins
         string? RequiredEntitlement => null;
 
         /// <summary>
+        /// Short licensing note shown on the Plugins page, such as "MIT" or "Licensed to Contoso until 2027-01-01".
+        /// Use it when the plugin has its own licensing. When null, the page shows <see cref="RequiredEntitlement"/>, if any.
+        /// </summary>
+        string? Licensing => null;
+
+        /// <summary>
         /// Called before the app is built. Register services, hosted services, DbContexts and authentication schemes here.
         /// The panel's own services are already registered. Adding is supported; removing or replacing them is not.
         /// </summary>
