@@ -7,8 +7,8 @@
     <UserSecretsId>aspnet-IISControlPanel-1063272c-c230-4d70-8b85-43ec08d948b4</UserSecretsId>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>False</PublishAot>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
