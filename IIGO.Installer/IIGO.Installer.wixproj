@@ -2,7 +2,8 @@
 
   <!--
     Builds IIGO Panel.msi. The panel is published self-contained for win-x64 first, then every file in the
-    publish folder goes into the package. Build with:
+    publish folder goes into the package. The configuration program is published as one self-contained file
+    in its own folder, so its runtime and libraries never mix with the panel's. Build with:
       dotnet build IIGO.Installer\IIGO.Installer.wixproj -c Release
   -->
 
@@ -14,12 +15,17 @@
     <PanelProject>$(MSBuildThisFileDirectory)..\IIGO\IIGO.csproj</PanelProject>
     <PanelPublishDir>$(MSBuildThisFileDirectory)obj\publish\$(Configuration)\</PanelPublishDir>
     <PanelPublishProperties>Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishDir=$(PanelPublishDir)</PanelPublishProperties>
-    <DefineConstants>$(DefineConstants);PublishDir=$(PanelPublishDir)</DefineConstants>
+    <ConfigProject>$(MSBuildThisFileDirectory)..\IIGO.Config\IIGO.Config.csproj</ConfigProject>
+    <ConfigPublishDir>$(MSBuildThisFileDirectory)obj\publish-config\$(Configuration)\</ConfigPublishDir>
+    <ConfigPublishProperties>Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishSingleFile=true;PublishDir=$(ConfigPublishDir)</ConfigPublishProperties>
+    <DefineConstants>$(DefineConstants);PublishDir=$(PanelPublishDir);ConfigPublishDir=$(ConfigPublishDir)</DefineConstants>
     <!--
       ICE61 warns that AllowSameVersionUpgrades lets the same version replace itself. That is wanted: see MajorUpgrade in Package.wxs.
       ICE60 flags published DLLs whose version resource has no language. It does not affect installing or upgrading.
+      ICE43 and ICE57 treat the Start menu shortcut as per-user data. The package is per-machine, so the shortcut goes
+      in the all-users Start menu and the program file is the right key path.
     -->
-    <SuppressIces>ICE60;ICE61</SuppressIces>
+    <SuppressIces>ICE43;ICE57;ICE60;ICE61</SuppressIces>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,11 +33,13 @@
     <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
   </ItemGroup>
 
-  <!-- Publish the panel before the package is compiled. Restore runs on its own first so the win-x64 assets exist. -->
+  <!-- Publish the panel and the configuration program before the package is compiled. Restore runs on its own first so the win-x64 assets exist. -->
   <Target Name="PublishPanel" BeforeTargets="BeforeBuild">
-    <RemoveDir Directories="$(PanelPublishDir)" />
+    <RemoveDir Directories="$(PanelPublishDir);$(ConfigPublishDir)" />
     <MSBuild Projects="$(PanelProject)" Targets="Restore" Properties="$(PanelPublishProperties);_IIGOInstallerRestore=true" />
     <MSBuild Projects="$(PanelProject)" Targets="Publish" Properties="$(PanelPublishProperties)" />
+    <MSBuild Projects="$(ConfigProject)" Targets="Restore" Properties="$(ConfigPublishProperties);_IIGOInstallerRestore=true" />
+    <MSBuild Projects="$(ConfigProject)" Targets="Publish" Properties="$(ConfigPublishProperties)" />
   </Target>
 
 </Project>

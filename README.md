@@ -13,6 +13,8 @@ Windows Server 2012 may require installing Microsoft Visual C++ 2015-2022 Redist
 
 Run `IIGO Panel.msi` as an administrator. It installs the panel to `C:\Program Files\IIGO Panel` (you can pick another folder), registers the `IIGO` event log, and installs and starts the `IIGOPanel` Windows service. The service runs as LocalSystem, starts with Windows, and restarts itself if it stops unexpectedly.
 
+The last page of the installer offers to open IIGO Panel Configuration so you can set the HTTPS endpoint (see [HTTPS](#https)). The box is ticked for new installs and unticked for upgrades.
+
 To upgrade, run the newer `IIGO Panel.msi`. It stops the service, replaces the program files in the same folder, and starts the service again. These are kept:
 
 * The `Data` folder (database and encryption keys).
@@ -47,7 +49,13 @@ Password: IIGOAdmin#10
 
 ## HTTPS
 
-The panel is designed to be reachable from the Internet, so the sign-in cookie is only sent over HTTPS. Sign-in will not work over plain HTTP, and the service logs an error at startup if no HTTPS endpoint is configured. Add a Kestrel endpoint to `appsettings.json` with a certificate from the local machine store (or a `.pfx` file), for example on port 8443:
+The panel is designed to be reachable from the Internet, so the sign-in cookie is only sent over HTTPS. Sign-in will not work over plain HTTP, and the service logs an error at startup if no HTTPS endpoint is configured.
+
+The easiest way to set the endpoint is IIGO Panel Configuration (`IIGO.Config.exe` in the install folder, also on the Start menu). It asks for administrator rights. Pick the address and port, then a certificate from the local machine's Personal or Web Hosting store, or a `.pfx` file. **Save and restart service** writes `appsettings.json` (the previous copy is kept as `appsettings.json.bak`), restarts `IIGOPanel`, and checks that the panel answers on the new port. If the service stops instead, it shows the error from the `IIGO` event log. Settings it doesn't manage, and other Kestrel endpoints, are left as they were, but comments in the file are not kept.
+
+Kestrel finds store certificates by subject name and uses the one that expires last, so a renewed certificate with the same name is picked up on the next restart. Certificates that aren't trusted (self-signed, for example) need "Allow an invalid certificate". A `.pfx` password is stored in `appsettings.json` as plain text.
+
+To set it by hand, add a Kestrel endpoint to `appsettings.json` with a certificate from the local machine store (or a `.pfx` file), for example on port 8443:
 
 ```json
 "Kestrel": {
